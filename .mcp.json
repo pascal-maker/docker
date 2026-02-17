@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "pydantic-ai-docs": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/Users/thomas/Documents/personal/repos/pydantic-ai-docs-server",
+        "run",
+        "-m",
+        "pydantic_ai_docs_server"
+      ]
+    }
+  }
+}
