@@ -10,7 +10,7 @@ from document_structuring_agent.preprocessing.metadata import (
     load_ocr_document,
 )
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).parent / "fixtures" / "preprocessing"
 
 
 class TestHtmlParser:
@@ -128,3 +128,82 @@ class TestLegalScheduleFixture:
         # Table should be preserved
         tables = [e for e in elements if e.tag == "table"]
         assert len(tables) == 1
+
+
+class TestInvoiceFixture:
+    def test_load_invoice_document(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        assert doc.source_filename == "sample_invoice.html"
+        assert len(doc.element_metadata) == 25
+
+    def test_no_page_headers_filtered(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        elements = parse_ocr_html(doc.html, doc.element_metadata)
+        # No page headers — all 25 elements survive filtering
+        assert len(elements) == 25
+
+    def test_spans_two_pages(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        elements = parse_ocr_html(doc.html, doc.element_metadata)
+        pages = get_page_boundaries(elements)
+        assert len(pages) == 2
+        # idx 0–12 on page 1 (13 elements), idx 13–24 on page 2 (12 elements)
+        assert len(pages[1]) == 13
+        assert len(pages[2]) == 12
+
+    def test_title_is_h1(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        elements = parse_ocr_html(doc.html, doc.element_metadata)
+        assert elements[0].tag == "h1"
+        assert elements[0].text_content == "INVOICE"
+
+    def test_has_one_table(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        elements = parse_ocr_html(doc.html, doc.element_metadata)
+        tables = [e for e in elements if e.tag == "table"]
+        assert len(tables) == 1
+        assert "<th>" in tables[0].html
+        assert "TOTAL DUE" in tables[0].html
+
+    def test_page2_has_three_h2s(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        elements = parse_ocr_html(doc.html, doc.element_metadata)
+        pages = get_page_boundaries(elements)
+        page2_h2s = [e for e in pages[2] if e.tag == "h2"]
+        assert len(page2_h2s) == 3
+        headings = [e.text_content for e in page2_h2s]
+        assert "Payment Terms" in headings
+        assert "Bank Transfer Details" in headings
+        assert "Notes" in headings
+
+    def test_bold_and_italic_metadata(self):
+        doc = load_ocr_document(
+            FIXTURES / "sample_invoice.html",
+            FIXTURES / "sample_invoice_metadata.json",
+        )
+        elements = parse_ocr_html(doc.html, doc.element_metadata)
+        # INVOICE title should be bold
+        assert elements[0].metadata is not None
+        assert elements[0].metadata.is_bold is True
+        # "Thank you" footer should be italic
+        last = elements[-1]
+        assert last.metadata is not None
+        assert last.metadata.is_italic is True
