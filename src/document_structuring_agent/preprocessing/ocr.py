@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import html
-import logging
 from typing import TYPE_CHECKING
 
+from document_structuring_agent.logger import logger
 from document_structuring_agent.models.ocr_input import (
     ElementMetadata,
     ElementMetadataMap,
@@ -23,8 +23,6 @@ if TYPE_CHECKING:
         TableCell,
         TableItem,
     )
-
-logger = logging.getLogger(__name__)
 
 
 def pdf_to_ocr_document(pdf_path: Path) -> OcrDocument:
@@ -44,14 +42,20 @@ def pdf_to_ocr_document(pdf_path: Path) -> OcrDocument:
         msg = f"PDF file not found: {pdf_path}"
         raise FileNotFoundError(msg)
 
+    logger.info("event=ocr_start", extra={"pdf": pdf_path.name})
     doc = _convert_pdf(pdf_path)
     html_parts, metadata_map = _build_ocr_output(doc)
 
-    return OcrDocument(
+    ocr_result = OcrDocument(
         html="\n".join(html_parts),
         element_metadata=ElementMetadataMap(metadata_map),
         source_filename=pdf_path.name,
     )
+    logger.info(
+        "event=ocr_finish",
+        extra={"pdf": pdf_path.name, "elements": len(ocr_result.element_metadata.root)},
+    )
+    return ocr_result
 
 
 def _convert_pdf(pdf_path: Path) -> DoclingDocument:

@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pydantic_graph import BaseNode, End
+from pydantic_graph import BaseNode, End, GraphRunContext
 
 from document_structuring_agent.agents.classification import create_classification_agent
 from document_structuring_agent.agents.segmentation import create_segmentation_agent
+from document_structuring_agent.logger import logger
 from document_structuring_agent.models.classification import DocumentClassification
 from document_structuring_agent.models.document import StructuredDocument
 from document_structuring_agent.models.nodes import DocumentNode, NodeMetadata, NodeType
@@ -18,10 +19,6 @@ from document_structuring_agent.preprocessing.html_parser import parse_ocr_html
 if TYPE_CHECKING:
     from document_structuring_agent.models.ocr_input import ElementMetadata
     from document_structuring_agent.preprocessing.html_parser import ParsedElement
-
-from pydantic_graph import (  # noqa: TC001
-    GraphRunContext,
-)  # Required at runtime by pydantic_graph.BaseNode for method signature evaluation
 
 _SMALL_DOCUMENT_THRESHOLD = 50
 
@@ -47,6 +44,7 @@ class SegmentationNode(BaseNode[PipelineState, PipelineDeps, list[StructuredDocu
         self, ctx: GraphRunContext[PipelineState, PipelineDeps]
     ) -> ClassificationNode:
         """Segment the document using rules then optionally LLM refinement."""
+        logger.info("event=segmentation_start")
         segments = _rule_based_segmentation(ctx.state.parsed_elements)
 
         if (
@@ -56,9 +54,14 @@ class SegmentationNode(BaseNode[PipelineState, PipelineDeps, list[StructuredDocu
             # Small document, skip LLM segmentation
             ctx.state.segments = segments
             ctx.state.num_documents_detected = 1
+            logger.info(
+                "event=segmentation_finish",
+                extra={"segments": len(segments), "agent": False},
+            )
             return ClassificationNode()
 
         # Use LLM agent for refinement
+        logger.info("event=agent_start", extra={"agent": "segmentation"})
         agent = create_segmentation_agent()
         elements_summary = _build_elements_summary(ctx.state.parsed_elements)
         prompt = (
@@ -67,9 +70,14 @@ class SegmentationNode(BaseNode[PipelineState, PipelineDeps, list[StructuredDocu
         )
         result = await agent.run(prompt)
         segmentation = result.output
+        logger.info("event=agent_finish", extra={"agent": "segmentation"})
 
         ctx.state.segments = segmentation.segments
         ctx.state.num_documents_detected = segmentation.num_documents_detected
+        logger.info(
+            "event=segmentation_finish",
+            extra={"segments": len(segmentation.segments), "agent": True},
+        )
         return ClassificationNode()
 
 
@@ -83,13 +91,23 @@ class ClassificationNode(
         self, ctx: GraphRunContext[PipelineState, PipelineDeps]
     ) -> SpecializedParsingNode:
         """Classify each segment via the classification agent."""
+        logger.info(
+            "event=classification_start", extra={"segments": len(ctx.state.segments)}
+        )
+        logger.info("event=agent_start", extra={"agent": "classification"})
         agent = create_classification_agent()
 
-        for segment in ctx.state.segments:
+        for i, segment in enumerate(ctx.state.segments):
             preview = segment.html[:3000]
             result = await agent.run(f"Classify this document segment:\n\n{preview}")
             segment.classification = result.output.classification
+            logger.info(
+                "event=agent_classify",
+                extra={"segment": i + 1, "classification": segment.classification},
+            )
 
+        logger.info("event=agent_finish", extra={"agent": "classification"})
+        logger.info("event=classification_finish")
         return SpecializedParsingNode()
 
 
@@ -103,15 +121,20 @@ class SpecializedParsingNode(
         self, ctx: GraphRunContext[PipelineState, PipelineDeps]
     ) -> AssemblyNode:
         """Parse each segment using its classification-specific agent."""
+        logger.info("event=parsing_start", extra={"segments": len(ctx.state.segments)})
         registry = ctx.deps.parser_registry
         parsed_trees: list[DocumentNode] = []
 
-        for segment in ctx.state.segments:
+        for i, segment in enumerate(ctx.state.segments):
             classification = segment.classification
             if classification not in registry:
                 classification = DocumentClassification.UNKNOWN
             parser = registry[classification]
 
+            logger.info(
+                "event=agent_start",
+                extra={"agent": f"parser_{classification.value}", "segment": i + 1},
+            )
             metadata_summary = _build_metadata_summary(segment)
             result = await parser.run(
                 f"Parse this document segment into a structured tree.\n\n"
@@ -119,8 +142,13 @@ class SpecializedParsingNode(
                 f"Metadata:\n{metadata_summary}"
             )
             parsed_trees.append(result.output)
+            logger.info(
+                "event=agent_finish",
+                extra={"agent": f"parser_{classification.value}", "segment": i + 1},
+            )
 
         ctx.state.parsed_trees = parsed_trees
+        logger.info("event=parsing_finish")
         return AssemblyNode()
 
 
@@ -132,6 +160,7 @@ class AssemblyNode(BaseNode[PipelineState, PipelineDeps, list[StructuredDocument
         self, ctx: GraphRunContext[PipelineState, PipelineDeps]
     ) -> End[list[StructuredDocument]]:
         """Assemble parsed trees into final structured documents."""
+        logger.info("event=assembly_start")
         results: list[StructuredDocument] = []
 
         if ctx.state.num_documents_detected <= 1:
@@ -179,6 +208,7 @@ class AssemblyNode(BaseNode[PipelineState, PipelineDeps, list[StructuredDocument
                 results.append(_assemble_single(current_trees, current_segments, ctx))
 
         ctx.state.results = results
+        logger.info("event=assembly_finish", extra={"documents": len(results)})
         return End(results)
 
 

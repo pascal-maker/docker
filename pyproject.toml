@@ -146,6 +146,7 @@ ban-relative-imports = "all"
 "src/**/_compat.py" = [
     "PLC0415", "ANN", "F401",
 ]
+"src/**/pipeline/nodes.py" = ["TC002"]
 "api/**/*.py" = ["D", "ANN", "T20", "FBT"]
 
 # ---------------------------------------------------------------------------
