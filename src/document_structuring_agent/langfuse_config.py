@@ -3,6 +3,8 @@ from __future__ import annotations
 from langfuse import get_client
 from pydantic_ai import Agent
 
+from document_structuring_agent.models.prompt_config import PromptConfig
+
 
 def init_langfuse() -> None:
     """Initialize Langfuse tracing for all PydanticAI agents.
@@ -20,8 +22,8 @@ def get_prompt(name: str, **variables: str) -> str:
     return prompt.compile(**variables)
 
 
-def get_prompt_config(name: str) -> dict:
+def get_prompt_config(name: str) -> PromptConfig:
     """Fetch a prompt's config from Langfuse (model, temperature, etc.)."""
     langfuse = get_client()
     prompt = langfuse.get_prompt(name)
-    return prompt.config or {}
+    return PromptConfig.model_validate(prompt.config or {})

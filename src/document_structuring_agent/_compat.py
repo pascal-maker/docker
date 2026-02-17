@@ -16,10 +16,12 @@ from __future__ import annotations
 
 def patch_anthropic_user_location() -> None:
     try:
-        from anthropic.types.beta.beta_web_search_tool_20250305_param import UserLocation  # noqa: F401
+        from anthropic.types.beta.beta_web_search_tool_20250305_param import (
+            UserLocation,
+        )
     except ImportError:
-        from anthropic.types.beta.beta_user_location_param import BetaUserLocationParam
         import anthropic.types.beta.beta_web_search_tool_20250305_param as mod
+        from anthropic.types.beta.beta_user_location_param import BetaUserLocationParam
 
         mod.UserLocation = BetaUserLocationParam  # type: ignore[attr-defined]
 
@@ -41,15 +43,16 @@ def patch_check_object_json_schema() -> None:
     def _patched(schema):  # type: ignore[no-untyped-def]
         result = _original(schema)
         # If the result still has a bare $ref at the root (no "type"), inline it.
-        if result.get('type') != 'object' and (ref := result.get('$ref')):
-            prefix = '#/$defs/'
+        if result.get("type") != "object" and (ref := result.get("$ref")):
+            prefix = "#/$defs/"
             if ref.startswith(prefix):
-                def_name = ref[len(prefix):]
-                defs = result.get('$defs', {})
-                if (resolved := defs.get(def_name)) and resolved.get('type') == 'object':
+                def_name = ref[len(prefix) :]
+                defs = result.get("$defs", {})
+                if (resolved := defs.get(def_name)) and resolved.get(
+                    "type"
+                ) == "object":
                     # Merge the resolved definition into the root, keeping $defs
-                    merged = {**resolved, '$defs': defs}
-                    return merged
+                    return {**resolved, "$defs": defs}
         return result
 
     utils.check_object_json_schema = _patched  # type: ignore[assignment]

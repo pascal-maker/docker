@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from html.parser import HTMLParser
-from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from document_structuring_agent.models.ocr_input import ElementMetadata
+from pydantic import RootModel
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from document_structuring_agent.models.ocr_input import (
+        ElementMetadata,
+        ElementMetadataMap,
+    )
 
 
 @dataclass
@@ -18,7 +27,7 @@ class ParsedElement:
 
 
 class _OcrHtmlParser(HTMLParser):
-    """Streaming HTML parser that extracts top-level elements with data-idx attributes."""
+    """Streaming parser for top-level OCR HTML elements."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -83,7 +92,7 @@ class _OcrHtmlParser(HTMLParser):
 
 def parse_ocr_html(
     html: str,
-    element_metadata: dict[int, ElementMetadata],
+    element_metadata: ElementMetadataMap,
 ) -> list[ParsedElement]:
     """Parse OCR HTML and attach metadata, filtering out page headers."""
     parser = _OcrHtmlParser()
@@ -101,13 +110,29 @@ def parse_ocr_html(
     return result
 
 
+class PageBoundaryMap(RootModel[dict[int, list[ParsedElement]]]):
+    """Map of page number to elements on that page."""
+
+    def __getitem__(self, key: int) -> list[ParsedElement]:
+        return self.root[key]
+
+    def __contains__(self, key: object) -> bool:
+        return key in self.root
+
+    def __iter__(self) -> Iterator[int]:  # type: ignore[override]
+        return iter(self.root)
+
+    def __len__(self) -> int:
+        return len(self.root)
+
+
 def get_page_boundaries(
     elements: list[ParsedElement],
-) -> dict[int, list[ParsedElement]]:
+) -> PageBoundaryMap:
     """Group parsed elements by page number."""
     pages: dict[int, list[ParsedElement]] = {}
     for elem in elements:
         if elem.metadata is not None:
             page = elem.metadata.page_number
             pages.setdefault(page, []).append(elem)
-    return pages
+    return PageBoundaryMap(pages)

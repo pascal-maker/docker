@@ -8,8 +8,9 @@ from document_structuring_agent.models.classification import ClassificationResul
 
 
 def create_classification_agent() -> Agent[None, ClassificationResult]:
+    """Create an LLM agent for classifying document segments."""
     config = get_prompt_config("classification-agent")
-    model = config.get("model", DEFAULT_MODEL)
+    model = config.model or DEFAULT_MODEL
     instructions = get_prompt("classification-agent")
 
     return Agent(

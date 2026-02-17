@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from pydantic_ai import Agent
-
-from document_structuring_agent.models.classification import DocumentClassification
-from document_structuring_agent.models.document import StructuredDocument
-from document_structuring_agent.models.nodes import DocumentNode
-from document_structuring_agent.models.ocr_input import OcrDocument
-from document_structuring_agent.models.segmentation import DocumentSegment
-from document_structuring_agent.preprocessing.html_parser import ParsedElement
+if TYPE_CHECKING:
+    from document_structuring_agent.models.document import StructuredDocument
+    from document_structuring_agent.models.nodes import DocumentNode
+    from document_structuring_agent.models.ocr_input import OcrDocument
+    from document_structuring_agent.models.registry import ParserRegistry
+    from document_structuring_agent.models.segmentation import DocumentSegment
+    from document_structuring_agent.preprocessing.html_parser import ParsedElement
 
 
 @dataclass
@@ -28,4 +28,4 @@ class PipelineState:
 class PipelineDeps:
     """Dependencies injected into pipeline graph nodes."""
 
-    parser_registry: dict[DocumentClassification, Agent[None, DocumentNode]]
+    parser_registry: ParserRegistry

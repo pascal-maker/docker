@@ -8,8 +8,9 @@ from document_structuring_agent.models.nodes import DocumentNode
 
 
 def create_legal_schedule_parser_agent() -> Agent[None, DocumentNode]:
+    """Create a specialized parser agent for legal schedules."""
     config = get_prompt_config("parser-legal-schedule")
-    model = config.get("model", DEFAULT_MODEL)
+    model = config.model or DEFAULT_MODEL
     instructions = get_prompt("parser-legal-schedule")
 
     return Agent(

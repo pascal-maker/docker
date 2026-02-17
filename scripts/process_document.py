@@ -11,17 +11,14 @@ import json
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from langfuse import get_client
-
 from document_structuring_agent.pipeline.graph import process_document
 from document_structuring_agent.preprocessing.metadata import load_ocr_document
 
 
 async def main(html_path: Path, metadata_path: Path) -> None:
+    """Process a single document and print the structured output as JSON."""
+    from langfuse import get_client
+
     ocr_doc = load_ocr_document(html_path, metadata_path)
     results = await process_document(ocr_doc)
 
@@ -34,6 +31,10 @@ async def main(html_path: Path, metadata_path: Path) -> None:
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <html_file> <metadata_json>", file=sys.stderr)
         sys.exit(1)

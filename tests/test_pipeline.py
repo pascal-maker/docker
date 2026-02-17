@@ -1,7 +1,6 @@
 """Pipeline tests using PydanticAI's TestModel for deterministic testing."""
 
 import pytest
-
 from pydantic_ai import Agent
 
 from document_structuring_agent.models.classification import (
@@ -80,11 +79,13 @@ class TestAgentsWithTestModel:
         from pydantic_ai.models.test import TestModel
 
         agent = Agent(
-            TestModel(custom_output_args={
-                "segments": [],
-                "num_documents_detected": 1,
-                "rationale": "test",
-            }),
+            TestModel(
+                custom_output_args={
+                    "segments": [],
+                    "num_documents_detected": 1,
+                    "rationale": "test",
+                }
+            ),
             output_type=SegmentationResult,
             instructions="Segment the document.",
         )

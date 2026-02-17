@@ -8,37 +8,45 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from langfuse import get_client
-
+from document_structuring_agent.models.prompt_config import PromptConfig
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
-PROMPT_CONFIGS: dict[str, dict] = {
-    "segmentation-agent": {"model": "anthropic:claude-sonnet-4-6", "temperature": 0},
-    "classification-agent": {"model": "anthropic:claude-sonnet-4-6", "temperature": 0},
-    "parser-generic": {"model": "anthropic:claude-sonnet-4-6", "temperature": 0},
-    "parser-letter": {"model": "anthropic:claude-sonnet-4-6", "temperature": 0},
-    "parser-legal-schedule": {"model": "anthropic:claude-sonnet-4-6", "temperature": 0},
+PROMPT_CONFIGS: dict[str, PromptConfig] = {
+    "segmentation-agent": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0
+    ),
+    "classification-agent": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0
+    ),
+    "parser-generic": PromptConfig(model="anthropic:claude-sonnet-4-6", temperature=0),
+    "parser-letter": PromptConfig(model="anthropic:claude-sonnet-4-6", temperature=0),
+    "parser-legal-schedule": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0
+    ),
 }
 
 
 def seed() -> None:
+    """Seed all prompt templates from the prompts/ directory into Langfuse."""
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    from langfuse import get_client
+
     langfuse = get_client()
 
     for txt_file in sorted(PROMPTS_DIR.glob("*.txt")):
         name = txt_file.stem
         prompt_text = txt_file.read_text().strip()
-        config = PROMPT_CONFIGS.get(name, {})
+        config = PROMPT_CONFIGS.get(name, PromptConfig())
 
         langfuse.create_prompt(
             name=name,
             type="text",
             prompt=prompt_text,
-            config=config,
+            config=config.model_dump(exclude_none=True),
             labels=["production"],
         )
         print(f"  Seeded prompt: {name}")

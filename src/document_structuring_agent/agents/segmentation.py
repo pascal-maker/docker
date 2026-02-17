@@ -8,8 +8,9 @@ from document_structuring_agent.models.segmentation import SegmentationResult
 
 
 def create_segmentation_agent() -> Agent[None, SegmentationResult]:
+    """Create an LLM agent for document segmentation."""
     config = get_prompt_config("segmentation-agent")
-    model = config.get("model", DEFAULT_MODEL)
+    model = config.model or DEFAULT_MODEL
     instructions = get_prompt("segmentation-agent")
 
     return Agent(

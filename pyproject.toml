@@ -19,8 +19,160 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "ruff",
+    "mypy",
 ]
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
+
+# ---------------------------------------------------------------------------
+# Ruff – linting & formatting
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "F",      # pyflakes
+    "E", "W", # pycodestyle
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "ANN",    # flake8-annotations
+    "ASYNC",  # flake8-async
+    "S",      # bandit (security)
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EM",     # flake8-errmsg
+    "FBT",    # flake8-boolean-trap
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "INP",    # flake8-no-pep420
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "TC",     # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "FIX",    # flake8-fixme
+    "ERA",    # eradicate
+    "PGH",    # pygrep-hooks
+    "PL",     # pylint (PLC, PLE, PLR, PLW)
+    "TRY",    # tryceratops
+    "FLY",    # flynt
+    "PERF",   # perflint
+    "FURB",   # refurb
+    "LOG",    # flake8-logging
+    "RUF",    # ruff-specific
+    "C90",    # mccabe complexity
+    "D",      # pydocstyle
+]
+ignore = [
+    "D100",   # missing module docstring
+    "D104",   # missing package docstring
+    "D105",   # missing magic method docstring
+    "D106",   # missing nested class docstring
+    "D107",   # missing __init__ docstring
+    "D203",   # conflicts with D211
+    "D213",   # conflicts with D212
+"COM812", # conflicts with formatter
+    "ISC001", # conflicts with formatter
+    "TRY003", # long exception messages (too noisy)
+    "EM101",  # string literal in exception
+    "EM102",  # f-string in exception
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-branches = 10
+max-returns = 5
+max-statements = 40
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["document_structuring_agent"]
+combine-as-imports = true
+
+[tool.ruff.lint.flake8-type-checking]
+strict = true
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "pydantic_graph.BaseNode",
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101", "PLR2004", "ARG", "D", "ANN",
+    "SLF001", "FBT", "PT006", "S106", "PLC0415",
+]
+"scripts/**/*.py" = [
+    "T20", "INP001", "D", "PLC0415", "PLR2004",
+]
+"src/**/html_parser.py" = ["SLF001"]
+"src/**/_compat.py" = [
+    "PLC0415", "ANN", "F401",
+]
+
+# ---------------------------------------------------------------------------
+# Mypy – static type checking
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unreachable = true
+extra_checks = true
+enable_error_code = [
+    "ignore-without-code",
+    "redundant-cast",
+    "truthy-bool",
+    "truthy-iterable",
+    "unused-awaitable",
+]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[[tool.mypy.overrides]]
+module = ["langfuse.*", "pydantic_graph.*", "pydantic_ai.*", "dotenv.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+strict_markers = true
+filterwarnings = ["error"]

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class DocumentClassification(str, Enum):
+class DocumentClassification(StrEnum):
+    """Supported document classification types."""
+
     LETTER = "letter"
     RECEIPT = "receipt"
     INVOICE = "invoice"
@@ -17,6 +19,8 @@ class DocumentClassification(str, Enum):
 
 
 class ClassificationResult(BaseModel):
+    """LLM output for document classification with confidence and rationale."""
+
     classification: DocumentClassification
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str

@@ -1,15 +1,24 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from document_structuring_agent.models.ocr_input import ElementMetadata, OcrDocument
+from document_structuring_agent.models.ocr_input import (
+    ElementMetadata,
+    ElementMetadataMap,
+    OcrDocument,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
-def load_metadata(path: Path) -> dict[int, ElementMetadata]:
+def load_metadata(path: Path) -> ElementMetadataMap:
     """Load per-element metadata from a JSON file keyed by data-idx."""
     raw = json.loads(path.read_text())
-    return {int(k): ElementMetadata.model_validate(v) for k, v in raw.items()}
+    return ElementMetadataMap(
+        {int(k): ElementMetadata.model_validate(v) for k, v in raw.items()}
+    )
 
 
 def load_ocr_document(html_path: Path, metadata_path: Path) -> OcrDocument:

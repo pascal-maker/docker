@@ -75,16 +75,15 @@ class TestOcrInputModels:
 
     def test_element_metadata_validation(self):
         import pytest
+        from pydantic import ValidationError
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ElementMetadata(page_number=1, confidence=1.5)
 
     def test_ocr_document(self):
         doc = OcrDocument(
             html="<p data-idx='0'>Hello</p>",
-            element_metadata={
-                0: ElementMetadata(page_number=1, confidence=0.9)
-            },
+            element_metadata={0: ElementMetadata(page_number=1, confidence=0.9)},
         )
         assert doc.source_filename is None
         assert 0 in doc.element_metadata

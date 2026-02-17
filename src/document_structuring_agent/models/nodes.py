@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class NodeType(str, Enum):
+class NodeType(StrEnum):
+    """Semantic type of a node in the document tree."""
+
     DOCUMENT = "document"
     SEGMENT = "segment"
     CHAPTER = "chapter"
@@ -25,6 +27,8 @@ class NodeType(str, Enum):
 
 
 class NodeMetadata(BaseModel):
+    """Position and confidence metadata for a document tree node."""
+
     page_start: int | None = None
     page_end: int | None = None
     confidence: float | None = None
@@ -34,6 +38,8 @@ class NodeMetadata(BaseModel):
 
 
 class DocumentNode(BaseModel):
+    """A node in the hierarchical document tree structure."""
+
     node_type: NodeType
     title: str | None = None
     content: str | None = None

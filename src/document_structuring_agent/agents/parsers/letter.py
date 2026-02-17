@@ -8,8 +8,9 @@ from document_structuring_agent.models.nodes import DocumentNode
 
 
 def create_letter_parser_agent() -> Agent[None, DocumentNode]:
+    """Create a specialized parser agent for letter documents."""
     config = get_prompt_config("parser-letter")
-    model = config.get("model", DEFAULT_MODEL)
+    model = config.model or DEFAULT_MODEL
     instructions = get_prompt("parser-letter")
 
     return Agent(

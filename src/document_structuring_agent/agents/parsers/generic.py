@@ -8,8 +8,9 @@ from document_structuring_agent.models.nodes import DocumentNode
 
 
 def create_generic_parser_agent() -> Agent[None, DocumentNode]:
+    """Create a generic parser agent for unspecialized document types."""
     config = get_prompt_config("parser-generic")
-    model = config.get("model", DEFAULT_MODEL)
+    model = config.model or DEFAULT_MODEL
     instructions = get_prompt("parser-generic")
 
     return Agent(
