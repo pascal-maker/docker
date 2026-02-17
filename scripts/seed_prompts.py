@@ -24,6 +24,7 @@ PROMPT_CONFIGS: dict[str, PromptConfig] = {
     "parser-legal-schedule": PromptConfig(
         model="anthropic:claude-sonnet-4-6", temperature=0
     ),
+    "parser-invoice": PromptConfig(model="anthropic:claude-sonnet-4-6", temperature=0),
 }
 
 
