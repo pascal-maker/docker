@@ -782,6 +782,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "types-fpdf2" },
 ]
 
 [package.metadata]
@@ -804,6 +805,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "types-fpdf2" },
 ]
 
 [[package]]
@@ -4574,6 +4576,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f2/1e/a27cc02a0cd715118c71fa2aef2c687fdefc3c28d90fd0dd789c5118154c/typer-0.21.2.tar.gz", hash = "sha256:1abd95a3b675e17ff61b0838ac637fe9478d446d62ad17fa4bb81ea57cc54028", size = 120426, upload-time = "2026-02-10T19:33:46.182Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b8/cc/d59f893fbdfb5f58770c05febfc4086a46875f1084453621c35605cec946/typer-0.21.2-py3-none-any.whl", hash = "sha256:c3d8de54d00347ef90b82131ca946274f017cffb46683ae3883c360fa958f55c", size = 56728, upload-time = "2026-02-10T19:33:48.01Z" },
+]
+
+[[package]]
+name = "types-fpdf2"
+version = "2.8.4.20260130"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/4b/6a2ae17bcee1551071fbd58f2897d5695d97d9a98e5235857ba755c05882/types_fpdf2-2.8.4.20260130.tar.gz", hash = "sha256:c635cbbb013e6c09edcc208c75df2784ca7c2c5971fef76eacd609afa2fe6cd5", size = 41404, upload-time = "2026-01-30T03:58:26.099Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/05/2ee01aff9b6bf1fad7d8a5cddb8c0808d84a2337ffb4804f122a2417c99f/types_fpdf2-2.8.4.20260130-py3-none-any.whl", hash = "sha256:6f77c426558f8c5e0231188367b87270249deb2bb3493d8ed458d7cd2de659dd", size = 48293, upload-time = "2026-01-30T03:58:24.725Z" },
 ]
 
 [[package]]

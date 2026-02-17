@@ -8,6 +8,29 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fpdf import FPDF
+
+
+def _add_definition_table(pdf: FPDF) -> None:
+    """Add the Article I definitions table to the PDF."""
+    col_w = [50, 130]
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(col_w[0], 8, "Term", border=1)
+    pdf.cell(col_w[1], 8, "Definition", border=1, new_x="LMARGIN", new_y="NEXT")
+
+    rows = [
+        ("Borrower", "XYZ Corporation, a Delaware corporation"),
+        ("Commitment", "The aggregate amount of $50,000,000"),
+        ("Maturity Date", "January 1, 2029"),
+        ("Interest Rate", "Base Rate plus 2.00% per annum"),
+    ]
+    pdf.set_font("Helvetica", "", 11)
+    for term, definition in rows:
+        pdf.cell(col_w[0], 8, term, border=1)
+        pdf.cell(col_w[1], 8, definition, border=1, new_x="LMARGIN", new_y="NEXT")
 
 
 def main(output_path: Path) -> None:
@@ -52,28 +75,12 @@ def main(output_path: Path) -> None:
     pdf.ln(4)
 
     # Table
-    pdf.set_font("Helvetica", "B", 11)
-    col_w = [50, 130]
-    pdf.cell(col_w[0], 8, "Term", border=1)
-    pdf.cell(col_w[1], 8, "Definition", border=1, new_x="LMARGIN", new_y="NEXT")
-
-    rows = [
-        ("Borrower", "XYZ Corporation, a Delaware corporation"),
-        ("Commitment", "The aggregate amount of $50,000,000"),
-        ("Maturity Date", "January 1, 2029"),
-        ("Interest Rate", "Base Rate plus 2.00% per annum"),
-    ]
-    pdf.set_font("Helvetica", "", 11)
-    for term, definition in rows:
-        pdf.cell(col_w[0], 8, term, border=1)
-        pdf.cell(col_w[1], 8, definition, border=1, new_x="LMARGIN", new_y="NEXT")
+    _add_definition_table(pdf)
     pdf.ln(6)
 
     # Another section
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(
-        0, 10, "Article II - Representations", new_x="LMARGIN", new_y="NEXT"
-    )
+    pdf.cell(0, 10, "Article II - Representations", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
 
     pdf.set_font("Helvetica", "", 11)

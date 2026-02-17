@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pydantic_graph import BaseNode, End, GraphRunContext
+from pydantic_graph import BaseNode, End
 
 from document_structuring_agent.agents.classification import create_classification_agent
 from document_structuring_agent.agents.segmentation import create_segmentation_agent
@@ -16,6 +16,8 @@ from document_structuring_agent.pipeline.state import PipelineDeps, PipelineStat
 from document_structuring_agent.preprocessing.html_parser import parse_ocr_html
 
 if TYPE_CHECKING:
+    from pydantic_graph import GraphRunContext
+
     from document_structuring_agent.models.ocr_input import ElementMetadata
     from document_structuring_agent.preprocessing.html_parser import ParsedElement
 

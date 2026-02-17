@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from document_structuring_agent.models.classification import DocumentClassification
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from pydantic_ai import Agent
 
+    from document_structuring_agent.models.classification import DocumentClassification
     from document_structuring_agent.models.nodes import DocumentNode
 
 
@@ -20,9 +19,7 @@ class ParserRegistry:
     ) -> None:
         self._data = data
 
-    def __getitem__(
-        self, key: DocumentClassification
-    ) -> Agent[None, DocumentNode]:
+    def __getitem__(self, key: DocumentClassification) -> Agent[None, DocumentNode]:
         return self._data[key]
 
     def __contains__(self, key: object) -> bool:

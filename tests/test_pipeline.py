@@ -19,7 +19,7 @@ class TestRuleBasedSegmentation:
         html = '<p data-idx="0">Content</p>'
         metadata = {0: ElementMetadata(page_number=1, confidence=0.9)}
         elements = parse_ocr_html(html, metadata)
-        segments = _rule_based_segmentation(elements, metadata)
+        segments = _rule_based_segmentation(elements)
         assert len(segments) == 1
         assert segments[0].label == "Content"
 
@@ -37,13 +37,13 @@ class TestRuleBasedSegmentation:
             3: ElementMetadata(page_number=2, confidence=0.9),
         }
         elements = parse_ocr_html(html, metadata)
-        segments = _rule_based_segmentation(elements, metadata)
+        segments = _rule_based_segmentation(elements)
         assert len(segments) == 2
         assert segments[0].page_start == 1
         assert segments[1].page_start == 2
 
     def test_empty_input(self):
-        segments = _rule_based_segmentation([], {})
+        segments = _rule_based_segmentation([])
         assert segments == []
 
 

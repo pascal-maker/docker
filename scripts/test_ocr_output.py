@@ -63,7 +63,7 @@ def main(pdf_path: Path) -> None:
 
     # Also dump as JSON for full inspection
     out_path = pdf_path.with_suffix(".ocr_output.json")
-    with open(out_path, "w") as f:
+    with out_path.open("w") as f:
         json.dump(doc.model_dump(mode="json"), f, indent=2)
     print(f"\n  Full JSON written to: {out_path}")
 

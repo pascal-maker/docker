@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING
 
 from pydantic import RootModel
 
+from document_structuring_agent.models.ocr_input import (
+    ElementMetadata,  # noqa: TC001 — needed at runtime for PageBoundaryMap (Pydantic RootModel) to resolve ParsedElement.metadata
+)
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from document_structuring_agent.models.ocr_input import (
-        ElementMetadata,
-        ElementMetadataMap,
-    )
+    from document_structuring_agent.models.ocr_input import ElementMetadataMap
 
 
 @dataclass
