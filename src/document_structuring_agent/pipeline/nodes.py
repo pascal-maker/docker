@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pydantic_graph import BaseNode, End
+from pydantic_graph import BaseNode, End, GraphRunContext
 
 from document_structuring_agent.agents.classification import create_classification_agent
 from document_structuring_agent.agents.segmentation import create_segmentation_agent
@@ -16,8 +16,6 @@ from document_structuring_agent.pipeline.state import PipelineDeps, PipelineStat
 from document_structuring_agent.preprocessing.html_parser import parse_ocr_html
 
 if TYPE_CHECKING:
-    from pydantic_graph import GraphRunContext
-
     from document_structuring_agent.models.ocr_input import ElementMetadata
     from document_structuring_agent.preprocessing.html_parser import ParsedElement
 
@@ -105,10 +103,10 @@ class SpecializedParsingNode(
         parsed_trees: list[DocumentNode] = []
 
         for segment in ctx.state.segments:
-            parser = registry.get(
-                segment.classification,
-                registry[DocumentClassification.UNKNOWN],
-            )
+            classification = segment.classification
+            if classification not in registry:
+                classification = DocumentClassification.UNKNOWN
+            parser = registry[classification]
 
             metadata_summary = _build_metadata_summary(segment)
             result = await parser.run(

@@ -39,7 +39,7 @@ async def process_document(ocr_document: OcrDocument) -> list[StructuredDocument
     get_client()
     with propagate_attributes(
         tags=["document-structuring"],
-        metadata={"source_filename": ocr_document.source_filename},
+        metadata={"source_filename": ocr_document.source_filename or ""},
     ):
         state = PipelineState(ocr_document=ocr_document)
         deps = PipelineDeps(parser_registry=build_parser_registry())

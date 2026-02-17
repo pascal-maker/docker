@@ -1,0 +1,150 @@
+{
+  "html": "<h2 data-idx=\"0\">Sample Credit Agreement</h2>\n<p data-idx=\"1\">This  Credit  Agreement  is  entered  into  as  of  January  1,  2024,  by  and  between  XYZ  Corporation  (the Borrower) and ABC Bank (the Lender).</p>\n<h2 data-idx=\"2\">Article I - Definitions</h2>\n<table data-idx=\"3\"><tr><th>Term</th><th>Definition</th></tr>\n<tr><td>Borrower</td><td>XYZ Corporation, a Delaware corporation</td></tr>\n<tr><td>Commitment</td><td>The aggregate amount of $50,000,000</td></tr>\n<tr><td>Maturity Date</td><td>January 1, 2029</td></tr>\n<tr><td>Interest Rate</td><td>Base Rate plus 2.00% per annum</td></tr></table>\n<p data-idx=\"4\">Section 1.1. The following terms have the meanings set forth below:</p>\n<h2 data-idx=\"5\">Article II - Representations</h2>\n<p data-idx=\"6\">The Borrower represents that it is a corporation duly organized, validly existing, and in good standing under the laws of the State of Delaware.</p>\n<h2 data-idx=\"7\">Signatures</h2>\n<p data-idx=\"8\">XYZ Corporation</p>\n<p data-idx=\"9\">By: _________________________</p>\n<p data-idx=\"10\">Name: John Executive</p>\n<p data-idx=\"11\">Title: Chief Executive Officer</p>",
+  "element_metadata": {
+    "0": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 36.99000000000001,
+      "width": 244.5,
+      "height": 18.5,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "1": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 77.60199999999998,
+      "width": 532.925,
+      "height": 27.18500000000006,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "2": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 127.37799999999993,
+      "width": 136.136,
+      "height": 12.950000000000045,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "3": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 27.096054077148438,
+      "top": 179.77542114257812,
+      "width": 511.8035430908203,
+      "height": 115.60211181640625,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "4": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 156.97199999999998,
+      "width": 330.15400000000005,
+      "height": 10.175000000000068,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "5": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 320.12800000000004,
+      "width": 177.37999999999997,
+      "height": 12.949999999999989,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "6": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 349.73199999999997,
+      "width": 532.9209999999995,
+      "height": 27.185000000000002,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "7": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 399.498,
+      "width": 72.35200000000003,
+      "height": 12.950000000000045,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "8": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 429.102,
+      "width": 81.917,
+      "height": 10.175000000000011,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "9": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 446.11199999999997,
+      "width": 171.85300000000018,
+      "height": 10.175000000000011,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "10": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 463.12199999999996,
+      "width": 110.04400000000001,
+      "height": 10.175000000000011,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    },
+    "11": {
+      "page_number": 1,
+      "confidence": 1.0,
+      "left": 31.18,
+      "top": 480.12199999999996,
+      "width": 138.76500000000001,
+      "height": 10.175000000000011,
+      "is_bold": false,
+      "is_italic": false,
+      "font_family": null,
+      "is_page_header": false
+    }
+  },
+  "source_filename": "sample.pdf"
+}

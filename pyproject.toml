@@ -12,6 +12,7 @@ dependencies = [
     "anthropic>=0.78.0,<0.80.0",  # >=0.78 needed for Claude 4.6; <0.80 avoids UserLocation import break in pydantic-ai (PR #4345 pending)
     "langfuse",
     "python-dotenv",
+    "docling",
 ]
 
 [dependency-groups]
@@ -165,7 +166,16 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
-module = ["langfuse.*", "pydantic_graph.*", "pydantic_ai.*", "dotenv.*"]
+module = [
+    "langfuse.*",
+    "pydantic_graph.*",
+    "pydantic_ai.*",
+    "pydantic_ai._utils",
+    "dotenv.*",
+    "docling.*",
+    "docling_core.*",
+    "anthropic.*",
+]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------

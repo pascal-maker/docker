@@ -23,7 +23,7 @@ def patch_anthropic_user_location() -> None:
         import anthropic.types.beta.beta_web_search_tool_20250305_param as mod
         from anthropic.types.beta.beta_user_location_param import BetaUserLocationParam
 
-        mod.UserLocation = BetaUserLocationParam  # type: ignore[attr-defined]
+        mod.UserLocation = BetaUserLocationParam  # type: ignore[misc]
 
 
 def patch_check_object_json_schema() -> None:
@@ -55,4 +55,4 @@ def patch_check_object_json_schema() -> None:
                     return {**resolved, "$defs": defs}
         return result
 
-    utils.check_object_json_schema = _patched  # type: ignore[assignment]
+    utils.check_object_json_schema = _patched
