@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__langfuse-docs__getLangfuseDocsPage",
+      "mcp__langfuse-docs__getLangfuseOverview",
+      "WebFetch(domain:pypi.org)",
+      "Bash(uv run pytest:*)",
+      "Bash(gh search issues:*)",
+      "Bash(gh search:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh api:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh release list:*)",
+      "Bash(gh pr list:*)"
+    ]
+  }
+}

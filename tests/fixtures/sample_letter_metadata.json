@@ -1,0 +1,17 @@
+{
+  "0": {"page_number": 1, "confidence": 0.95, "left": 100, "top": 50, "width": 300, "height": 40, "is_bold": true, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "1": {"page_number": 1, "confidence": 0.92, "left": 100, "top": 100, "width": 250, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "2": {"page_number": 1, "confidence": 0.93, "left": 100, "top": 125, "width": 200, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "3": {"page_number": 1, "confidence": 0.97, "left": 100, "top": 180, "width": 150, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "4": {"page_number": 1, "confidence": 0.94, "left": 100, "top": 230, "width": 180, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "5": {"page_number": 1, "confidence": 0.91, "left": 100, "top": 255, "width": 170, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "6": {"page_number": 1, "confidence": 0.93, "left": 100, "top": 280, "width": 160, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "7": {"page_number": 1, "confidence": 0.98, "left": 100, "top": 330, "width": 150, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "8": {"page_number": 1, "confidence": 0.96, "left": 100, "top": 370, "width": 700, "height": 40, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "9": {"page_number": 1, "confidence": 0.95, "left": 100, "top": 420, "width": 650, "height": 40, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "10": {"page_number": 1, "confidence": 0.94, "left": 100, "top": 470, "width": 500, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "11": {"page_number": 1, "confidence": 0.99, "left": 100, "top": 530, "width": 100, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "12": {"page_number": 1, "confidence": 0.97, "left": 100, "top": 580, "width": 120, "height": 20, "is_bold": true, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "13": {"page_number": 1, "confidence": 0.95, "left": 100, "top": 605, "width": 280, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false},
+  "14": {"page_number": 1, "confidence": 0.96, "left": 100, "top": 630, "width": 160, "height": 20, "is_bold": false, "is_italic": false, "font_family": "Arial", "is_page_header": false}
+}
