@@ -22,6 +22,11 @@ dev = [
     "ruff",
     "mypy",
 ]
+api = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
@@ -33,7 +38,7 @@ build-backend = "uv_build"
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-src = ["src", "tests", "scripts"]
+src = ["src", "tests", "scripts", "api"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -115,7 +120,7 @@ max-statements = 40
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["document_structuring_agent"]
+known-first-party = ["document_structuring_agent", "api"]
 combine-as-imports = true
 
 [tool.ruff.lint.flake8-type-checking]
@@ -140,6 +145,7 @@ ban-relative-imports = "all"
 "src/**/_compat.py" = [
     "PLC0415", "ANN", "F401",
 ]
+"api/**/*.py" = ["D", "ANN", "T20", "FBT"]
 
 # ---------------------------------------------------------------------------
 # Mypy – static type checking

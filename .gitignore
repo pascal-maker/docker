@@ -8,3 +8,8 @@ __pycache__/
 dist/
 *.egg-info/
 .venv/
+.mypy_cache/
+.DS_Store
+
+# Docling model cache (large, downloaded on first run)
+~/.cache/docling/
