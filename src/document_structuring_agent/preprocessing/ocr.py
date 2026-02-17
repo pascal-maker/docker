@@ -55,7 +55,13 @@ def pdf_to_ocr_document(pdf_path: Path) -> OcrDocument:
 
 
 def _convert_pdf(pdf_path: Path) -> DoclingDocument:
-    """Run Docling DocumentConverter on a PDF."""
+    """Run Docling DocumentConverter on a PDF.
+
+    Docling automatically detects and uses MPS (Metal Performance Shaders)
+    acceleration on Apple Silicon Macs for faster OCR processing. No explicit
+    configuration is needed; MPS support is enabled via PyTorch's automatic
+    device detection.
+    """
     from docling.document_converter import DocumentConverter  # noqa: PLC0415
 
     logger.info("Initialising Docling converter (first run downloads models)...")

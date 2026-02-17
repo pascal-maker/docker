@@ -69,7 +69,11 @@ def main(pdf_path: Path) -> None:
 
 
 if __name__ == "__main__":
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("tests/fixtures/sample.pdf")
+    path = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("tests/fixtures/pdf/sample_credit_agreement.pdf")
+    )
     if not path.exists():
         print(f"File not found: {path}", file=sys.stderr)
         sys.exit(1)
