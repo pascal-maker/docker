@@ -15,8 +15,11 @@ import json
 import sys
 import uuid
 
+
 def main() -> None:
-    base_url = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:9999").rstrip("/")
+    base_url = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:9999").rstrip(
+        "/"
+    )
 
     try:
         import urllib.request
@@ -24,12 +27,12 @@ def main() -> None:
         # Fallback if run in odd env
         sys.exit("Need urllib (standard library)")
 
-    # 1. GET agent card
-    req = urllib.request.Request(
+    # 1. GET agent card (base_url from argv; only http(s) in normal use)
+    req = urllib.request.Request(  # noqa: S310
         f"{base_url}/.well-known/agent-card.json",
         headers={"Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=5) as resp:
+    with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
         card = json.loads(resp.read().decode())
     print("Agent card:")
     print(f"  name: {card.get('name')}")
@@ -56,13 +59,13 @@ def main() -> None:
         },
     }
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310
         base_url,
         data=data,
         method="POST",
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
         result = json.loads(resp.read().decode())
 
     print("\nmessage/send response:")

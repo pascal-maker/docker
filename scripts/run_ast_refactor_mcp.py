@@ -19,16 +19,17 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
-# Ensure repo root is cwd and src is on path (Cursor MCP may start process with wrong cwd)
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_repo_root = os.path.dirname(_script_dir)
+# Ensure repo root is cwd and src is on path (MCP may start with wrong cwd)
+_script_dir = Path(__file__).resolve().parent
+_repo_root = _script_dir.parent
 os.chdir(_repo_root)
-_src = os.path.join(_repo_root, "src")
-if _src not in sys.path:
-    sys.path.insert(0, _src)
+_src = _repo_root / "src"
+if str(_src) not in sys.path:
+    sys.path.insert(0, str(_src))
 
-from document_structuring_agent.ast_refactor.mcp_server import mcp
+from document_structuring_agent.ast_refactor.mcp_server import mcp  # noqa: E402
 
 if __name__ == "__main__":
     mcp.run()

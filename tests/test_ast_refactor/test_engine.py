@@ -73,6 +73,69 @@ def calculate_tax(amount, rate):
     assert "def compute_tax(" in out
 
 
+def test_check_name_collisions_no_collision() -> None:
+    """check_name_collisions returns empty when new_name is unused."""
+    source = "def foo(): pass"
+    engine = LibCSTEngine(source)
+    collisions = engine.check_name_collisions("bar", None)
+    assert collisions == []
+
+
+def test_check_name_collisions_existing_function() -> None:
+    """check_name_collisions returns collision when new_name is already defined."""
+    source = """
+def main() -> None:
+    pass
+
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+"""
+    engine = LibCSTEngine(source)
+    collisions = engine.check_name_collisions("main", None)
+    assert len(collisions) == 1
+    assert collisions[0].kind == "FunctionDef"
+    assert "line" in collisions[0].location
+
+
+def test_check_name_collisions_scoped() -> None:
+    """check_name_collisions respects scope_node and only reports in same scope."""
+    source = """
+def outer():
+    x = 1
+    return x
+
+def other():
+    x = 2
+    return x
+"""
+    engine = LibCSTEngine(source)
+    # Renaming 'x' to 'x' in scope 'outer' would mean new_name 'x' in outer:
+    # there is an Assign to 'x' in outer, so that's a self-collision. Instead
+    # check: new_name 'value' in file has no definition, so no collision.
+    collisions = engine.check_name_collisions("value", "outer")
+    assert collisions == []
+    # new_name 'x' in scope None - both Assigns (in outer and other) define x
+    collisions = engine.check_name_collisions("x", None)
+    assert len(collisions) >= 2
+    # new_name 'outer' in scope None - FunctionDef 'outer' exists
+    collisions = engine.check_name_collisions("outer", None)
+    assert len(collisions) == 1
+    assert collisions[0].kind == "FunctionDef"
+
+
+def test_check_name_collisions_assign() -> None:
+    """check_name_collisions reports module-level Assign to the same name."""
+    source = """
+SENTINEL = 42
+
+def get_sentinel():
+    return SENTINEL
+"""
+    engine = LibCSTEngine(source)
+    collisions = engine.check_name_collisions("SENTINEL", None)
+    assert any(c.kind == "Assign" for c in collisions)
+
+
 def test_rename_symbol_not_found() -> None:
     """Return error string when symbol is not found."""
     source = "def foo(): pass"

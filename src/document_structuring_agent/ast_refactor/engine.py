@@ -491,6 +491,43 @@ class _RenameTransformer(cst.CSTTransformer):
         )
 
 
+@dataclass
+class CollisionInfo:
+    """Describes a name collision: existing definition that would be shadowed."""
+
+    location: str  # e.g. "line 8"
+    kind: str  # e.g. "FunctionDef", "ClassDef"
+
+
+def _cst_node_in_scope(
+    module: cst.Module,
+    node: cst.CSTNode,
+    scope_name: str | None,
+) -> bool:
+    """True if node is in the given scope; when scope_name is None, any scope."""
+    if scope_name is None:
+        return True
+    try:
+        wrapper = MetadataWrapper(module)
+        scope = wrapper.resolve(ScopeProvider).get(node)
+        current: object = scope
+        seen: set[int] = set()
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            if (
+                hasattr(current, "name")
+                and getattr(current, "name", None) == scope_name
+            ):
+                return True
+            parent = getattr(current, "parent", None)
+            if parent is current:
+                break
+            current = parent
+    except Exception:  # noqa: S110 — scope/parent metadata can be missing
+        pass
+    return False
+
+
 def _cst_walk(node: cst.CSTNode) -> Iterator[cst.CSTNode]:
     """Recursive walk over CST nodes."""
     yield node
@@ -579,6 +616,40 @@ class LibCSTEngine:
             elif isinstance(node, cst.ClassDef):
                 parts.append(_cst_skeleton_line_for_class(self._module, node))
         return "\n\n".join(parts) if parts else ""
+
+    def check_name_collisions(
+        self,
+        new_name: str,
+        scope_node: str | None = None,
+    ) -> list[CollisionInfo]:
+        """Return definitions that already use new_name in the same scope.
+
+        Used to detect collisions before renaming (e.g. renaming to 'main'
+        when 'main' is already defined). Respects scope_node like rename_symbol.
+        """
+        collisions: list[CollisionInfo] = []
+        for node in _cst_walk(self._module):
+            kind: str | None = None
+            if isinstance(node, cst.FunctionDef) and node.name.value == new_name:
+                kind = "FunctionDef"
+            elif isinstance(node, cst.ClassDef) and node.name.value == new_name:
+                kind = "ClassDef"
+            elif isinstance(node, cst.Assign):
+                for target in node.targets:
+                    if (
+                        isinstance(target, cst.AssignTarget)
+                        and isinstance(target.target, cst.Name)
+                        and target.target.value == new_name
+                    ):
+                        kind = "Assign"
+                        break
+            if kind is None:
+                continue
+            if not _cst_node_in_scope(self._module, node, scope_node):
+                continue
+            line_no = _cst_line_no(self._module, node)
+            collisions.append(CollisionInfo(location=f"line {line_no}", kind=kind))
+        return collisions
 
     def rename_symbol(
         self,
