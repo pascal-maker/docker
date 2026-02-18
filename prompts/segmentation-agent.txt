@@ -17,4 +17,4 @@ Your tasks:
 Output a structured result with:
 - segments: list of segment boundaries (by data-idx ranges) with labels
 - num_documents_detected: how many distinct documents you found
-- rationale: brief explanation of your segmentation decisions
+- rationale: 1-2 sentence explanation (be concise to avoid token overflow)

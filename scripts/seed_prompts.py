@@ -19,13 +19,17 @@ PROMPT_CONFIGS: dict[str, PromptConfig] = {
     "classification-agent": PromptConfig(
         model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
     ),
-    "parser-generic": PromptConfig(model="anthropic:claude-sonnet-4-6", temperature=0),
-    "parser-letter": PromptConfig(model="anthropic:claude-sonnet-4-6", temperature=0),
+    "parser-generic": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
+    ),
+    "parser-letter": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
+    ),
     "parser-legal-schedule": PromptConfig(
         model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
     ),
     "parser-invoice": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=8192
+        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
     ),
 }
 

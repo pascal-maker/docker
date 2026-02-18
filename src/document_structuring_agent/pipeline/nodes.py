@@ -68,7 +68,22 @@ class SegmentationNode(BaseNode[PipelineState, PipelineDeps, list[StructuredDocu
             "Here are the document elements with "
             f"preliminary segmentation:\n\n{elements_summary}"
         )
-        result = await agent.run(prompt)
+        try:
+            result = await agent.run(prompt)
+        except Exception as e:
+            # Likely token truncation; retry with simplified prompt
+            if "Exceeded maximum retries" in str(e) or "validation" in str(e).lower():
+                logger.warning("event=segmentation_retry", extra={"reason": str(e)})
+                # Retry with simpler prompt (skip labels, just output structure)
+                simplified_prompt = (
+                    "Segment these document elements. "
+                    "Output only: segments (list), num_documents_detected (int), "
+                    "rationale (one sentence max)."
+                    f"\n\n{elements_summary}"
+                )
+                result = await agent.run(simplified_prompt)
+            else:
+                raise
         segmentation = result.output
         logger.info("event=agent_finish", extra={"agent": "segmentation"})
 

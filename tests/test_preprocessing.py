@@ -156,7 +156,7 @@ class TestInvoiceFixture:
         elements = parse_ocr_html(doc.html, doc.element_metadata)
         pages = get_page_boundaries(elements)
         assert len(pages) == 2
-        # idx 0–12 on page 1 (13 elements), idx 13–24 on page 2 (12 elements)
+        # idx 0-12 on page 1 (13 elements), idx 13-24 on page 2 (12 elements)
         assert len(pages[1]) == 13
         assert len(pages[2]) == 12
 
