@@ -54,3 +54,11 @@ Clients can reach it at:
 
 - **Agent Card:** `GET http://localhost:9999/.well-known/agent-card.json` — discover the agent’s skills and capabilities.
 - **Rename task:** Send an A2A `message/send` request with a JSON body: `{"source": "<Python source>", "old_name": "...", "new_name": "...", "scope_node": "..."}` (optional). The server runs the rename and returns the result (summary + modified source) in the response.
+
+**Test the A2A server:** With the server running, in another terminal:
+
+```bash
+uv run python scripts/test_a2a_rename.py
+```
+
+This GETs the agent card and POSTs a rename task; it prints the card and the agent’s response (summary + modified source). Optional: pass a base URL, e.g. `uv run python scripts/test_a2a_rename.py http://localhost:8080`.

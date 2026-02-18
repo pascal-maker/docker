@@ -43,7 +43,7 @@ build-backend = "uv_build"
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-src = ["src", "tests", "scripts", "api"]
+src = ["src", "tests", "scripts", "api", "playground"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -125,7 +125,7 @@ max-statements = 40
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["document_structuring_agent", "api"]
+known-first-party = ["document_structuring_agent", "api", "playground"]
 combine-as-imports = true
 
 [tool.ruff.lint.flake8-type-checking]
@@ -163,6 +163,7 @@ ban-relative-imports = "all"
 "tests/test_tree_agent/*.py" = [
     "F401", "F841", "RUF059", "TC001", "PLR0913",
 ]
+"playground/**/*.py" = ["T20", "D"]
 
 # ---------------------------------------------------------------------------
 # Mypy – static type checking

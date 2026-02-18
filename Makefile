@@ -9,16 +9,16 @@ help: ## Show available commands
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 format: ## Auto-format code
-	$(RUN) ruff format src tests scripts
+	$(RUN) ruff format src tests scripts playground
 
 format-check: ## Check formatting (no changes)
-	$(RUN) ruff format --check --diff src tests scripts
+	$(RUN) ruff format --check --diff src tests scripts playground
 
 lint: ## Run ruff linter
-	$(RUN) ruff check src tests scripts
+	$(RUN) ruff check src tests scripts playground
 
 fix: ## Auto-fix lint violations
-	$(RUN) ruff check --fix src tests scripts
+	$(RUN) ruff check --fix src tests scripts playground
 
 typecheck: ## Run mypy strict type checking
 	$(RUN) mypy src scripts
