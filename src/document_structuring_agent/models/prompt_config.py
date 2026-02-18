@@ -8,3 +8,4 @@ class PromptConfig(BaseModel):
 
     model: str | None = None
     temperature: float | None = None
+    max_tokens: int | None = None
