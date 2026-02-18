@@ -35,7 +35,10 @@ from document_structuring_agent.tree_agent.engine import (
     TreeEngineError,
     build_tree_engine,
 )
-from document_structuring_agent.tree_agent.flat_node import FlatNode, convert_to_flat_nodes
+from document_structuring_agent.tree_agent.flat_node import (
+    FlatNode,
+    convert_to_flat_nodes,
+)
 from document_structuring_agent.tree_agent.memory import PatternMemory
 from document_structuring_agent.tree_agent.serializer import build_skeleton_xml
 
@@ -70,6 +73,7 @@ class TreeAgentDeps:
 # Agent definition (module-level singleton, created lazily via factory)
 # ---------------------------------------------------------------------------
 
+
 def create_tree_agent() -> Agent[TreeAgentDeps, None]:
     """Create the iterative tree-building agent.
 
@@ -100,6 +104,7 @@ def create_tree_agent() -> Agent[TreeAgentDeps, None]:
 # ---------------------------------------------------------------------------
 # Tool registration
 # ---------------------------------------------------------------------------
+
 
 def _register_tools(agent: Agent[TreeAgentDeps, None]) -> None:
     """Register all tree operator tools on the given agent instance."""
@@ -300,6 +305,7 @@ def _register_tools(agent: Agent[TreeAgentDeps, None]) -> None:
 # Agent loop
 # ---------------------------------------------------------------------------
 
+
 def _build_iteration_prompt(
     skeleton_xml: str,
     stats_total: int,
@@ -394,6 +400,7 @@ async def _run_tree_agent_loop(
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 async def run_tree_agent(ocr_document: OcrDocument) -> StructuredDocument:
     """Process an OCR document using the iterative tree agent approach.

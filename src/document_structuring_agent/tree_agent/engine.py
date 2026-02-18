@@ -308,7 +308,10 @@ class TreeEngine(BaseModel):
         return len(range_ids)
 
     def swap_siblings(
-        self, node_a: str, node_b: str, reasoning: str  # noqa: ARG002
+        self,
+        node_a: str,
+        node_b: str,
+        reasoning: str,  # noqa: ARG002
     ) -> None:
         """Swap the positions of two siblings within the same parent.
 

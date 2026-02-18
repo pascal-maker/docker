@@ -9,7 +9,11 @@ from document_structuring_agent.tree_agent.engine import (
     TreeEngineError,
     build_tree_engine,
 )
-from document_structuring_agent.tree_agent.flat_node import FlatNode, NodeHints, NodeStatus
+from document_structuring_agent.tree_agent.flat_node import (
+    FlatNode,
+    NodeHints,
+    NodeStatus,
+)
 
 
 def _make_flat_node(node_id: str, tag: str = "p", page: int = 1) -> FlatNode:
@@ -205,8 +209,8 @@ class TestProgressStats:
     def test_after_mixed_statuses(self):
         engine, _ = _make_engine(4)
         engine.adopt_range("n0", "n1", "n1", "reason")  # n1 placed
-        engine.mark_uncertain("n2", "reason")             # n2 uncertain
-        engine.mark_anomalous("n3", "reason", "delete")   # n3 anomalous
+        engine.mark_uncertain("n2", "reason")  # n2 uncertain
+        engine.mark_anomalous("n3", "reason", "delete")  # n3 anomalous
         stats = engine.progress_stats
         assert stats.placed == 1
         assert stats.unplaced == 1  # n0 still UNPLACED (it was the parent, not adopted)

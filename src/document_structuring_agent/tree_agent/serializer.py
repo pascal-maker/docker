@@ -40,7 +40,7 @@ def _node_open_tag(fn: FlatNode, depth: int) -> str:
     return (
         f'{indent}<node id="{fn.node_id}" status="{fn.status}"'
         f' tag="{fn.tag}" {hint_str}>\n'
-        f'{indent}  {desc}'
+        f"{indent}  {desc}"
     )
 
 
@@ -88,7 +88,7 @@ def build_skeleton_xml(engine: TreeEngine) -> str:
         # Check if we're approaching the limit
         if total_chars >= _MAX_SKELETON_CHARS:
             indent = _INDENT * depth
-            line = f'{indent}<!-- content truncated, {len(engine.flat_nodes)} total nodes -->'
+            line = f"{indent}<!-- content truncated, {len(engine.flat_nodes)} total nodes -->"
             lines.append(line)
             break
 
@@ -112,7 +112,7 @@ def build_skeleton_xml(engine: TreeEngine) -> str:
             line = (
                 f'{indent}<node id="{fn.node_id}" status="{fn.status}"'
                 f' tag="{fn.tag}" {hint_str}>'
-                f'{desc}</node>'
+                f"{desc}</node>"
             )
             lines.append(line)
             total_chars += len(line)

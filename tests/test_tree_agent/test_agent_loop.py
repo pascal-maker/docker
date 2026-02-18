@@ -12,7 +12,11 @@ from document_structuring_agent.tree_agent.agent import (
     _run_tree_agent_loop,
 )
 from document_structuring_agent.tree_agent.engine import build_tree_engine
-from document_structuring_agent.tree_agent.flat_node import FlatNode, NodeHints, NodeStatus
+from document_structuring_agent.tree_agent.flat_node import (
+    FlatNode,
+    NodeHints,
+    NodeStatus,
+)
 from document_structuring_agent.tree_agent.memory import PatternMemory
 
 

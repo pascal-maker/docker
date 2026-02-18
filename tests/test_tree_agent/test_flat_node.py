@@ -34,7 +34,9 @@ def _make_element(
         is_italic=is_italic,
         font_family=font_family,
     )
-    elem = ParsedElement(tag=tag, data_idx=data_idx, html=f"<{tag}>{text}</{tag}>", text_content=text)
+    elem = ParsedElement(
+        tag=tag, data_idx=data_idx, html=f"<{tag}>{text}</{tag}>", text_content=text
+    )
     elem.metadata = meta
     return elem
 

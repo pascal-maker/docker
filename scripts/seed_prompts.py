@@ -34,6 +34,9 @@ PROMPT_CONFIGS: dict[str, PromptConfig] = {
     "tree-agent": PromptConfig(
         model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
     ),
+    "ast-refactor-agent": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=4096
+    ),
 }
 
 

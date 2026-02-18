@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from document_structuring_agent.models.nodes import NodeType
-from document_structuring_agent.tree_agent.converter import tree_engine_to_structured_document
+from document_structuring_agent.tree_agent.converter import (
+    tree_engine_to_structured_document,
+)
 from document_structuring_agent.tree_agent.engine import build_tree_engine
-from document_structuring_agent.tree_agent.flat_node import FlatNode, NodeHints, NodeStatus
+from document_structuring_agent.tree_agent.flat_node import (
+    FlatNode,
+    NodeHints,
+    NodeStatus,
+)
 
 
 def _make_flat_node(
