@@ -10,7 +10,6 @@ from document_structuring_agent.tree_agent.engine import build_tree_engine
 from document_structuring_agent.tree_agent.flat_node import (
     FlatNode,
     NodeHints,
-    NodeStatus,
 )
 
 

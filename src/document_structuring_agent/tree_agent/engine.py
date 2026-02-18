@@ -216,7 +216,7 @@ class TreeEngine(BaseModel):
 
         # Find current parent id of the range (before detachment updated siblings)
         first_tn = self.tree_nodes[first_child_id]
-        old_parent_id = first_tn.parent_id if first_tn.parent_id else self.root_id
+        old_parent_id = first_tn.parent_id or self.root_id
 
         # Attach to new parent
         new_parent_tn = self.tree_nodes[parent_id]
@@ -245,7 +245,7 @@ class TreeEngine(BaseModel):
             raise TreeEngineError(f"Node {node_id!r} does not exist")
 
         tn = self.tree_nodes[node_id]
-        parent_id = tn.parent_id if tn.parent_id else self.root_id
+        parent_id = tn.parent_id or self.root_id
 
         if parent_id == self.root_id:
             raise TreeEngineError(
@@ -253,7 +253,7 @@ class TreeEngine(BaseModel):
             )
 
         parent_tn = self.tree_nodes[parent_id]
-        grandparent_id = parent_tn.parent_id if parent_tn.parent_id else self.root_id
+        grandparent_id = parent_tn.parent_id or self.root_id
         grandparent_tn = self.tree_nodes[grandparent_id]
 
         # Remove from parent's children

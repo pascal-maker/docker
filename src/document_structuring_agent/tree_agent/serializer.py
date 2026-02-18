@@ -12,8 +12,11 @@ approached.
 
 from __future__ import annotations
 
-from document_structuring_agent.tree_agent.engine import TreeEngine
-from document_structuring_agent.tree_agent.flat_node import FlatNode, NodeHints
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from document_structuring_agent.tree_agent.engine import TreeEngine
+    from document_structuring_agent.tree_agent.flat_node import FlatNode, NodeHints
 
 _MAX_SKELETON_CHARS = 32_000
 _INDENT = "  "

@@ -4,7 +4,19 @@ from __future__ import annotations
 
 import ast
 import copy
+import warnings
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider, ScopeProvider
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+# ---------------------------------------------------------------------------
+# Deprecated: stdlib AST engine (kept for reference, not used by agent)
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -20,10 +32,19 @@ class _ScopeInfo:
 
 
 class ASTEngine:
-    """Holds parsed AST and exposes skeleton, rename_symbol, and to_source."""
+    """Holds parsed AST and exposes skeleton, rename_symbol, and to_source.
+
+    Deprecated. Use LibCSTEngine for new code; this implementation loses
+    comments and formatting via ast.unparse. No further development.
+    """
 
     def __init__(self, source: str) -> None:
         """Parse source into an AST. Raises SyntaxError on invalid Python."""
+        warnings.warn(
+            "ASTEngine is deprecated; use LibCSTEngine for lossless round-trip.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.source = source
         self.tree = ast.parse(source)
 
@@ -235,6 +256,7 @@ def _rename_in_scope(
 # extract_function helpers
 # ---------------------------------------------------------------------------
 
+
 def _stmt_end_line(node: ast.stmt) -> int:
     """Last line of a statement node (1-based)."""
     return getattr(node, "end_lineno", None) or node.lineno
@@ -381,3 +403,231 @@ def _extract_function_impl(
         f"Extracted lines {start_line}-{end_line} into {new_function_name!r}"
         f" (params: {', '.join(param_names)})."
     )
+
+
+# ---------------------------------------------------------------------------
+# LibCST engine (active): lossless round-trip, scope-aware rename
+# ---------------------------------------------------------------------------
+
+
+class _RenameTransformer(cst.CSTTransformer):
+    """Scope-aware rename using LibCST's ScopeProvider and PositionProvider."""
+
+    METADATA_DEPENDENCIES = (ScopeProvider, PositionProvider)
+
+    def __init__(
+        self,
+        old_name: str,
+        new_name: str,
+        scope_name: str | None,
+    ) -> None:
+        self._old_name = old_name
+        self._new_name = new_name
+        self._scope_name = scope_name
+        self.renamed_lines: list[int] = []
+
+    def _in_target_scope(self, node: cst.CSTNode) -> bool:
+        if self._scope_name is None:
+            return True
+        try:
+            scope = self.get_metadata(ScopeProvider, node, None)
+            current: object = scope
+            seen: set[object] = set()
+            while current is not None and id(current) not in seen:
+                seen.add(id(current))
+                if hasattr(current, "name") and current.name == self._scope_name:
+                    return True
+                parent = getattr(current, "parent", None)
+                if parent is current:
+                    break
+                current = parent
+        except Exception:  # noqa: S110 — scope/parent metadata can be missing
+            pass
+        return False
+
+    def leave_Name(  # noqa: N802 — LibCST callback name
+        self, original_node: cst.Name, updated_node: cst.Name
+    ) -> cst.BaseExpression:
+        if updated_node.value != self._old_name or not self._in_target_scope(
+            original_node
+        ):
+            return updated_node
+        try:
+            pos = self.get_metadata(PositionProvider, original_node, None)
+            if pos is not None:
+                self.renamed_lines.append(pos.start.line)
+        except Exception:  # noqa: S110 — position metadata can be missing
+            pass
+        return updated_node.with_changes(value=self._new_name)
+
+    def leave_FunctionDef(  # noqa: N802 — LibCST callback name
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.CSTNode:
+        if updated_node.name.value != self._old_name:
+            return updated_node
+        try:
+            pos = self.get_metadata(PositionProvider, original_node, None)
+            if pos is not None:
+                self.renamed_lines.append(pos.start.line)
+        except Exception:  # noqa: S110 — position metadata can be missing
+            pass
+        return updated_node.with_changes(
+            name=updated_node.name.with_changes(value=self._new_name)
+        )
+
+    def leave_ClassDef(  # noqa: N802 — LibCST callback name
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.CSTNode:
+        if updated_node.name.value != self._old_name:
+            return updated_node
+        try:
+            pos = self.get_metadata(PositionProvider, original_node, None)
+            if pos is not None:
+                self.renamed_lines.append(pos.start.line)
+        except Exception:  # noqa: S110 — position metadata can be missing
+            pass
+        return updated_node.with_changes(
+            name=updated_node.name.with_changes(value=self._new_name)
+        )
+
+
+def _cst_walk(node: cst.CSTNode) -> Iterator[cst.CSTNode]:
+    """Recursive walk over CST nodes."""
+    yield node
+    for child in node.children:
+        yield from _cst_walk(child)
+
+
+def _cst_line_no(module: cst.Module, node: cst.CSTNode) -> int:
+    """Line number for a node from PositionProvider, or 0 if unavailable."""
+    try:
+        wrapper = MetadataWrapper(module)
+        pos = wrapper.resolve(PositionProvider).get(node)
+    except Exception:
+        return 0
+    else:
+        return pos.start.line if pos is not None else 0
+
+
+def _cst_skeleton_line_for_function(module: cst.Module, node: cst.FunctionDef) -> str:
+    """Single line for a FunctionDef in skeleton (args/calls)."""
+    args = [
+        p.name.value
+        for p in node.params.params
+        if isinstance(p, cst.Param) and p.name is not None
+    ]
+    calls = [
+        child.func.value
+        for child in _cst_walk(node)
+        if isinstance(child, cst.Call) and isinstance(child.func, cst.Name)
+    ]
+    assigns = [
+        t.target.value
+        for child in _cst_walk(node)
+        if isinstance(child, cst.Assign)
+        for t in child.targets
+        if isinstance(t, cst.AssignTarget) and isinstance(t.target, cst.Name)
+    ]
+    line_no = _cst_line_no(module, node)
+    lines = [f"FunctionDef '{node.name.value}' (line {line_no})"]
+    if args:
+        lines.append(f"  args: {', '.join(args)}")
+    if calls:
+        lines.append(f"  calls: {sorted(set(calls))}")
+    if assigns:
+        lines.append(f"  assigns: {sorted(set(assigns))}")
+    return "\n".join(lines)
+
+
+def _cst_skeleton_line_for_class(module: cst.Module, node: cst.ClassDef) -> str:
+    """Single block for a ClassDef in skeleton."""
+    calls = [
+        child.func.value
+        for child in _cst_walk(node)
+        if isinstance(child, cst.Call) and isinstance(child.func, cst.Name)
+    ]
+    assigns = [
+        t.target.value
+        for child in _cst_walk(node)
+        if isinstance(child, cst.Assign)
+        for t in child.targets
+        if isinstance(t, cst.AssignTarget) and isinstance(t.target, cst.Name)
+    ]
+    line_no = _cst_line_no(module, node)
+    lines = [f"ClassDef '{node.name.value}' (line {line_no})"]
+    if calls:
+        lines.append(f"  calls: {sorted(set(calls))}")
+    if assigns:
+        lines.append(f"  assigns: {sorted(set(assigns))}")
+    return "\n".join(lines)
+
+
+class LibCSTEngine:
+    """Holds parsed LibCST module; lossless round-trip, scope-aware rename."""
+
+    def __init__(self, source: str) -> None:
+        """Parse source into a CST. Raises cst.ParserSyntaxError on invalid Python."""
+        self.source = source
+        self._module = cst.parse_module(source)
+
+    def get_skeleton(self) -> str:
+        """Produce a text skeleton: function/class names, args, calls, line numbers."""
+        parts: list[str] = []
+        for node in self._module.body:
+            if isinstance(node, cst.FunctionDef):
+                parts.append(_cst_skeleton_line_for_function(self._module, node))
+            elif isinstance(node, cst.ClassDef):
+                parts.append(_cst_skeleton_line_for_class(self._module, node))
+        return "\n\n".join(parts) if parts else ""
+
+    def rename_symbol(
+        self,
+        old_name: str,
+        new_name: str,
+        scope_node: str | None = None,
+    ) -> str:
+        """Rename a symbol file-wide or within a function/class scope.
+
+        Returns a short summary or an error string. Preserves formatting/comments.
+        """
+        found = any(
+            (isinstance(n, cst.FunctionDef) and n.name.value == old_name)
+            or (isinstance(n, cst.ClassDef) and n.name.value == old_name)
+            or (isinstance(n, cst.Name) and n.value == old_name)
+            for n in _cst_walk(self._module)
+        )
+        if not found:
+            return f"ERROR: symbol '{old_name}' not found in file"
+
+        wrapper = MetadataWrapper(self._module)
+        transformer = _RenameTransformer(old_name, new_name, scope_node)
+        new_module = wrapper.visit(transformer)
+
+        if not transformer.renamed_lines:
+            return f"ERROR: '{old_name}' found but no renameable nodes matched"
+
+        self._module = new_module
+        self.source = new_module.code
+        scope_note = f" within scope '{scope_node}'" if scope_node else " (file-wide)"
+        return (
+            f"Renamed '{old_name}' → '{new_name}'{scope_note}: "
+            f"{len(transformer.renamed_lines)} occurrence(s) "
+            f"at lines {transformer.renamed_lines}"
+        )
+
+    def extract_function(
+        self,
+        _scope_function: str,
+        _start_line: int,
+        _end_line: int,
+        _new_function_name: str,
+    ) -> str:
+        """Stub: extract_function not yet implemented on LibCSTEngine."""
+        return (
+            "ERROR: extract_function is not yet implemented with LibCST; "
+            "use the deprecated ASTEngine for extract operations."
+        )
+
+    def to_source(self) -> str:
+        """Return source for the current CST (lossless except intentional edits)."""
+        return self._module.code

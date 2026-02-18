@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from pydantic_ai import Agent
-from pydantic_ai.models.test import TestModel
 
 from document_structuring_agent.tree_agent.agent import (
     TerminationReason,
@@ -116,7 +115,7 @@ class TestTreeAgentTools:
         flat_nodes = [_make_flat_node(f"n{i}") for i in range(3)]
         engine = build_tree_engine(flat_nodes)
         memory = PatternMemory()
-        deps = TreeAgentDeps(
+        TreeAgentDeps(
             engine=engine,
             memory=memory,
             flat_nodes={fn.node_id: fn for fn in flat_nodes},

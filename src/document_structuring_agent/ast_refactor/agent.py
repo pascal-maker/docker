@@ -13,7 +13,7 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.settings import ModelSettings
 
-from document_structuring_agent.ast_refactor.engine import ASTEngine
+from document_structuring_agent.ast_refactor.engine import ASTEngine, LibCSTEngine
 from document_structuring_agent.config import DEFAULT_MODEL
 from document_structuring_agent.langfuse_config import (
     get_prompt,
@@ -28,7 +28,7 @@ _PROMPT_NAME = "ast-refactor-agent"
 class ASTDeps:
     """Dependencies injected into every AST refactor agent tool call."""
 
-    engine: ASTEngine
+    engine: ASTEngine | LibCSTEngine
     target_rename: tuple[str, str]  # (old_name, new_name)
 
 
@@ -134,7 +134,7 @@ async def run_ast_refactor(
     """
     init_langfuse()
 
-    engine = ASTEngine(source)
+    engine = LibCSTEngine(source)
     deps = ASTDeps(engine=engine, target_rename=(old_name, new_name))
     agent = create_ast_refactor_agent()
 
@@ -170,6 +170,7 @@ async def run_ast_extract_function(
     """
     init_langfuse()
 
+    # extract_function not yet implemented on LibCSTEngine; use deprecated ASTEngine
     engine = ASTEngine(source)
     deps = ASTDeps(engine=engine, target_rename=("", ""))
     agent = create_ast_refactor_agent()

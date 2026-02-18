@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-import pytest
-
 from document_structuring_agent.models.ocr_input import ElementMetadata
 from document_structuring_agent.preprocessing.html_parser import ParsedElement
 from document_structuring_agent.tree_agent.flat_node import (

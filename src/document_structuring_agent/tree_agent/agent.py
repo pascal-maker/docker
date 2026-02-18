@@ -16,7 +16,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from anthropic import AsyncAnthropic
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.settings import ModelSettings
@@ -24,26 +24,32 @@ from pydantic_ai.settings import ModelSettings
 from document_structuring_agent.config import DEFAULT_MODEL
 from document_structuring_agent.langfuse_config import get_prompt, get_prompt_config
 from document_structuring_agent.logger import logger
-from document_structuring_agent.models.document import StructuredDocument
-from document_structuring_agent.models.ocr_input import OcrDocument
 from document_structuring_agent.preprocessing.html_parser import parse_ocr_html
 from document_structuring_agent.tree_agent.converter import (
     tree_engine_to_structured_document,
 )
 from document_structuring_agent.tree_agent.engine import (
-    TreeEngine,
     TreeEngineError,
     build_tree_engine,
 )
 from document_structuring_agent.tree_agent.flat_node import (
-    FlatNode,
     convert_to_flat_nodes,
 )
 from document_structuring_agent.tree_agent.memory import PatternMemory
 from document_structuring_agent.tree_agent.serializer import build_skeleton_xml
 
 if TYPE_CHECKING:
+    from pydantic_ai import RunContext
     from pydantic_ai.messages import ModelMessage
+
+    from document_structuring_agent.models.document import StructuredDocument
+    from document_structuring_agent.models.ocr_input import OcrDocument
+    from document_structuring_agent.tree_agent.engine import (
+        TreeEngine,
+    )
+    from document_structuring_agent.tree_agent.flat_node import (
+        FlatNode,
+    )
 
 _MAX_ITERATIONS = 20
 _STUCK_THRESHOLD = 3

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from document_structuring_agent.tree_agent.engine import (
-    TreeEngine,
     TreeEngineError,
     build_tree_engine,
 )
@@ -14,6 +15,11 @@ from document_structuring_agent.tree_agent.flat_node import (
     NodeHints,
     NodeStatus,
 )
+
+if TYPE_CHECKING:
+    from document_structuring_agent.tree_agent.engine import (
+        TreeEngine,
+    )
 
 
 def _make_flat_node(node_id: str, tag: str = "p", page: int = 1) -> FlatNode:
@@ -44,7 +50,7 @@ def _make_engine(n: int) -> tuple[TreeEngine, list[FlatNode]]:
 
 class TestBuildTreeEngine:
     def test_all_nodes_unplaced_at_init(self):
-        engine, nodes = _make_engine(3)
+        engine, _nodes = _make_engine(3)
         for fn in engine.flat_nodes.values():
             assert fn.status == NodeStatus.UNPLACED
 

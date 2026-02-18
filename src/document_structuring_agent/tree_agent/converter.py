@@ -8,11 +8,16 @@ so they are visible in the output rather than silently dropped.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from document_structuring_agent.models.classification import DocumentClassification
 from document_structuring_agent.models.document import StructuredDocument
 from document_structuring_agent.models.nodes import DocumentNode, NodeMetadata, NodeType
-from document_structuring_agent.tree_agent.engine import TreeEngine
-from document_structuring_agent.tree_agent.flat_node import FlatNode, NodeStatus
+from document_structuring_agent.tree_agent.flat_node import NodeStatus
+
+if TYPE_CHECKING:
+    from document_structuring_agent.tree_agent.engine import TreeEngine
+    from document_structuring_agent.tree_agent.flat_node import FlatNode
 
 # Maps HTML tag to NodeType. Keys are lower-case tag names.
 _TAG_TO_NODE_TYPE: dict[str, NodeType] = {
@@ -56,10 +61,7 @@ def _flat_node_to_document_node(
         # Strip the description wrapper to get just text
         # description format: '<h2> [bold] p3 "text here"'
         desc = fn.description
-        if '"' in desc:
-            title = desc.split('"', 1)[1].rstrip('"')
-        else:
-            title = fn.description
+        title = desc.split('"', 1)[1].rstrip('"') if '"' in desc else fn.description
     elif node_type in (NodeType.PARAGRAPH, NodeType.BLOCKQUOTE):
         desc = fn.description
         if '"' in desc:
@@ -91,11 +93,10 @@ def _flat_node_to_document_node(
 
 def _compute_num_pages(engine: TreeEngine) -> int | None:
     """Infer the total number of pages from node hints."""
-    max_page = max(
+    return max(
         (fn.hints.page_number for fn in engine.flat_nodes.values()),
         default=None,
     )
-    return max_page
 
 
 def tree_engine_to_structured_document(

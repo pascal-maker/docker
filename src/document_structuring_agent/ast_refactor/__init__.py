@@ -5,10 +5,11 @@ from document_structuring_agent.ast_refactor.agent import (
     run_ast_extract_function,
     run_ast_refactor,
 )
-from document_structuring_agent.ast_refactor.engine import ASTEngine
+from document_structuring_agent.ast_refactor.engine import ASTEngine, LibCSTEngine
 
 __all__ = [
     "ASTEngine",
+    "LibCSTEngine",
     "create_ast_refactor_agent",
     "run_ast_extract_function",
     "run_ast_refactor",
