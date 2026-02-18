@@ -31,6 +31,9 @@ PROMPT_CONFIGS: dict[str, PromptConfig] = {
     "parser-invoice": PromptConfig(
         model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
     ),
+    "tree-agent": PromptConfig(
+        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
+    ),
 }
 
 

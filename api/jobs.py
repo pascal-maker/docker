@@ -12,6 +12,7 @@ from typing import Any
 
 from document_structuring_agent.pipeline.graph import process_document
 from document_structuring_agent.preprocessing.ocr import pdf_to_ocr_document
+from document_structuring_agent.tree_agent import run_tree_agent
 
 
 class JobStatus(StrEnum):
@@ -23,6 +24,13 @@ class JobStatus(StrEnum):
     ERROR = "error"
 
 
+class ProcessingMode(StrEnum):
+    """Which processing approach to use."""
+
+    PIPELINE = "pipeline"
+    AGENT = "agent"
+
+
 @dataclass
 class Job:
     """A single processing job."""
@@ -32,14 +40,15 @@ class Job:
     stage: str = "queued"
     result: list[dict[str, Any]] | None = None
     error: str | None = None
+    mode: ProcessingMode = ProcessingMode.PIPELINE
 
 
 _jobs: dict[str, Job] = {}
 
 
-def create_job() -> Job:
+def create_job(mode: ProcessingMode = ProcessingMode.PIPELINE) -> Job:
     """Create and register a new job."""
-    job = Job()
+    job = Job(mode=mode)
     _jobs[job.id] = job
     return job
 
@@ -65,10 +74,15 @@ async def run_pipeline_job(job: Job, pdf_bytes: bytes, filename: str) -> None:
         ocr_doc = await asyncio.to_thread(pdf_to_ocr_document, tmp_path)
         ocr_doc.source_filename = filename
 
-        job.stage = "running pipeline"
-        results = await process_document(ocr_doc)
+        if job.mode == ProcessingMode.AGENT:
+            job.stage = "running tree agent"
+            result = await run_tree_agent(ocr_doc)
+            job.result = [result.model_dump(mode="json")]
+        else:
+            job.stage = "running pipeline"
+            results = await process_document(ocr_doc)
+            job.result = [r.model_dump(mode="json") for r in results]
 
-        job.result = [r.model_dump(mode="json") for r in results]
         job.status = JobStatus.DONE
         job.stage = "done"
     except Exception as exc:

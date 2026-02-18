@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { uploadPdf, pollJob } from '$lib/api';
+	import type { ProcessingMode } from '$lib/api';
 	import type { StructuredDocument } from '$lib/types';
 	import ClassificationBadge from '$lib/components/ClassificationBadge.svelte';
 	import Dropzone from '$lib/components/Dropzone.svelte';
@@ -11,6 +12,7 @@
 	let stage = '';
 	let errorMsg = '';
 	let results: StructuredDocument[] = [];
+	let mode: ProcessingMode = 'pipeline';
 	// per-document forced expansion state: undefined = local control
 	let forceExpanded: (boolean | undefined)[] = [];
 
@@ -18,7 +20,7 @@
 		const file = event.detail;
 		state = 'uploading';
 		try {
-			const jobId = await uploadPdf(file);
+			const jobId = await uploadPdf(file, mode);
 			state = 'polling';
 			await poll(jobId);
 		} catch (e) {
@@ -63,6 +65,35 @@
 		</header>
 
 		{#if state === 'idle' || state === 'uploading'}
+			<div class="mb-4 flex items-center gap-3">
+				<span class="text-sm font-medium text-slate-600">Mode</span>
+				<div class="flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+					<button
+						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {mode === 'pipeline'
+							? 'bg-slate-900 text-white'
+							: 'text-slate-500 hover:text-slate-700'}"
+						on:click={() => (mode = 'pipeline')}
+					>
+						Pipeline
+					</button>
+					<button
+						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {mode === 'agent'
+							? 'bg-slate-900 text-white'
+							: 'text-slate-500 hover:text-slate-700'}"
+						on:click={() => (mode = 'agent')}
+					>
+						Agent
+					</button>
+				</div>
+				<span class="text-xs text-slate-400">
+					{#if mode === 'pipeline'}
+						Multi-step prompt pipeline
+					{:else}
+						Iterative tree-building agent
+					{/if}
+				</span>
+			</div>
+
 			<Dropzone loading={state === 'uploading'} on:select={handleSelect} />
 
 		{:else if state === 'polling'}

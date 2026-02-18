@@ -2,9 +2,12 @@ import type { JobResponse } from '$lib/types';
 
 const BASE = 'http://localhost:8000/api';
 
-export async function uploadPdf(file: File): Promise<string> {
+export type ProcessingMode = 'pipeline' | 'agent';
+
+export async function uploadPdf(file: File, mode: ProcessingMode = 'pipeline'): Promise<string> {
 	const form = new FormData();
 	form.append('file', file);
+	form.append('mode', mode);
 	const res = await fetch(`${BASE}/process`, { method: 'POST', body: form });
 	if (!res.ok) throw new Error(await res.text());
 	const data = await res.json();
