@@ -9,11 +9,11 @@ import signal
 import sys
 from pathlib import Path
 
-from document_structuring_agent.sync.client import run_sync_client_with_queue
+from refactor_agent.sync.client import run_sync_client_with_queue
 
 try:
+    from watchdog.events import FileModifiedEvent, FileSystemEventHandler
     from watchdog.observers import Observer
-    from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 except ImportError:
     Observer = None  # type: ignore[misc, assignment]
     FileSystemEventHandler = object  # type: ignore[misc, assignment]
@@ -28,7 +28,12 @@ DEFAULT_WS_URL = os.environ.get("POC_SYNC_WS_URL", "ws://localhost:8765")
 class PyFileHandler(FileSystemEventHandler):
     """On .py file modification, put path into queue for sync."""
 
-    def __init__(self, root: Path, queue: asyncio.Queue[Path | None], loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(
+        self,
+        root: Path,
+        queue: asyncio.Queue[Path | None],
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
         self.root = root.resolve()
         self.queue = queue
         self.loop = loop
@@ -49,7 +54,9 @@ class PyFileHandler(FileSystemEventHandler):
         self.loop.call_soon_threadsafe(self.queue.put_nowait, path)
 
 
-async def _run_client(ws_url: str, root: Path, path_queue: asyncio.Queue[Path | None]) -> None:
+async def _run_client(
+    ws_url: str, root: Path, path_queue: asyncio.Queue[Path | None]
+) -> None:
     """Run sync client; exit when None is put in queue."""
     await run_sync_client_with_queue(ws_url, root, path_queue)
 

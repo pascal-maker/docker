@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from document_structuring_agent.ast_refactor import run_ast_refactor
+from refactor_agent.ast_refactor import run_ast_refactor
 
 _TEST_SOURCE = """def calculate_tax(amount, rate):
     return round(amount * rate, 2)

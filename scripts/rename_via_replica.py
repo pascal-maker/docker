@@ -71,7 +71,7 @@ def main() -> None:
                 path = d.get("path")
                 mod = d.get("modified_source")
                 if path and mod is not None:
-                    # Path from replica is e.g. playground/greeter.py
+                    # Path from replica is e.g. python/greeter.py
                     with open(path, "w", encoding="utf-8") as f:
                         f.write(mod)
                     print("Applied to", path)
@@ -82,7 +82,7 @@ def main() -> None:
         print("No artifacts to apply. Status:", state)
         msg = (task or {}).get("status") or {}
         if isinstance(msg.get("message"), dict):
-            for p in (msg["message"].get("parts") or []):
+            for p in msg["message"].get("parts") or []:
                 if p.get("type") == "text" or p.get("kind") == "text":
                     print(p.get("text", "")[:500])
                     break

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from document_structuring_agent.ast_refactor import run_ast_extract_function
+from refactor_agent.ast_refactor import run_ast_extract_function
 
 TEST_FILE = Path(__file__).resolve().parent / "testdata" / "sample_for_extract.py"
 

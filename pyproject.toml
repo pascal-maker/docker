@@ -1,7 +1,7 @@
 [project]
-name = "document-structuring-agent"
+name = "refactor-agent"
 version = "0.1.0"
-description = "Agentic document structuring pipeline: OCR HTML → structured document tree"
+description = "Agentic refactoring"
 readme = "README.md"
 authors = [
     { name = "Thomas Decloedt", email = "thomas.r.decloedt@gmail.com" }
@@ -12,7 +12,6 @@ dependencies = [
     "anthropic>=0.78.0,<0.80.0",  # >=0.78 needed for Claude 4.6; <0.80 avoids UserLocation import break in pydantic-ai (PR #4345 pending)
     "langfuse",
     "python-dotenv",
-    "docling",
     "libcst>=1.0.0",
     "fastmcp>=2.14.0,<3",
     "a2a-sdk>=0.3.0",
@@ -27,12 +26,6 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "mypy",
-    "types-fpdf2",
-]
-api = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
-    "python-multipart>=0.0.12",
 ]
 
 [build-system]
@@ -45,7 +38,7 @@ build-backend = "uv_build"
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-src = ["src", "tests", "scripts", "api", "playground"]
+src = ["src", "tests", "scripts", "playground"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -107,7 +100,7 @@ ignore = [
     "D107",   # missing __init__ docstring
     "D203",   # conflicts with D211
     "D213",   # conflicts with D212
-"COM812", # conflicts with formatter
+    "COM812", # conflicts with formatter
     "ISC001", # conflicts with formatter
     "TRY003", # long exception messages (too noisy)
     "EM101",  # string literal in exception
@@ -127,14 +120,13 @@ max-statements = 40
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["document_structuring_agent", "api", "playground"]
+known-first-party = ["refactor_agent", "playground"]
 combine-as-imports = true
 
 [tool.ruff.lint.flake8-type-checking]
 strict = true
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "pydantic_graph.BaseNode",
 ]
 
 [tool.ruff.lint.flake8-tidy-imports]
@@ -148,22 +140,8 @@ ban-relative-imports = "all"
 "scripts/**/*.py" = [
     "T20", "INP001", "D", "PLC0415", "PLR2004",
 ]
-"src/**/html_parser.py" = ["SLF001"]
 "src/**/_compat.py" = [
     "PLC0415", "ANN", "F401",
-]
-"src/**/pipeline/nodes.py" = ["TC002"]
-"api/**/*.py" = ["D", "ANN", "T20", "FBT", "B008"]
-"src/document_structuring_agent/tree_agent/agent.py" = [
-    "D417", "TRY300", "C901", "PLR0915", "TC001", "TC002", "PLC0415", "PLR0913",
-]
-"src/document_structuring_agent/tree_agent/engine.py" = ["FURB110", "E501"]
-"src/document_structuring_agent/tree_agent/serializer.py" = [
-    "TC001", "PERF401", "E501",
-]
-"src/document_structuring_agent/tree_agent/converter.py" = ["PERF401"]
-"tests/test_tree_agent/*.py" = [
-    "F401", "F841", "RUF059", "TC001", "PLR0913",
 ]
 "playground/**/*.py" = ["T20", "D"]
 
@@ -194,12 +172,9 @@ warn_required_dynamic_aliases = true
 [[tool.mypy.overrides]]
 module = [
     "langfuse.*",
-    "pydantic_graph.*",
     "pydantic_ai.*",
     "pydantic_ai._utils",
     "dotenv.*",
-    "docling.*",
-    "docling_core.*",
     "anthropic.*",
     "libcst.*",
     "fastmcp.*",

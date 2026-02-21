@@ -1,7 +1,3 @@
-To run:
-- Terminal 1: `uv run uvicorn api.main:app --reload --port 8000`
-- Terminal 2: `cd ui && pnpm dev`
-
 ## POC: Synced codebase + refactor in Docker (Docker Compose)
 
 Runs the sync server and A2A refactor agent in one isolated container. Local sync client keeps a replica in sync on save over WebSockets; the agent reads from the replica. MCP bridge applies refactor results to your local workspace.
@@ -16,7 +12,7 @@ Ports: **8765** (WebSocket sync), **9999** (A2A HTTP).
 
 **Sync your workspace to the replica (on save):** In another terminal.
 
-From this repo (document-structuring-agent), sync another project:
+From this repo, sync another project:
 
 ```bash
 uv run python scripts/run_poc_sync_client.py /path/to/your/python/project
@@ -54,7 +50,7 @@ The server uses stdio: a client spawns this process and talks to it over stdin/s
 
 - **Command:** `uv`
 - **Args:** `run`, `python`, `scripts/run_ast_refactor_mcp.py`
-- **Required:** set **`cwd`** to this repo’s root (e.g. `/Users/thomas/Documents/personal/repos/document-structuring-agent`). Without it, the client will look for `scripts/run_ast_refactor_mcp.py` in the wrong directory and you’ll see: `can't open file '.../scripts/run_ast_refactor_mcp.py': No such file or directory`.
+- **Required:** set **`cwd`** to this repo’s root. Without it, the client will look for `scripts/run_ast_refactor_mcp.py` in the wrong directory and you’ll see: `can't open file '.../scripts/run_ast_refactor_mcp.py': No such file or directory`.
 
 Example config (Claude Code / Cursor):
 
@@ -64,7 +60,7 @@ Example config (Claude Code / Cursor):
     "ast-refactor": {
       "command": "uv",
       "args": ["run", "python", "scripts/run_ast_refactor_mcp.py"],
-      "cwd": "/Users/thomas/Documents/personal/repos/document-structuring-agent"
+      "cwd": "/Users/thomas/Documents/personal/repos/refactor-agent" // TODO: Remove PII!
     }
   }
 }

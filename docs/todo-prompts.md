@@ -9,7 +9,7 @@ Use this with a **planning agent** to continue the LibCST + MCP + A2A work:
 **Context:** This repo implements an AST refactor agent (LibCST engine, PydanticAI agent, MCP and A2A wrappers). The plan is **`.cursor/plans/libcst_+_mcp_+_a2a_wrappers_e005fdf7.plan.md`** (or in your plans list as “LibCST + MCP + A2A wrappers”). A more detailed Phase 2 implementation plan is in **`.cursor/plans/phase_2_mcp_and_a2a_4260c831.plan.md`**.
 
 **Current state:**
-- **Phase 1 done:** LibCST engine in `src/document_structuring_agent/ast_refactor/engine.py`; agent in `agent.py`; `run_ast_refactor()` uses LibCST; tests in `tests/test_ast_refactor/test_engine.py` pass.
+- **Phase 1 done:** LibCST engine in `src/refactor_agent/ast_refactor/engine.py`; agent in `agent.py`; `run_ast_refactor()` uses LibCST; tests in `tests/test_ast_refactor/test_engine.py` pass.
 - **Phase 2 done:** MCP wrapper (FastMCP, `rename_symbol` tool, stdio, script + shell wrapper in Cursor `mcp.json`); A2A wrapper (local HTTP server, one refactor task type, Agent Card, executor, run script). Tests in `tests/test_ast_refactor/test_mcp_server.py` and `test_a2a_executor.py`. README documents how to start both servers and how clients reach them.
 - **Phase 3 (hosting) and Phase 4 (VS Code extension)** are still placeholders in the plan and not implemented.
 
@@ -18,7 +18,7 @@ Use this with a **planning agent** to continue the LibCST + MCP + A2A work:
 2. **Produce an implementation plan** for the remaining work only: Phase 3 (hosting the refactor service; what “hosting” means in that plan — e.g. deploy MCP/A2A or API, auth, etc.) and Phase 4 (VS Code extension; how it talks to the backend, UI for rename/extract, etc.). Do not implement yet; output a clear, phased plan with constraints from the original plan (time-to-value, strict typing, no edits to the plan file except to mark Phase 2 done and to set “next: Phase 3 / Phase 4”).
 3. Keep the same constraints as in the existing plan; reference **CLAUDE.md**, **vision.md**, and the current code (engine, agent, MCP server, A2A server, README) as needed.
 
-**Relevant files:** The plan file(s) above, `src/document_structuring_agent/ast_refactor/` (engine, agent, mcp_server, a2a_executor, a2a_server), `scripts/run_ast_refactor_mcp.py`, `scripts/run_ast_refactor_a2a.py`, `README.md`, `pyproject.toml`, `CLAUDE.md`, `vision.md`.
+**Relevant files:** The plan file(s) above, `src/refactor_agent/ast_refactor/` (engine, agent, mcp_server, a2a_executor, a2a_server), `scripts/run_ast_refactor_mcp.py`, `scripts/run_ast_refactor_a2a.py`, `README.md`, `pyproject.toml`, `CLAUDE.md`, `vision.md`.
 
 # Planning prompt: Custom MCP bridge for AST refactor agent
 

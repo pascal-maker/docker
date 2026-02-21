@@ -9,7 +9,7 @@ Or add to Claude Code / Cursor MCP config, e.g.:
       "ast-refactor": {
         "command": "uv",
         "args": ["run", "python", "scripts/run_ast_refactor_mcp.py"],
-        "cwd": "/path/to/document-structuring-agent"
+        "cwd": "/path/to/refactor-agent"
       }
     }
   }
@@ -29,7 +29,7 @@ _src = _repo_root / "src"
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 
-from document_structuring_agent.ast_refactor.mcp_server import mcp  # noqa: E402
+from refactor_agent.ast_refactor.mcp_server import mcp  # noqa: E402
 
 if __name__ == "__main__":
     mcp.run()

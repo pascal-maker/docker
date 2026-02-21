@@ -16,7 +16,7 @@ from a2a.types import (
     TextPart,
 )
 
-from document_structuring_agent.ast_refactor.a2a_executor import (
+from refactor_agent.ast_refactor.a2a_executor import (
     PENDING_RENAME_KEY,
     ASTRefactorAgentExecutor,
     _handle_rename_task,
@@ -130,11 +130,11 @@ async def test_executor_multi_file_rename_enqueues_one_artifact_per_file() -> No
             "new_name": "greet_by_name",
             "files": [
                 {
-                    "path": "playground/greeter.py",
+                    "path": "python/greeter.py",
                     "source": "def greet(x):\n    return x\n",
                 },
                 {
-                    "path": "playground/caller.py",
+                    "path": "python/caller.py",
                     "source": "from greeter import greet\n\nprint(greet(1))\n",
                 },
             ],
@@ -155,8 +155,8 @@ async def test_executor_multi_file_rename_enqueues_one_artifact_per_file() -> No
     assert art1.artifact.name == art2.artifact.name == "rename-result"
     data1 = next(p.root for p in art1.artifact.parts if isinstance(p.root, DataPart))
     data2 = next(p.root for p in art2.artifact.parts if isinstance(p.root, DataPart))
-    assert data1.data.get("path") == "playground/greeter.py"
-    assert data2.data.get("path") == "playground/caller.py"
+    assert data1.data.get("path") == "python/greeter.py"
+    assert data2.data.get("path") == "python/caller.py"
     assert "def greet_by_name(" in data1.data["modified_source"]
     assert "greet_by_name" in data2.data["modified_source"]
     assert isinstance(status_ev, TaskStatusUpdateEvent)
@@ -177,15 +177,15 @@ async def test_executor_workspace_returns_artifacts_only_for_impacted_files() ->
             "new_name": "greet_by_name",
             "workspace": [
                 {
-                    "path": "playground/greeter.py",
+                    "path": "python/greeter.py",
                     "source": "def greet(x):\n    return x\n",
                 },
                 {
-                    "path": "playground/caller.py",
+                    "path": "python/caller.py",
                     "source": "from greeter import greet\n\nprint(greet(1))\n",
                 },
                 {
-                    "path": "playground/other.py",
+                    "path": "python/other.py",
                     "source": "def unrelated():\n    pass\n",
                 },
             ],
@@ -207,7 +207,7 @@ async def test_executor_workspace_returns_artifacts_only_for_impacted_files() ->
     data1 = next(p.root for p in art1.artifact.parts if isinstance(p.root, DataPart))
     data2 = next(p.root for p in art2.artifact.parts if isinstance(p.root, DataPart))
     paths = {data1.data.get("path"), data2.data.get("path")}
-    assert paths == {"playground/greeter.py", "playground/caller.py"}
+    assert paths == {"python/greeter.py", "python/caller.py"}
     assert isinstance(status_ev, TaskStatusUpdateEvent)
     assert status_ev.status.state == TaskState.completed
     assert "Renamed in 2 file(s)" in status_ev.status.message.parts[0].root.text

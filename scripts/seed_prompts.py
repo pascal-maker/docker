@@ -8,32 +8,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from document_structuring_agent.models.prompt_config import PromptConfig
+from refactor_agent.models.prompt_config import PromptConfig
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 PROMPT_CONFIGS: dict[str, PromptConfig] = {
-    "segmentation-agent": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
-    "classification-agent": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
-    "parser-generic": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
-    "parser-letter": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
-    "parser-legal-schedule": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
-    "parser-invoice": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
-    "tree-agent": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=60000
-    ),
     "ast-refactor-agent": PromptConfig(
         model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=4096
     ),
