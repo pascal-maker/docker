@@ -2,7 +2,7 @@
 
 RUN := uv run
 
-.PHONY: help format format-check lint fix typecheck test check ci clean
+.PHONY: help format format-check lint fix typecheck test check ci clean ui
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -39,6 +39,9 @@ check: ## Run all checks (format-check + lint + typecheck + test)
 
 ci: ## Alias for check (CI usage)
 	$(MAKE) check
+
+ui: ## Launch Chainlit dev UI (reads playground/ directly)
+	$(RUN) chainlit run src/refactor_agent/ui/app.py -w
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info

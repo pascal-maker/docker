@@ -26,6 +26,7 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "mypy",
+    "chainlit",
 ]
 
 [build-system]
@@ -144,6 +145,10 @@ ban-relative-imports = "all"
     "PLC0415", "ANN", "F401",
 ]
 "playground/**/*.py" = ["T20", "D"]
+"src/refactor_agent/ui/**/*.py" = [
+    "D", "ANN", "T20",
+    "ASYNC240",  # local-disk file I/O in Chainlit handlers is fine sync
+]
 
 # ---------------------------------------------------------------------------
 # Mypy – static type checking
@@ -179,8 +184,15 @@ module = [
     "libcst.*",
     "fastmcp.*",
     "a2a.*",
+    "chainlit.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Chainlit has no type stubs; strict untyped-call/def checks are unworkable.
+module = ["refactor_agent.ui.*"]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
 
 # ---------------------------------------------------------------------------
 # Pytest
