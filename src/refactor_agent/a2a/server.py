@@ -7,10 +7,10 @@ from a2a.server.apps import A2AStarletteApplication
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 
-from refactor_agent.ast_refactor.a2a_executor import (
+from refactor_agent.a2a.executor import (
     ASTRefactorAgentExecutor,
 )
-from refactor_agent.ast_refactor.bridge_request_handler import (
+from refactor_agent.a2a.bridge import (
     BridgeCompatibleRequestHandler,
 )
 

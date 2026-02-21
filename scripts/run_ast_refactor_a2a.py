@@ -24,7 +24,7 @@ import uuid
 
 import uvicorn
 
-from refactor_agent.ast_refactor.a2a_server import build_app
+from refactor_agent.a2a.server import build_app
 
 DEFAULT_PORT = 9999
 RPC_PATH = "/"

@@ -29,7 +29,7 @@ _src = _repo_root / "src"
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 
-from refactor_agent.ast_refactor.mcp_server import mcp  # noqa: E402
+from refactor_agent.mcp.server import mcp  # noqa: E402
 
 if __name__ == "__main__":
     mcp.run()

@@ -7,7 +7,7 @@ from pathlib import Path
 import libcst as cst
 from fastmcp import FastMCP
 
-from refactor_agent.ast_refactor.engine import LibCSTEngine
+from refactor_agent.engine.libcst_engine import LibCSTEngine
 
 mcp = FastMCP("ast-refactor")
 

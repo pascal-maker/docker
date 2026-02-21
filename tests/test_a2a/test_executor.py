@@ -16,7 +16,7 @@ from a2a.types import (
     TextPart,
 )
 
-from refactor_agent.ast_refactor.a2a_executor import (
+from refactor_agent.a2a.executor import (
     PENDING_RENAME_KEY,
     ASTRefactorAgentExecutor,
     _handle_rename_task,

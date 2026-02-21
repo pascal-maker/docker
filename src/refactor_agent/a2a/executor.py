@@ -24,7 +24,7 @@ from a2a.types import (
 )
 
 # CollisionInfo used at runtime for collision list type
-from refactor_agent.ast_refactor.engine import (  # noqa: TC001
+from refactor_agent.engine.libcst_engine import (  # noqa: TC001
     CollisionInfo,
     LibCSTEngine,
 )

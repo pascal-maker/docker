@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from refactor_agent.ast_refactor.mcp_server import (
+from refactor_agent.mcp.server import (
     _rename_symbol_in_file,
 )
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from refactor_agent.ast_refactor.engine import LibCSTEngine
+from refactor_agent.engine.libcst_engine import LibCSTEngine
 
 
 def test_parse_and_to_source_round_trip() -> None:
