@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ast-refactor": {
+      "command": "uv",
+      "args": ["run", "python", "scripts/run_ast_refactor_mcp.py"],
+      "cwd": "."
+    },
+    "a2a": {
+      "command": "uvx",
+      "args": ["a2a-mcp-server"]
+    }
+  }
+}

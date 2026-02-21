@@ -14,13 +14,16 @@
       "Bash(make fix:*)",
       "Bash(make format:*)",
       "Bash(make lint:*)",
+      "Bash(make test:*)",
       "Bash(make typecheck:*)",
       "Bash(uv run mypy:*)",
       "Bash(uv run pytest:*)",
       "Bash(uv run ruff check:*)",
       "Bash(uv run ruff format:*)",
+      "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram",
       "mcp__langfuse-docs__getLangfuseDocsPage",
       "mcp__langfuse-docs__getLangfuseOverview",
+      "mcp__playwright__browser_navigate",
       "WebFetch(domain:pypi.org)"
     ]
   }

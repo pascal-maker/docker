@@ -1,15 +1,18 @@
-.claude/settings.local.json
-.env
-*.code-workspace
 __pycache__/
-*.pyc
-.ruff_cache/
-.pytest_cache/
-dist/
-*.egg-info/
-.venv/
-.mypy_cache/
+.claude/settings.local.json
 .DS_Store
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.code-workspace
+*.egg-info/
+*.pyc
+dist/
 
-# Docling model cache (large, downloaded on first run)
-~/.cache/docling/
+# Tool runtime state
+registered_agents.json
+task_agent_mapping.json
+
+.chainlit
