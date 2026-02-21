@@ -41,7 +41,7 @@ ci: ## Alias for check (CI usage)
 	$(MAKE) check
 
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
-	$(RUN) chainlit run src/refactor_agent/ui/app.py -w
+	CHAINLIT_APP_ROOT=src $(RUN) chainlit run src/refactor_agent/ui/app.py -w
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info

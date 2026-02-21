@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-import json
-import re
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
 
 import chainlit as cl
+from pydantic_ai._agent_graph import End, ModelRequestNode
 
-from refactor_agent.engine.libcst_engine import LibCSTEngine
 from refactor_agent.observability.langfuse_config import init_langfuse
-
-if TYPE_CHECKING:
-    from refactor_agent.engine.base import CollisionInfo, RefactorEngine
+from refactor_agent.ui.chat_agent import ChatDeps, create_chat_agent
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -24,41 +19,6 @@ _WORKSPACE_ROOT = Path(__file__).resolve().parents[3] / "playground"
 _LANG_CONFIG: dict[str, dict[str, str]] = {
     "python": {"ext": "*.py", "subdir": "python"},
 }
-
-_RENAME_RE = re.compile(
-    r"rename\s+(\w+)\s+to\s+(\w+)"
-    r"(?:\s+in\s+(?:scope\s+)?(\w+))?",
-    re.IGNORECASE,
-)
-
-
-class _RenameParams(NamedTuple):
-    old_name: str
-    new_name: str
-    scope_node: str | None
-
-
-# ---------------------------------------------------------------------------
-# Engine factory
-# ---------------------------------------------------------------------------
-
-
-def get_engine(language: str, source: str) -> RefactorEngine:
-    """Instantiate the refactor engine for *language*.
-
-    Args:
-        language: Workspace language (e.g. ``"python"``).
-        source: Source code to parse.
-
-    Returns:
-        A ``RefactorEngine`` implementation for the requested language.
-
-    Raises:
-        NotImplementedError: If the language engine is not yet available.
-    """
-    if language == "python":
-        return LibCSTEngine(source)
-    raise NotImplementedError(f"{language} engine not yet available")
 
 
 # ---------------------------------------------------------------------------
@@ -74,63 +34,6 @@ def _scan_files(workspace: Path, ext: str) -> list[Path]:
     if not workspace.exists():
         return []
     return sorted(workspace.rglob(ext))
-
-
-# ---------------------------------------------------------------------------
-# Input parsing
-# ---------------------------------------------------------------------------
-
-
-def _parse_rename(text: str) -> _RenameParams | None:
-    stripped = text.strip()
-    if stripped.startswith("{"):
-        return _parse_rename_json(stripped)
-    match = _RENAME_RE.search(stripped)
-    if match:
-        return _RenameParams(
-            old_name=match.group(1),
-            new_name=match.group(2),
-            scope_node=match.group(3),
-        )
-    return None
-
-
-def _parse_rename_json(text: str) -> _RenameParams | None:
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        return None
-    old = data.get("old_name")
-    new = data.get("new_name")
-    if isinstance(old, str) and isinstance(new, str):
-        scope = data.get("scope_node")
-        return _RenameParams(
-            old_name=old,
-            new_name=new,
-            scope_node=scope if isinstance(scope, str) else None,
-        )
-    return None
-
-
-# ---------------------------------------------------------------------------
-# Collision formatting
-# ---------------------------------------------------------------------------
-
-
-def _format_collisions(
-    collisions: list[CollisionInfo],
-    new_name: str,
-    rel_path: str,
-) -> str:
-    lines = [
-        f"**Collision in `{rel_path}`:** `{new_name}` already exists.",
-        "",
-        "Conflicting definitions:",
-        *(f"- {c.kind} at {c.location}" for c in collisions),
-        "",
-        "Proceeding would shadow these definitions.",
-    ]
-    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +72,9 @@ async def on_chat_start():
     cl.user_session.set("language", language)
     if language != "python":
         return
+    agent = create_chat_agent()
+    cl.user_session.set("chat_agent", agent)
+    cl.user_session.set("message_history", [])
     await _show_workspace(language)
 
 
@@ -216,10 +122,8 @@ async def _show_workspace(language: str) -> None:
             f"**Workspace:** `playground/{language}/`\n\n"
             f"**Files:**\n{listing}\n\n"
             f"**Mode:** {mode}\n\n"
-            "Commands:\n"
-            "- `rename <old> to <new>`\n"
-            "- `rename <old> to <new> in scope <fn>`\n"
-            '- JSON: `{"old_name": "…", "new_name": "…"}`'
+            "Ask me to rename symbols, show file structure, "
+            "or answer questions about your code."
         ),
     ).send()
 
@@ -227,6 +131,21 @@ async def _show_workspace(language: str) -> None:
 # ---------------------------------------------------------------------------
 # Message handler
 # ---------------------------------------------------------------------------
+
+
+_TOOL_LABELS: dict[str, str] = {
+    "rename_in_workspace": "Renaming `{old_name}` → `{new_name}`",
+    "list_workspace_files": "Listing workspace files",
+    "show_file_skeleton": "Reading `{file_path}` structure",
+}
+
+
+def _step_label(tool_name: str, args: dict) -> str:  # type: ignore[type-arg]
+    template = _TOOL_LABELS.get(tool_name, tool_name)
+    try:
+        return template.format_map(args)
+    except KeyError:
+        return tool_name
 
 
 @cl.on_message
@@ -238,188 +157,53 @@ async def on_message(message: cl.Message) -> None:
         ).send()
         return
 
-    params = _parse_rename(message.content)
-    if params is None:
-        await cl.Message(
-            content=(
-                "Unrecognized command. Try:\n"
-                "- `rename <old> to <new>`\n"
-                '- `{"old_name": "…", "new_name": "…"}`'
-            ),
-        ).send()
+    agent = cl.user_session.get("chat_agent")
+    if agent is None:
+        await cl.Message(content="Agent not initialized. Restart.").send()
         return
 
+    history = cl.user_session.get("message_history") or []
     mode = cl.user_session.get("chat_profile") or "Ask"
-    await _do_workspace_rename(
+
+    deps = ChatDeps(
         language=language,
-        params=params,
+        workspace=_workspace_dir(language),
         mode=mode,
+        file_ext=_LANG_CONFIG[language]["ext"],
     )
 
-
-# ---------------------------------------------------------------------------
-# Multi-file rename
-# ---------------------------------------------------------------------------
-
-
-async def _do_workspace_rename(
-    *,
-    language: str,
-    params: _RenameParams,
-    mode: str,
-) -> None:
-    ws = _workspace_dir(language)
-    ext = _LANG_CONFIG[language]["ext"]
-    files = _scan_files(ws, ext)
-    if not files:
-        await cl.Message(content="No files in workspace.").send()
-        return
-
-    results: list[str] = []
-    async with cl.Step(
-        name=f"Rename '{params.old_name}' -> '{params.new_name}'",
-    ) as parent_step:
-        parent_step.input = (
-            f"old_name={params.old_name}"
-            f", new_name={params.new_name}"
-            f", scope_node={params.scope_node}"
-        )
-        for fp in files:
-            outcome = await _rename_in_file(
-                file_path=fp,
-                workspace=ws,
-                language=language,
-                params=params,
-                mode=mode,
-            )
-            if outcome is not None:
-                results.append(outcome)
-
-        parent_step.output = (
-            "\n".join(results) if results else f"No files reference '{params.old_name}'"
-        )
-
-    await _send_summary(results, params.old_name, mode)
-
-
-async def _send_summary(
-    results: list[str],
-    old_name: str,
-    mode: str,
-) -> None:
-    if results:
-        label = "Plan" if mode == "Plan" else "Rename"
-        summary = f"**{label} complete** ({len(results)} file(s)):\n" + "\n".join(
-            f"- {r}" for r in results
-        )
-    else:
-        summary = f"Symbol `{old_name}` not found in any workspace file."
-    await cl.Message(content=summary).send()
-
-
-# ---------------------------------------------------------------------------
-# Single-file rename
-# ---------------------------------------------------------------------------
-
-
-async def _rename_in_file(
-    *,
-    file_path: Path,
-    workspace: Path,
-    language: str,
-    params: _RenameParams,
-    mode: str,
-) -> str | None:
-    rel = str(file_path.relative_to(workspace))
-    source = file_path.read_text(encoding="utf-8")
     try:
-        engine = get_engine(language, source)
-    except Exception:  # skip unparseable files
-        return None
+        async with agent.iter(
+            message.content,
+            deps=deps,
+            message_history=history,
+        ) as run:
+            node = run.next_node
+            while not isinstance(node, End):
+                next_node = await run.next(node)
+                if isinstance(node, ModelRequestNode):
+                    await _show_tool_steps(run)
+                node = next_node
 
-    skip = await _handle_collisions(
-        engine=engine,
-        new_name=params.new_name,
-        scope_node=params.scope_node,
-        rel_path=rel,
-        mode=mode,
-    )
-    if skip is not None:
-        return skip
-
-    result = engine.rename_symbol(
-        params.old_name,
-        params.new_name,
-        params.scope_node,
-    )
-    if result.startswith("ERROR:"):
-        return None
-
-    if mode == "Plan":
-        async with cl.Step(
-            name=f"Would rename in {rel}",
-        ) as step:
-            step.output = result
-        return f"[plan] {rel}: {result}"
-
-    file_path.write_text(engine.to_source(), encoding="utf-8")
-    async with cl.Step(name=f"Renamed in {rel}") as step:
-        step.output = result
-    return f"{rel}: {result}"
-
-
-# ---------------------------------------------------------------------------
-# Collision handling
-# ---------------------------------------------------------------------------
-
-
-async def _handle_collisions(
-    *,
-    engine: RefactorEngine,
-    new_name: str,
-    scope_node: str | None,
-    rel_path: str,
-    mode: str,
-) -> str | None:
-    """Check for name collisions and handle based on mode.
-
-    Returns a skip-reason string if the file should be skipped,
-    or ``None`` to proceed with the rename.
-    """
-    collisions = engine.check_name_collisions(new_name, scope_node)
-    if not collisions:
-        return None
-
-    text = _format_collisions(collisions, new_name, rel_path)
-
-    if mode == "Plan":
-        async with cl.Step(
-            name=f"Collision in {rel_path}",
-        ) as step:
-            step.output = text + "\n(Plan mode: not applied)"
-        return f"[collision] {rel_path}: not applied"
-
-    if mode == "Ask":
-        res = await cl.AskActionMessage(
-            content=text + "\n\nProceed anyway?",
-            actions=[
-                cl.Action(
-                    name="yes",
-                    payload={"confirm": True},
-                    label="Yes, proceed",
-                ),
-                cl.Action(
-                    name="no",
-                    payload={"confirm": False},
-                    label="No, skip",
-                ),
-            ],
+            await cl.Message(content=run.result.output).send()
+            cl.user_session.set(
+                "message_history",
+                run.all_messages(),
+            )
+    except Exception as exc:
+        await cl.Message(
+            content=f"Something went wrong: {exc}",
         ).send()
-        if res is None or res["name"] != "yes":
-            async with cl.Step(
-                name=f"Skipped {rel_path}",
-            ) as step:
-                step.output = "User declined collision override"
-            return f"[skipped] {rel_path}: collision"
 
-    return None
+
+async def _show_tool_steps(run) -> None:
+    msgs = run.all_messages()
+    if not msgs:
+        return
+    last = msgs[-1]
+    for part in getattr(last, "parts", []):
+        if type(part).__name__ == "ToolCallPart":
+            args = part.args if isinstance(part.args, dict) else {}
+            label = _step_label(part.tool_name, args)
+            async with cl.Step(name=label) as step:
+                step.output = ""
