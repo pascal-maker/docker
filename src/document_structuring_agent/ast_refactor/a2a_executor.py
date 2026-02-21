@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
+from pathlib import Path
 
 # RequestContext and EventQueue used in method signatures at runtime
 from a2a.server.agent_execution import AgentExecutor, RequestContext  # noqa: TC002
@@ -30,6 +32,24 @@ from document_structuring_agent.ast_refactor.engine import (  # noqa: TC001
 PENDING_RENAME_KEY = "pending_rename"
 RENAME_RESULT_KEY = "rename_result"
 MODIFIED_SOURCE_MARKER = "\n\n--- Modified source ---\n"
+REPLICA_DIR_ENV = "REPLICA_DIR"
+
+
+def _load_workspace_from_replica(replica_root: Path) -> list[dict[str, str]]:
+    """Scan replica_root for **/*.py and return workspace list [{ path, source }]."""
+    out: list[dict[str, str]] = []
+    root = replica_root.resolve()
+    for path in root.rglob("*.py"):
+        if not path.is_file():
+            continue
+        try:
+            rel = path.relative_to(root)
+            path_str = str(rel).replace("\\", "/")
+            content = path.read_text(encoding="utf-8")
+            out.append({"path": path_str, "source": content})
+        except (OSError, ValueError):
+            continue
+    return out
 
 
 def _agent_message(text: str) -> Message:
@@ -119,6 +139,19 @@ def _parse_rename_params(user_input: str) -> dict[str, str | None] | str:  # noq
             "scope_node": scope_node,
             "source": None,
             "path": None,
+        }
+
+    # Replica: build workspace from REPLICA_DIR when use_replica is true
+    if data.get("use_replica"):
+        return {
+            "use_replica": True,
+            "workspace": None,
+            "old_name": old_name,
+            "new_name": new_name,
+            "scope_node": scope_node,
+            "source": None,
+            "path": None,
+            "files": None,
         }
 
     # Single-file
@@ -387,6 +420,31 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                 _status_event(task_id, context_id, TaskState.failed, parsed)
             )
             return
+
+        # When use_replica is true, build workspace from REPLICA_DIR
+        if parsed.get("use_replica") and not parsed.get("workspace"):
+            replica_dir = os.environ.get(REPLICA_DIR_ENV)
+            if not replica_dir:
+                await event_queue.enqueue_event(
+                    _status_event(
+                        task_id,
+                        context_id,
+                        TaskState.failed,
+                        "ERROR: use_replica is true but REPLICA_DIR is not set",
+                    )
+                )
+                return
+            parsed["workspace"] = _load_workspace_from_replica(Path(replica_dir))
+            if not parsed["workspace"]:
+                await event_queue.enqueue_event(
+                    _status_event(
+                        task_id,
+                        context_id,
+                        TaskState.failed,
+                        "ERROR: replica directory is empty or has no .py files",
+                    )
+                )
+                return
 
         workspace_list = parsed.get("workspace")
         if isinstance(workspace_list, list) and len(workspace_list) > 0:

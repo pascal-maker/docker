@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from playground.greeter import greet
+from playground.greeter import greet_user
 
 
 def main() -> None:
     """Print greeting for a fixed name."""
-    print(greet("World"))
+    print(greet_user("World"))
 
 
 if __name__ == "__main__":

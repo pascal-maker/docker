@@ -1,0 +1,11 @@
+# POC: synced codebase + A2A refactor agent (sync server + A2A in one container)
+services:
+  poc-server:
+    build: .
+    ports:
+      - "8765:8765"   # WebSocket sync
+      - "9999:9999"   # A2A HTTP
+    environment:
+      REPLICA_DIR: /workspace
+      POC_SYNC_PORT: "8765"
+    # Replica is in-container only; sync client pushes code via WebSocket

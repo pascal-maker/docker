@@ -2,6 +2,44 @@ To run:
 - Terminal 1: `uv run uvicorn api.main:app --reload --port 8000`
 - Terminal 2: `cd ui && pnpm dev`
 
+## POC: Synced codebase + refactor in Docker (Docker Compose)
+
+Runs the sync server and A2A refactor agent in one isolated container. Local sync client keeps a replica in sync on save over WebSockets; the agent reads from the replica. MCP bridge applies refactor results to your local workspace.
+
+**Start the server (preferred: Docker Compose):**
+
+```bash
+docker compose up --build
+```
+
+Ports: **8765** (WebSocket sync), **9999** (A2A HTTP).
+
+**Sync your workspace to the replica (on save):** In another terminal.
+
+From this repo (document-structuring-agent), sync another project:
+
+```bash
+uv run python scripts/run_poc_sync_client.py /path/to/your/python/project
+```
+
+From this repo, sync this repo itself (current directory):
+
+```bash
+uv run python scripts/run_poc_sync_client.py .
+```
+
+From another directory, use this repo’s absolute path for the script and pass the workspace to sync:
+
+```bash
+uv run python <this-repo>/scripts/run_poc_sync_client.py /path/to/your/python/project
+```
+
+Default WebSocket URL is `ws://localhost:8765`; override with `POC_SYNC_WS_URL` if needed.
+
+**MCP bridge:** Use the refactor bridge so Cursor/Claude can call the remote agent (use_replica) and apply artifacts locally. Configure an MCP server that runs `scripts/run_refactor_bridge.py` with `cwd` set to this repo and env `A2A_REFACTOR_URL=http://localhost:9999` (and optional `WORKSPACE_ROOT` for apply path resolution). See the refactor bridge script for details.
+
+---
+
 ## AST refactor servers (MCP and A2A)
 
 ### MCP server (stdio)
@@ -54,6 +92,8 @@ Clients can reach it at:
 
 - **Agent Card:** `GET http://localhost:9999/.well-known/agent-card.json` — discover the agent’s skills and capabilities.
 - **Rename task:** Send an A2A `message/send` request with a JSON body: `{"source": "<Python source>", "old_name": "...", "new_name": "...", "scope_node": "..." (optional), "path": "path/to/file.py" (optional)}`. The server runs the rename and returns the result in the task **status message** and in a **rename-result artifact** with `modified_source` and (if you sent it) `path`, so the client can apply the edit to the right file. **Request formats:** (1) **Single-file:** source, old_name, new_name, optional path. (2) **Workspace (full impact):** old_name, new_name, workspace: [{path, source}, ...] — the agent finds which files reference the symbol and returns one rename-result artifact per impacted file; the client applies every artifact. (3) **Explicit files:** files: [{path, source}, ...] to refactor a fixed list. Apply each artifact’s modified_source to its path.
+
+**Limitation:** The A2A refactor agent is stateless and has no filesystem or repo access. It only sees the JSON request body. For full cross-file impact, the client must send a `workspace` (or `files`) array with all relevant file contents; the agent cannot discover or read other files by itself. A local relay (e.g. a custom MCP bridge with repo access) can gather workspace and push it to the agent so refactors apply repo-wide — see planning prompt in `docs/` if implementing that.
 
 **Test the A2A server:** With the server running, in another terminal:
 
