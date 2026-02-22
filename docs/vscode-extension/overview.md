@@ -23,9 +23,11 @@ For VS Code users, the **Refactor Agent** extension is a **standalone** sidebar 
 - **Sync URL** — e.g. `http://localhost:8765` for HTTP (POST `/sync/workspace`).
 - **API key** (optional) — For hosted backends that accept BYOK; sent as `Authorization: Bearer <key>`.
 
-See the extension README in `vscode-extension/README.md` for install and usage.
+- **Install and dev setup:** [install.md](install.md)
+- **Debugging (blank panel, console):** [debugging.md](debugging.md)
+- **Usage and config:** [../../vscode-extension/README.md](../../vscode-extension/README.md)
 
 ## Relation to Cursor/MCP
 
-- **Cursor:** Use the [A2A–MCP bridge](cursor-bridge.md) and register the agent; Cursor then uses MCP tools to send tasks.
+- **Cursor:** Use the [A2A–MCP bridge](../cursor-bridge.md) and register the agent; Cursor then uses MCP tools to send tasks.
 - **VS Code:** Use this extension; it has its own sidebar panel and speaks A2A HTTP directly. No MCP or Chat required.

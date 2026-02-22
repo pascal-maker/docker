@@ -1,6 +1,6 @@
 # Using the A2A agent from Cursor (A2A–MCP bridge)
 
-**VS Code users:** Use the [Refactor Agent extension](vscode-extension.md); no MCP setup. The extension speaks A2A HTTP directly.
+**VS Code users:** Use the [Refactor Agent extension](vscode-extension/overview.md); no MCP setup. The extension speaks A2A HTTP directly.
 
 Cursor talks to agents via MCP. To use the A2A refactor agent from Cursor, run an A2A–MCP bridge so Cursor can send tasks to your A2A server.
 
