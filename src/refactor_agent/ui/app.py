@@ -125,6 +125,12 @@ async def _show_workspace(language: str) -> None:
 
 _TOOL_LABELS: dict[str, str] = {
     "rename_in_workspace": "Renaming `{old_name}` → `{new_name}`",
+    "find_references": "Finding references to `{symbol_name}`",
+    "remove_declaration": "Removing `{symbol_name}` from `{file_path}`",
+    "move_symbol": "Moving `{symbol_name}` to `{target_file}`",
+    "format_file": "Formatting `{file_path}`",
+    "organize_imports": "Organizing imports in `{file_path}`",
+    "show_diagnostics": "Checking diagnostics",
     "list_workspace_files": "Listing workspace files",
     "show_file_skeleton": "Reading `{file_path}` structure",
 }
