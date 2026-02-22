@@ -2,10 +2,51 @@
 # Set ANTHROPIC_API_KEY (env or .env). Optional: LANGFUSE_* for prompt registry.
 # To run only the A2A server: docker compose up a2a-server
 #
-# Open WebUI stack: adapter + Open WebUI. One command: docker compose up adapter openwebui
-# (or docker compose up -d adapter openwebui). Open WebUI at http://localhost:3000;
-# adapter at http://localhost:8000. Connection is set via env (no Admin UI).
+# Chainlit UI + Postgres (persistence): docker compose up postgres chainlit
+# Chainlit at http://localhost:8000; set CHAINLIT_AUTH_SECRET and optional
+# POSTGRES_* in .env. For "make ui" on host, use DATABASE_URL with localhost:5432.
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chainlit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chainlit}
+      POSTGRES_DB: ${POSTGRES_DB:-chainlit}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/chainlit-schema.sql:/docker-entrypoint-initdb.d/01-chainlit-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chainlit} -d ${POSTGRES_DB:-chainlit}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  chainlit:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      CHAINLIT_APP_ROOT: /app/src
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chainlit}:${POSTGRES_PASSWORD:-chainlit}@postgres:5432/${POSTGRES_DB:-chainlit}
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET}
+      CHAINLIT_ENVIRONMENT: ${CHAINLIT_ENVIRONMENT:-dev}
+      CHAINLIT_AUTH_USER: ${CHAINLIT_AUTH_USER:-dev}
+      CHAINLIT_AUTH_PASSWORD: ${CHAINLIT_AUTH_PASSWORD:-dev}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./playground:/app/playground
+      - ./src:/app/src
+      - ./prompts:/app/prompts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["python", "-m", "chainlit", "run", "src/refactor_agent/ui/app.py", "--host", "0.0.0.0", "--port", "8000", "--watch"]
+
   litellm:
     image: docker.litellm.ai/berriai/litellm:main-latest
     ports:
@@ -31,3 +72,6 @@ services:
     depends_on:
       - litellm
     # Replica is in-container only; sync client pushes code via WebSocket
+
+volumes:
+  postgres_data:

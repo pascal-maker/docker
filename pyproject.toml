@@ -18,6 +18,8 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "websockets>=14.0",
     "watchdog>=4.0",
+    "chainlit",
+    "asyncpg",
 ]
 
 [dependency-groups]
@@ -26,7 +28,6 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "mypy",
-    "chainlit",
 ]
 
 [build-system]

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from pathlib import Path
+from typing import Any
 
 import chainlit as cl
+from chainlit.data import get_data_layer
 from langfuse import get_client, propagate_attributes
 from pydantic_ai._agent_graph import End, ModelRequestNode
 
@@ -65,6 +69,84 @@ def _scan_files(workspace: Path, ext: str) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# Auth (required for persistence and sharing)
+# ---------------------------------------------------------------------------
+
+
+def _env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default)
+
+
+@cl.password_auth_callback
+async def _auth_callback(username: str, password: str) -> cl.User | None:
+    """Authenticate with credentials from env or default dev/dev.
+
+    The login form may label the first field as 'Email'; it is still passed
+    as username here — use your CHAINLIT_AUTH_USER value (e.g. dev) in that field.
+    """
+    want_user = _env("CHAINLIT_AUTH_USER", "dev")
+    want_pass = _env("CHAINLIT_AUTH_PASSWORD", "dev")
+    if (username, password) == (want_user, want_pass):
+        return cl.User(identifier=username, metadata={"provider": "credentials"})
+    return None
+
+
+@cl.on_shared_thread_view
+async def _on_shared_thread_view(
+    thread: cl.types.ThreadDict,  # noqa: ARG001 — signature required by Chainlit
+    current_user: cl.User | None,  # noqa: ARG001 — signature required by Chainlit
+) -> bool:
+    """Allow any authenticated user to view a shared thread."""
+    return True
+
+
+@cl.action_callback("suggested_prompt")
+async def _on_suggested_prompt(action: cl.Action) -> None:
+    """Run the agent with the prompt from a suggested-prompt button click."""
+    payload = action.payload or {}
+    prompt = payload.get("prompt")
+    language = payload.get("language") or cl.user_session.get("language", "python")
+    if not prompt:
+        return
+    await cl.Message(content=prompt, author="User").send()
+    await _run_request(prompt, language)
+
+
+@cl.action_callback("share_thread")
+async def _on_share_thread(action: cl.Action) -> None:
+    """Mark the current thread as shared so colleagues can open the share link."""
+    data_layer = get_data_layer()
+    if not data_layer:
+        await cl.Message(
+            content="Sharing is not available (no persistence).",
+        ).send()
+        return
+    session = cl.context.session
+    thread_id = getattr(session, "thread_id", None)
+    if not thread_id:
+        await cl.Message(
+            content="No active thread to share.",
+        ).send()
+        return
+    thread = await data_layer.get_thread(thread_id)
+    if not thread:
+        await cl.Message(
+            content="Thread not found.",
+        ).send()
+        return
+    raw_meta = thread.get("metadata") or {}
+    if isinstance(raw_meta, str):
+        raw_meta = json.loads(raw_meta)
+    metadata = dict(raw_meta)
+    metadata["is_shared"] = True
+    await data_layer.update_thread(thread_id, metadata=metadata)
+    await cl.Message(
+        content="Thread is now shared. Use the share link to let others view it.",
+    ).send()
+    await action.remove()
+
+
+# ---------------------------------------------------------------------------
 # Chat profiles (modes)
 # ---------------------------------------------------------------------------
 
@@ -98,8 +180,36 @@ async def on_chat_start():
     init_langfuse()
     language = await _ask_language()
     cl.user_session.set("language", language)
+    cl.user_session.set(
+        "environment",
+        _env("CHAINLIT_ENVIRONMENT", "dev"),
+    )
     cl.user_session.set("message_history", [])
-    await _show_workspace(language)
+    await _show_workspace(language, show_prompts=True)
+
+
+@cl.on_chat_resume
+async def on_chat_resume(thread: cl.types.ThreadDict) -> None:
+    """Restore session from persisted thread and re-show workspace."""
+    raw_meta = thread.get("metadata")
+    parsed: object = (
+        json.loads(raw_meta)
+        if isinstance(raw_meta, str)
+        else (dict(raw_meta) if raw_meta else {})
+    )
+    metadata = parsed if isinstance(parsed, dict) else {}
+    lang_val = metadata.get("language")
+    language = lang_val if isinstance(lang_val, str) else "python"
+    if language not in _LANG_CONFIG:
+        language = "python"
+    cl.user_session.set("language", language)
+    env_val = metadata.get("environment")
+    env_str = (
+        env_val if isinstance(env_val, str) else _env("CHAINLIT_ENVIRONMENT", "dev")
+    )
+    cl.user_session.set("environment", env_str)
+    cl.user_session.set("message_history", [])
+    await _show_workspace(language, show_prompts=False)
 
 
 async def _ask_language() -> str:
@@ -123,7 +233,7 @@ async def _ask_language() -> str:
     return "typescript"
 
 
-async def _show_workspace(language: str) -> None:
+async def _show_workspace(language: str, *, show_prompts: bool = True) -> None:
     ws = _workspace_dir(language)
     ext = _LANG_CONFIG[language]["ext"]
     files = _scan_files(ws, ext)
@@ -141,29 +251,32 @@ async def _show_workspace(language: str) -> None:
             "Ask me to rename symbols, show file structure, plan a multi-step "
             "refactor, or answer questions about your code."
         ),
+        actions=[
+            cl.Action(
+                name="share_thread",
+                label="Share conversation",
+                payload={},
+            ),
+        ],
     ).send()
-    await _offer_suggested_prompts(language)
+    if show_prompts:
+        await _offer_suggested_prompts(language)
 
 
 async def _offer_suggested_prompts(language: str) -> None:
-    """Show suggested prompt buttons; if user picks one, run the agent with it."""
+    """Show suggested prompt buttons (non-blocking). User can click one or type their own."""
     actions = [
         cl.Action(
-            name=key,
-            payload={"prompt": prompt},
+            name="suggested_prompt",
+            payload={"prompt": prompt, "language": language},
             label=prompt[:48] + "…" if len(prompt) > 48 else prompt,
         )
-        for key, prompt in SUGGESTED_PROMPTS
+        for _key, prompt in SUGGESTED_PROMPTS
     ]
-    res = await cl.AskActionMessage(
+    await cl.Message(
         content="**Suggested prompts** (or type your own below):",
         actions=actions,
     ).send()
-    if res is None or "payload" not in res or "prompt" not in res.get("payload", {}):
-        return
-    prompt = res["payload"]["prompt"]
-    await cl.Message(content=prompt, author="User").send()
-    await _run_request(prompt, language)
 
 
 # ---------------------------------------------------------------------------
@@ -311,8 +424,10 @@ async def _run_request(content: str, language: str) -> None:
                         await _show_tool_steps(run)
                     node = next_node
 
-                root_observation.update(output=run.result.output)
-                await cl.Message(content=run.result.output).send()
+                result = run.result
+                if result is not None:
+                    root_observation.update(output=result.output)
+                    await cl.Message(content=result.output).send()
                 cl.user_session.set(
                     "message_history",
                     run.all_messages(),
@@ -348,7 +463,7 @@ async def on_message(message: cl.Message) -> None:
     await _run_request(message.content, language)
 
 
-async def _show_tool_steps(run) -> None:
+async def _show_tool_steps(run: Any) -> None:
     msgs = run.all_messages()
     if not msgs:
         return

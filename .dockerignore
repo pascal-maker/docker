@@ -1,0 +1,47 @@
+# Git and worktrees
+.git
+.gitignore
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv
+__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dist
+build
+
+# IDE and OS
+.idea
+.vscode
+*.swp
+.DS_Store
+
+# Tests and dev (not needed at runtime in container)
+tests
+docs
+*.md
+!README.md
+
+# Playground is mounted at runtime; exclude from image to keep context small
+playground
+
+# Docker and compose (we copy docker/ explicitly)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Misc
+*.json
+!package.json
+!tsconfig*.json
+task_agent_mapping.json
+registered_agents.json
