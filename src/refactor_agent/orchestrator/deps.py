@@ -40,6 +40,7 @@ class OrchestratorDeps:
     file_ext: str
     get_user_input: Callable[[NeedInput], Awaitable[str]] | None = None
     schedule_output_ref: list[str] | None = None
+    schedule_produced: bool = False
 
 
 def serialize_need_input(need: NeedInput) -> str:

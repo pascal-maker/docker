@@ -9,9 +9,11 @@ from anthropic import AsyncAnthropic
 from pydantic_ai import Agent, ModelSettings, RunContext
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.tools import ToolDefinition
 
 from refactor_agent.config import DEFAULT_MODEL
 from refactor_agent.engine.registry import EngineRegistry
+from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
 from refactor_agent.observability.langfuse_config import get_prompt, get_prompt_config
 from refactor_agent.orchestrator.deps import (
@@ -22,6 +24,47 @@ from refactor_agent.orchestrator.deps import (
 from refactor_agent.schedule import create_planner_agent, run_planner
 
 _PROMPT_NAME = "chat-agent"
+
+_SCHEDULE_GUIDANCE = """
+
+## Multi-step refactoring
+
+For any refactor that involves **multiple operations** (moving several symbols, \
+reorganising file structure, enforcing architectural boundaries, adopting a new \
+folder layout, etc.), you MUST use `create_refactor_schedule` to produce a \
+schedule. Do NOT call `move_symbol`, `organize_imports`, `remove_declaration`, \
+or `format_file` individually for planned multi-step changes — the schedule \
+executor handles those atomically and in the correct dependency order.
+
+Use the individual mutation tools only for **single, isolated** edits the user \
+explicitly asks for (e.g. "organize imports in auth.ts", "move `Foo` to bar.ts").
+"""
+
+_MUTATION_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        "move_symbol",
+        "organize_imports",
+        "remove_declaration",
+        "format_file",
+    }
+)
+
+
+async def _prepare_tools(
+    ctx: RunContext[OrchestratorDeps],
+    tools: list[ToolDefinition],
+) -> list[ToolDefinition]:
+    """Hide mutation tools when they would cause problems.
+
+    Plan mode is read-only: individual mutations skip apply_changes(),
+    so letting the agent call them would discard all changes silently.
+    After create_refactor_schedule runs, the executor handles mutations;
+    removing the tools prevents the agent from duplicating that work.
+    """
+    if ctx.deps.schedule_produced or ctx.deps.mode == "Plan":
+        return [t for t in tools if t.name not in _MUTATION_TOOL_NAMES]
+    return tools
+
 
 _TOOL_OPERATIONS: list[tuple[str, str]] = [
     ("rename_in_workspace", "Rename symbols across all workspace files"),
@@ -199,19 +242,22 @@ async def _rename_typescript(
     if not files:
         return "No files found in workspace."
 
-    async with TsMorphProjectEngine(deps.workspace) as engine:
-        for fp in files:
-            abs_path = str(fp.resolve())
-            result = await engine.rename_symbol(
-                abs_path,
-                old_name,
-                new_name,
-                scope_node,
-            )
-            if "ERROR" not in result:
-                if deps.mode != "Plan":
-                    await engine.apply_changes()
-                return result
+    try:
+        async with TsMorphProjectEngine(deps.workspace) as engine:
+            for fp in files:
+                abs_path = str(fp.resolve())
+                result = await engine.rename_symbol(
+                    abs_path,
+                    old_name,
+                    new_name,
+                    scope_node,
+                )
+                if "ERROR" not in result:
+                    if deps.mode != "Plan":
+                        await engine.apply_changes()
+                    return result
+    except SubprocessError as exc:
+        return f"ERROR: rename failed for '{old_name}': {exc}"
     return f"Symbol '{old_name}' not found in any workspace file."
 
 
@@ -257,8 +303,13 @@ def _register_core_tools(agent: Agent[OrchestratorDeps, str]) -> None:
     ) -> str:
         """Show the AST skeleton of a workspace file."""
         if ctx.deps.language == "typescript":
-            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-                return await eng.get_skeleton(_abs(ctx.deps, file_path))
+            try:
+                async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                    return await eng.get_skeleton(
+                        _abs(ctx.deps, file_path),
+                    )
+            except SubprocessError as exc:
+                return f"ERROR: show_file_skeleton failed for {file_path}: {exc}"
 
         full = ctx.deps.workspace / file_path
         if not full.exists():
@@ -275,7 +326,7 @@ def _register_core_tools(agent: Agent[OrchestratorDeps, str]) -> None:
 _TS_ONLY = "This tool is only available for TypeScript workspaces."
 
 
-def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
+def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # noqa: C901 — multiple tools with language guards and error handling
     @agent.tool
     async def find_references(
         ctx: RunContext[OrchestratorDeps],
@@ -285,11 +336,14 @@ def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         """Find all references to a symbol across the project (TypeScript only)."""
         if ctx.deps.language != "typescript":
             return _TS_ONLY
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            refs = await eng.find_references(
-                _abs(ctx.deps, file_path),
-                symbol_name,
-            )
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                refs = await eng.find_references(
+                    _abs(ctx.deps, file_path),
+                    symbol_name,
+                )
+        except SubprocessError as exc:
+            return f"ERROR: find_references failed for {file_path}: {exc}"
         if not refs:
             return f"No references found for '{symbol_name}'."
         lines = [f"Found {len(refs)} reference(s) for '{symbol_name}':"]
@@ -310,8 +364,11 @@ def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         if ctx.deps.language != "typescript":
             return _TS_ONLY
         abs_path = _abs(ctx.deps, file_path) if file_path else None
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            diags = await eng.get_diagnostics(abs_path)
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                diags = await eng.get_diagnostics(abs_path)
+        except SubprocessError as exc:
+            return f"ERROR: show_diagnostics failed: {exc}"
         if not diags:
             return "No diagnostics found."
         lines = [f"Found {len(diags)} diagnostic(s):"]
@@ -334,15 +391,18 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # no
         """Remove a declaration from a file (TypeScript only)."""
         if ctx.deps.language != "typescript":
             return _TS_ONLY
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            result = await eng.remove_node(
-                _abs(ctx.deps, file_path),
-                symbol_name,
-                kind,
-            )
-            if ctx.deps.mode != "Plan":
-                await eng.apply_changes()
-            return result
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                result = await eng.remove_node(
+                    _abs(ctx.deps, file_path),
+                    symbol_name,
+                    kind,
+                )
+                if ctx.deps.mode != "Plan":
+                    await eng.apply_changes()
+                return result
+        except SubprocessError as exc:
+            return f"ERROR: remove_declaration failed for {file_path}: {exc}"
 
     @agent.tool
     async def move_symbol(
@@ -354,15 +414,18 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # no
         """Move a declaration from one file to another (TypeScript only)."""
         if ctx.deps.language != "typescript":
             return _TS_ONLY
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            result = await eng.move_symbol(
-                _abs(ctx.deps, source_file),
-                _abs(ctx.deps, target_file),
-                symbol_name,
-            )
-            if ctx.deps.mode != "Plan":
-                await eng.apply_changes()
-            return result
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                result = await eng.move_symbol(
+                    _abs(ctx.deps, source_file),
+                    _abs(ctx.deps, target_file),
+                    symbol_name,
+                )
+                if ctx.deps.mode != "Plan":
+                    await eng.apply_changes()
+                return result
+        except SubprocessError as exc:
+            return f"ERROR: move_symbol failed for {symbol_name}: {exc}"
 
     @agent.tool
     async def format_file(
@@ -372,11 +435,14 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # no
         """Format a TypeScript file (TypeScript only)."""
         if ctx.deps.language != "typescript":
             return _TS_ONLY
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            result = await eng.format_file(_abs(ctx.deps, file_path))
-            if ctx.deps.mode != "Plan":
-                await eng.apply_changes()
-            return result
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                result = await eng.format_file(_abs(ctx.deps, file_path))
+                if ctx.deps.mode != "Plan":
+                    await eng.apply_changes()
+                return result
+        except SubprocessError as exc:
+            return f"ERROR: format_file failed for {file_path}: {exc}"
 
     @agent.tool
     async def organize_imports(
@@ -386,11 +452,16 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # no
         """Organize imports in a TypeScript file (TypeScript only)."""
         if ctx.deps.language != "typescript":
             return _TS_ONLY
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            result = await eng.organize_imports(_abs(ctx.deps, file_path))
-            if ctx.deps.mode != "Plan":
-                await eng.apply_changes()
-            return result
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                result = await eng.organize_imports(
+                    _abs(ctx.deps, file_path),
+                )
+                if ctx.deps.mode != "Plan":
+                    await eng.apply_changes()
+                return result
+        except SubprocessError as exc:
+            return f"ERROR: organize_imports failed for {file_path}: {exc}"
 
 
 def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
@@ -410,10 +481,14 @@ def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
         schedule = await run_planner(planner_agent, ctx.deps, goal)
         if ctx.deps.schedule_output_ref is not None:
             ctx.deps.schedule_output_ref.append(schedule.model_dump_json())
+        ctx.deps.schedule_produced = True
         n = len(schedule.operations)
         return (
-            f"RefactorSchedule produced: goal={schedule.goal!r}, "
-            f"operations={n}. Use dependsOn for execution order."
+            f"RefactorSchedule produced ({n} operations) for: "
+            f"{schedule.goal!r}. "
+            "Execution is handled automatically by the system. "
+            "Do NOT call individual mutation tools — just summarise "
+            "the plan to the user and stop."
         )
 
 
@@ -438,9 +513,12 @@ def create_orchestrator_agent(
             provider=provider,
             settings=model_settings,
         )
-    instructions = get_prompt(
-        _PROMPT_NAME,
-        available_operations=_format_available_operations(),
+    instructions = (
+        get_prompt(
+            _PROMPT_NAME,
+            available_operations=_format_available_operations(),
+        )
+        + _SCHEDULE_GUIDANCE
     )
 
     agent: Agent[OrchestratorDeps, str] = Agent(
@@ -449,6 +527,7 @@ def create_orchestrator_agent(
         output_type=str,
         instructions=instructions,
         instrument=True,
+        prepare_tools=_prepare_tools,
     )
     _register_core_tools(agent)
     _register_analysis_tools(agent)

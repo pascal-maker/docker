@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import {Project, SourceFile} from "ts-morph";
 import {originalSources} from "./constants.js";
 import {Mode} from "./types.js";
@@ -62,7 +64,38 @@ export function getSourceFile(params: Record<string, unknown>): SourceFile {
     }
     const filePath = requireString(params, "file_path");
     const p = requireProject();
-    const sf = p.getSourceFile(filePath);
+    let sf = p.getSourceFile(filePath);
+    if (!sf && path.isAbsolute(filePath)) {
+        const normalized = path.normalize(filePath);
+        for (const candidate of p.getSourceFiles()) {
+            if (path.normalize(candidate.getFilePath()) === normalized) {
+                sf = candidate;
+                break;
+            }
+        }
+        if (!sf) {
+            let requestedReal: string;
+            try {
+                requestedReal = fs.realpathSync(filePath);
+            } catch {
+                requestedReal = "";
+            }
+            if (requestedReal) {
+                for (const candidate of p.getSourceFiles()) {
+                    try {
+                        if (
+                            fs.realpathSync(candidate.getFilePath()) === requestedReal
+                        ) {
+                            sf = candidate;
+                            break;
+                        }
+                    } catch {
+                        continue;
+                    }
+                }
+            }
+        }
+    }
     if (!sf) {
         throw new Error(`File not found in project: ${filePath}`);
     }

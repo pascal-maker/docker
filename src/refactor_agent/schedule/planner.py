@@ -12,7 +12,10 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from refactor_agent.config import DEFAULT_MODEL
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
-from refactor_agent.observability.langfuse_config import get_prompt_config
+from refactor_agent.observability.langfuse_config import (
+    get_prompt_config,
+    langfuse_span,
+)
 from refactor_agent.orchestrator.deps import OrchestratorDeps
 from refactor_agent.schedule.models import RefactorSchedule
 
@@ -50,9 +53,7 @@ def _register_planner_tools(
         files = _scan_workspace(ctx.deps)
         if not files:
             return "No files in workspace."
-        return "\n".join(
-            str(f.relative_to(ctx.deps.workspace)) for f in files
-        )
+        return "\n".join(str(f.relative_to(ctx.deps.workspace)) for f in files)
 
     @agent.tool
     async def show_file_skeleton(
@@ -113,15 +114,20 @@ to explore the codebase. Then output a RefactorSchedule with:
 
 Operation types:
 - rename: file_path, old_name, new_name, optional scope_node, id, dependsOn, rationale
-- move_symbol: source_file, target_file, symbol_name, optional id, dependsOn, rationale
-- move_file: source_path, target_path, optional id, dependsOn, rationale
+- move_symbol: source_file, target_file, symbol_name — move one declaration between
+  files (use when extracting a single symbol from a multi-symbol file)
+- move_file: source_path, target_path — move an entire file to a new path. Updates
+  all import paths across the project automatically. Parent directories are created
+  on write. Prefer move_file over move_symbol when the whole file should relocate.
 - remove_node: file_path, symbol_name, optional kind, id, dependsOn, rationale
-- organize_imports: file_path, optional id, dependsOn, rationale
-- create_file: file_path, content, optional id, dependsOn, rationale
+- organize_imports: file_path — sort and remove unused imports in a file
+- create_file: file_path, content — create a new file with the given content. Use
+  only for files that need actual content (e.g. barrel index.ts, new modules). Do
+  NOT use create_file just to create directories; move_file creates parent dirs.
 
-Use "id" for a stable op identifier. Use "dependsOn" (list of op ids) when an op
-must run after others (e.g. organize_imports after move_symbol). Paths relative
-to workspace root.
+All ops support optional id, dependsOn, rationale. Use "id" for a stable op
+identifier. Use "dependsOn" (list of op ids) when an op must run after others
+(e.g. organize_imports after move_file). Paths are relative to workspace root.
 
 Output only a valid RefactorSchedule. Structural refactors only (rename, move
 symbol, move file, remove node, organize imports, create file); no logic changes.
@@ -163,5 +169,18 @@ async def run_planner(
     user_message: str,
 ) -> RefactorSchedule:
     """Run the planner agent and return the validated RefactorSchedule."""
-    result = await agent.run(user_message, deps=deps)
-    return result.output
+    with langfuse_span(
+        "refactor-planner",
+        as_type="agent",
+        span_input=user_message,
+    ) as span:
+        result = await agent.run(user_message, deps=deps)
+        schedule = result.output
+        span.update(
+            output={
+                "goal": schedule.goal,
+                "operation_count": len(schedule.operations),
+                "operation_types": [op.op for op in schedule.operations],
+            },
+        )
+        return schedule

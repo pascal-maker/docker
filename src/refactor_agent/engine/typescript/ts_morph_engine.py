@@ -312,6 +312,32 @@ class TsMorphProjectEngine(SubprocessEngine):
         )
         return _extract_summary(result)
 
+    async def create_file(self, file_path: str, content: str = "") -> str:
+        """Create a new source file in the project.
+
+        Args:
+            file_path: Absolute or workspace-relative path for the new file.
+            content: Initial file content (empty string creates a blank file).
+        """
+        result = await self._call(
+            "create_file",
+            {"file_path": file_path, "content": content},
+        )
+        return _extract_summary(result)
+
+    async def move_file(self, source_path: str, target_path: str) -> str:
+        """Move a source file to a new path, updating all imports.
+
+        Args:
+            source_path: Current file path.
+            target_path: Desired new file path.
+        """
+        result = await self._call(
+            "move_file",
+            {"source_path": source_path, "target_path": target_path},
+        )
+        return _extract_summary(result)
+
     async def format_file(self, file_path: str) -> str:
         """Format a project file using the TypeScript formatter."""
         result = await self._call(
@@ -350,18 +376,40 @@ class TsMorphProjectEngine(SubprocessEngine):
     async def apply_changes(self) -> list[str]:
         """Write all changed files back to disk.
 
+        Creates parent directories for new paths so that move_symbol targets
+        (e.g. src/orders/shared/OrderId.ts) persist; otherwise a later op
+        that re-inits the project from disk would not see the file and
+        getSourceFile would throw "File not found in project".
+        Resolves relative paths against the workspace so files are always
+        written under the project root (avoids writing to cwd by mistake).
         Returns the list of file paths that were written.
         """
         changed = await self.get_changed_files()
         written: list[str] = []
-        for fp in changed:
+        workspace_resolved = self._workspace.resolve()
+        for raw_fp in changed:
+            fp = str(raw_fp).strip()
+            path = Path(fp)
+            if not path.is_absolute():
+                path = (self._workspace / path).resolve()
+            else:
+                path = path.resolve()
+            try:
+                path.relative_to(workspace_resolved)
+            except ValueError:
+                continue
             source = await self.get_source(fp)
             await asyncio.to_thread(
-                Path(fp).write_text,
+                path.parent.mkdir,
+                parents=True,
+                exist_ok=True,
+            )
+            await asyncio.to_thread(
+                path.write_text,
                 source,
                 encoding="utf-8",
             )
-            written.append(fp)
+            written.append(str(path))
         return written
 
 

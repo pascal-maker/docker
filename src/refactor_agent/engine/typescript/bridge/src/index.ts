@@ -2,6 +2,7 @@ import {createInterface} from "readline";
 import {Request} from "./types.js";
 import {
     handleCheckNameCollisions,
+    handleCreateFile,
     handleExtractFunction,
     handleFindReferences,
     handleFormatFile,
@@ -11,6 +12,7 @@ import {
     handleGetSource,
     handleInit,
     handleInitProject,
+    handleMoveFile,
     handleMoveSymbolToFile,
     handleOrganizeImports,
     handleRemoveNode,
@@ -33,6 +35,8 @@ const handlers: Record<
   get_changed_files: handleGetChangedFiles,
   remove_node: handleRemoveNode,
   move_symbol_to_file: handleMoveSymbolToFile,
+  create_file: handleCreateFile,
+  move_file: handleMoveFile,
   organize_imports: handleOrganizeImports,
   format_file: handleFormatFile,
   get_diagnostics: handleGetDiagnostics,

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+import traceback
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
+from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
+from refactor_agent.observability.langfuse_config import langfuse_span
 from refactor_agent.orchestrator.deps import OrchestratorDeps
 from refactor_agent.schedule.models import (
     CreateFileOp,
@@ -18,6 +22,8 @@ from refactor_agent.schedule.models import (
     RemoveNodeOp,
     RenameOp,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -37,6 +43,7 @@ class ScheduleResult:
     success: bool
     results: list[OpResult]
     error: str | None = None
+    error_traceback: str | None = None
 
 
 def _resolve_path(workspace: Path, rel_path: str) -> Path:
@@ -108,20 +115,30 @@ async def _run_one(
     workspace: Path,
 ) -> OpResult:
     """Run a single operation (TypeScript only for PoC)."""
-    if isinstance(op, MoveFileOp):
-        return OpResult(
-            op_id,
-            "move_file",
-            "Skipped: move_file not implemented",
-            success=False,
-        )
     if isinstance(op, CreateFileOp):
-        return OpResult(
-            op_id,
-            "create_file",
-            "Skipped: create_file not implemented",
-            success=False,
-        )
+        async with TsMorphProjectEngine(workspace) as eng:
+            fp = _resolve_path(workspace, op.file_path)
+            result = await eng.create_file(str(fp), op.content)
+            await eng.apply_changes()
+            return OpResult(
+                op_id,
+                "create_file",
+                result,
+                success="ERROR" not in result,
+            )
+
+    if isinstance(op, MoveFileOp):
+        async with TsMorphProjectEngine(workspace) as eng:
+            src = _resolve_path(workspace, op.source_path)
+            tgt = _resolve_path(workspace, op.target_path)
+            result = await eng.move_file(str(src), str(tgt))
+            await eng.apply_changes()
+            return OpResult(
+                op_id,
+                "move_file",
+                result,
+                success="ERROR" not in result,
+            )
 
     if isinstance(op, RenameOp):
         async with TsMorphProjectEngine(workspace) as eng:
@@ -169,11 +186,25 @@ async def _run_one(
             )
 
     if isinstance(op, OrganizeImportsOp):
-        async with TsMorphProjectEngine(workspace) as eng:
-            fp = _resolve_path(workspace, op.file_path)
-            result = await eng.organize_imports(str(fp))
-            await eng.apply_changes()
-            return OpResult(op_id, "organize_imports", result, success=True)
+        try:
+            async with TsMorphProjectEngine(workspace) as eng:
+                fp = _resolve_path(workspace, op.file_path)
+                result = await eng.organize_imports(str(fp))
+                await eng.apply_changes()
+                return OpResult(
+                    op_id,
+                    "organize_imports",
+                    result,
+                    success=True,
+                )
+        except SubprocessError as exc:
+            logger.warning("organize_imports non-fatal: %s", exc)
+            return OpResult(
+                op_id,
+                "organize_imports",
+                f"Skipped (non-fatal): {exc}",
+                success=True,
+            )
 
     raise AssertionError(f"Unhandled operation type: {type(op).__name__}")
 
@@ -186,6 +217,31 @@ async def execute_schedule(
 
     TypeScript only for PoC. move_file and create_file are skipped.
     """
+    with langfuse_span(
+        "schedule-executor",
+        as_type="chain",
+        span_input={
+            "goal": schedule.goal,
+            "operation_count": len(schedule.operations),
+        },
+    ) as exec_span:
+        result = await _execute_inner(schedule, deps)
+        exec_span.update(
+            output={
+                "success": result.success,
+                "completed": len(result.results),
+                "error": result.error,
+            },
+            level="ERROR" if not result.success else "DEFAULT",
+        )
+        return result
+
+
+async def _execute_inner(
+    schedule: RefactorSchedule,
+    deps: OrchestratorDeps,
+) -> ScheduleResult:
+    """Inner execution logic (separated for Langfuse span wrapping)."""
     ordered, err = _validate_and_topo(schedule)
     if err:
         return ScheduleResult(success=False, results=[], error=err)
@@ -201,7 +257,7 @@ async def execute_schedule(
     results: list[OpResult] = []
     for op_id, op in ordered:
         try:
-            res = await _run_one(op_id, op, workspace)
+            res = await _run_one_traced(op_id, op, workspace)
             results.append(res)
             if not res.success and "Skipped" not in res.summary:
                 return ScheduleResult(
@@ -210,10 +266,37 @@ async def execute_schedule(
                     error=res.summary,
                 )
         except Exception as e:
+            tb = traceback.format_exc()
+            logger.exception(
+                "Schedule op failed: op_id=%r op_type=%s",
+                op_id,
+                getattr(op, "op", type(op).__name__),
+            )
             return ScheduleResult(
                 success=False,
                 results=results,
                 error=str(e),
+                error_traceback=tb,
             )
 
     return ScheduleResult(success=True, results=results)
+
+
+async def _run_one_traced(
+    op_id: str,
+    op: RefactorOperation,
+    workspace: Path,
+) -> OpResult:
+    """Run a single operation wrapped in a Langfuse span."""
+    op_type = getattr(op, "op", type(op).__name__)
+    with langfuse_span(
+        f"op:{op_type}:{op_id}",
+        as_type="tool",
+        span_input=op.model_dump(exclude_none=True),
+    ) as span:
+        result = await _run_one(op_id, op, workspace)
+        span.update(
+            output={"summary": result.summary, "success": result.success},
+            level="ERROR" if not result.success else "DEFAULT",
+        )
+        return result

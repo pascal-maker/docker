@@ -331,6 +331,46 @@ export function handleToSource(): string {
     throw new Error("to_source is for single-file mode; use get_source instead");
 }
 
+export function handleCreateFile(params: Record<string, unknown>): object {
+    const p = requireProject();
+    const filePath = requireString(params, "file_path");
+    const content = optionalString(params, "content") ?? "";
+
+    const existing = p.getSourceFile(filePath);
+    if (existing) {
+        throw new Error(`File already exists in project: ${filePath}`);
+    }
+
+    p.createSourceFile(filePath, content);
+    return {
+        summary: `Created ${filePath}`,
+        changed_files: getChangedFilesList(p),
+    };
+}
+
+export function handleMoveFile(params: Record<string, unknown>): object {
+    const p = requireProject();
+    const sourcePath = requireString(params, "source_path");
+    const targetPath = requireString(params, "target_path");
+
+    const sf = p.getSourceFile(sourcePath);
+    if (!sf) {
+        throw new Error(`Source file not found: ${sourcePath}`);
+    }
+
+    const existingTarget = p.getSourceFile(targetPath);
+    if (existingTarget) {
+        throw new Error(`Target file already exists: ${targetPath}`);
+    }
+
+    sf.move(targetPath);
+
+    return {
+        summary: `Moved ${sourcePath} → ${targetPath}`,
+        changed_files: getChangedFilesList(p),
+    };
+}
+
 export function handleExtractFunction(): string {
     return (
         "ERROR: extract_function is not yet implemented for TypeScript; " +

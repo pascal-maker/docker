@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
+
 from langfuse import get_client
 from pydantic_ai import Agent
 
 from refactor_agent.models.prompt_config import PromptConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 def init_langfuse() -> None:
@@ -27,3 +33,37 @@ def get_prompt_config(name: str) -> PromptConfig:
     langfuse = get_client()
     prompt = langfuse.get_prompt(name)
     return PromptConfig.model_validate(prompt.config or {})
+
+
+@contextmanager
+def langfuse_span(
+    name: str,
+    *,
+    as_type: str = "span",
+    span_input: Any = None,  # noqa: ANN401 — Langfuse accepts arbitrary JSON
+    metadata: dict[str, Any] | None = None,
+) -> Generator[_SpanHandle, None, None]:
+    """Create a Langfuse observation span; yields a no-op handle if unavailable."""
+    try:
+        client = get_client()
+        with client.start_as_current_observation(
+            name=name,
+            as_type=as_type,
+            input=span_input,
+            metadata=metadata,
+        ) as obs:
+            yield _SpanHandle(obs)
+    except Exception:
+        yield _SpanHandle(None)
+
+
+class _SpanHandle:
+    """Thin wrapper around a Langfuse observation; safe to call on a disabled client."""
+
+    def __init__(self, obs: object | None) -> None:
+        self._obs = obs
+
+    def update(self, **kwargs: Any) -> None:  # noqa: ANN401 — Langfuse accepts arbitrary JSON
+        """Forward keyword arguments to the underlying observation."""
+        if self._obs is not None and hasattr(self._obs, "update"):
+            self._obs.update(**kwargs)  # type: ignore[union-attr]

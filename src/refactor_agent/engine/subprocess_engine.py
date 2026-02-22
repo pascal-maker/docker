@@ -110,6 +110,12 @@ class SubprocessEngine(ABC):
 
             if "error" in response:
                 msg = f"Bridge error: {response['error']}"
+                logger.error(
+                    "Bridge error: method=%s params=%s error=%s",
+                    method,
+                    params,
+                    response["error"],
+                )
                 raise SubprocessError(msg)
 
             return response.get("result")

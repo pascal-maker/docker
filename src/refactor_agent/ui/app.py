@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import chainlit as cl
@@ -169,7 +170,7 @@ async def _handle_schedule_produced(
     mode: str,
     deps: OrchestratorDeps,
 ) -> None:
-    """Display schedule and optionally run executor based on mode."""
+    """Display schedule and run executor (with confirmation in Plan/Ask)."""
     try:
         schedule = RefactorSchedule.model_validate_json(schedule_json)
     except Exception:
@@ -177,23 +178,15 @@ async def _handle_schedule_produced(
 
     await cl.Message(content=_format_schedule(schedule)).send()
 
-    if mode == "Plan":
-        await cl.Message(
-            content=(
-                "*Plan mode: schedule displayed only. "
-                "Switch to Auto or Ask to execute.*"
-            ),
-        ).send()
-        return
-
-    if mode == "Ask":
+    if mode in ("Plan", "Ask"):
         res = await cl.AskUserMessage(
-            content="Proceed with execution? Reply yes to run the schedule.",
-            timeout=60,
+            content="Proceed with execution? Reply **yes** to run the schedule.",
+            timeout=120,
         ).send()
         if res is None or (res.get("output") or "").strip().lower() not in (
             "yes",
             "y",
+            "go",
         ):
             await cl.Message(content="Execution canceled.").send()
             return
@@ -201,15 +194,23 @@ async def _handle_schedule_produced(
     result = await execute_schedule(schedule, deps)
     if result.success:
         summary = "\n".join(
-            f"- {r.op_id or '?'}: {r.op_type} — {r.summary}"
-            for r in result.results
+            f"- {r.op_id or '?'}: {r.op_type} — {r.summary}" for r in result.results
         )
         await cl.Message(
             content=f"**Schedule executed.**\n\n{summary}",
         ).send()
     else:
+        if result.error_traceback:
+            logging.error(
+                "Schedule execution failed: %s\n%s",
+                result.error,
+                result.error_traceback,
+            )
         await cl.Message(
-            content=f"**Execution failed:** {result.error}",
+            content=(
+                f"**Execution failed:** {result.error}"
+                "\n\nCheck the terminal for traceback."
+            ),
         ).send()
 
 
@@ -287,8 +288,9 @@ async def on_message(message: cl.Message) -> None:
                         deps,
                     )
     except Exception as exc:
+        logging.exception("Request failed")
         await cl.Message(
-            content=f"Something went wrong: {exc}",
+            content=f"Something went wrong: {exc}\n\nCheck the terminal for full traceback.",
         ).send()
 
 
