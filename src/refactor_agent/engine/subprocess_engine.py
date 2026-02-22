@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -32,15 +33,21 @@ class SubprocessEngine(ABC):
     def _command(self) -> list[str]:
         """Return the command + args to start the bridge process."""
 
+    def _cwd(self) -> Path | None:
+        """Working directory for the bridge process; None to use current directory."""
+        return None
+
     async def __aenter__(self) -> SubprocessEngine:
         """Start the bridge child process."""
         cmd = self._command()
-        logger.debug("Starting subprocess: %s", cmd)
+        cwd = self._cwd()
+        logger.debug("Starting subprocess: %s (cwd=%s)", cmd, cwd)
         self._process = await asyncio.create_subprocess_exec(
             *cmd,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=str(cwd) if cwd is not None else None,
         )
         return self
 

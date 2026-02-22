@@ -21,6 +21,7 @@ dependencies = [
     "watchdog>=4.0",
     "chainlit",
     "asyncpg",
+    "pyyaml>=6.0",
 ]
 
 [dependency-groups]
@@ -29,6 +30,8 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "mypy",
+    "chainlit",
+    "types-PyYAML",
 ]
 
 [build-system]

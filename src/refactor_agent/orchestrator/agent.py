@@ -120,7 +120,8 @@ async def get_chat_agent_instructions(deps: OrchestratorDeps) -> str:
 def _scan_workspace(deps: OrchestratorDeps) -> list[Path]:
     if not deps.workspace.exists():
         return []
-    return sorted(deps.workspace.rglob(deps.file_ext))
+    files = deps.workspace.rglob(deps.file_ext)
+    return sorted(p for p in files if "node_modules" not in p.parts)
 
 
 def _abs(deps: OrchestratorDeps, rel_path: str) -> str:

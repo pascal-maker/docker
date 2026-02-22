@@ -1,0 +1,98 @@
+# -----------------------------------------------------------------------------
+# DISABLED: Refactor check workflow. Uncomment the block below when the agent
+# is hosted and this repo is ready to run the check for verification.
+# -----------------------------------------------------------------------------
+#
+# Refactor check: run refactor-agent presets (plan, optionally auto-apply), post check summary.
+# Requires .refactor-agent.yaml (or REFACTOR_AGENT_GOAL / REFACTOR_AGENT_PRESET) and LLM secrets.
+# This repo runs the check on playground/typescript only to verify the feature works; clients pass their own --workspace.
+# name: Refactor check
+#
+# on:
+#   pull_request:
+#     branches: [main]
+#   push:
+#     branches: [main]
+#
+# jobs:
+#   refactor-check:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - uses: astral-sh/setup-uv@v5
+#         with:
+#           enable-cache: true
+#
+#       - uses: actions/setup-python@v5
+#         with:
+#           python-version: "3.12"
+#
+#       - run: uv sync
+#
+#       - name: Run refactor check
+#         id: run-refactor
+#         continue-on-error: true
+#         env:
+#           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+#           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+#           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+#         run: |
+#           uv run python -m refactor_agent.ci \
+#             --workspace playground/typescript \
+#             --output markdown \
+#             --output-file report.md
+#
+#       - name: Create check run
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const fs = require('fs');
+#             const conclusion = '${{ steps.run-refactor.outcome }}' === 'failure' ? 'failure' : 'success';
+#             const summary = fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8').replace(/\r\n/g, '\n') : 'No report generated.';
+#             await github.rest.checks.create({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               name: 'Refactor check',
+#               head_sha: context.sha,
+#               status: 'completed',
+#               conclusion,
+#               output: {
+#                 title: conclusion === 'failure' ? 'Refactor suggestions (not auto-applied)' : 'Refactor check passed',
+#                 summary,
+#               },
+#             });
+#
+#       - name: Comment on PR (when failed)
+#         if: failure() && github.event_name == 'pull_request'
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const fs = require('fs');
+#             const report = fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8').replace(/\r\n/g, '\n') : 'Refactor check failed.';
+#             const body = report + '\n\n---\n*Powered by refactor-agent CI*';
+#             const { data: comments } = await github.rest.issues.listComments({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               issue_number: context.issue.number,
+#             });
+#             const botComment = comments.find(c => c.user.type === 'Bot' && c.body && c.body.includes('Powered by refactor-agent CI'));
+#             if (botComment) {
+#               await github.rest.issues.updateComment({
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 comment_id: botComment.id,
+#                 body,
+#               });
+#             } else {
+#               await github.rest.issues.createComment({
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 issue_number: context.issue.number,
+#                 body,
+#               });
+#             }
+#
+#       - name: Fail job when check failed
+#         if: steps.run-refactor.outcome == 'failure'
+#         run: exit 1

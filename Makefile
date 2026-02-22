@@ -47,11 +47,11 @@ ui: ## Launch Chainlit dev UI (reads playground/ directly)
 reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
 	./scripts/reset-playground.sh
 
-ts-engine-install: ## Install ts-morph bridge npm dependencies
-	cd $(TS_BRIDGE) && npm install
+ts-engine-install: ## Install ts-morph bridge pnpm dependencies
+	cd $(TS_BRIDGE) && pnpm install
 
 ts-engine-check: ## Typecheck the ts-morph bridge
-	cd $(TS_BRIDGE) && npx tsc --noEmit
+	cd $(TS_BRIDGE) && pnpm exec tsc --noEmit
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info

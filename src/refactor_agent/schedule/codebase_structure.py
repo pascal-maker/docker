@@ -18,10 +18,15 @@ def _scan_workspace(
     workspace: Path,
     file_ext: str,
 ) -> list[Path]:
-    """Return sorted workspace files matching the extension pattern."""
+    """Return sorted workspace files matching the extension pattern.
+
+    Paths under node_modules (or containing that segment) are excluded.
+    """
     if not workspace.exists():
         return []
-    return sorted(workspace.rglob(file_ext))
+    files = workspace.rglob(file_ext)
+    excluded = [p for p in files if "node_modules" not in p.parts]
+    return sorted(excluded)
 
 
 async def build_codebase_structure(deps: OrchestratorDeps) -> str:

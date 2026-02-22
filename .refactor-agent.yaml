@@ -1,0 +1,21 @@
+# Example refactor-agent CI config. Copy to .refactor-agent.yaml in your repo.
+#
+# Presets define named goals for the planner. On each PR/push, the CI runs the
+# planner for each preset; if the executor supports the repo language (TypeScript
+# today), it may auto-apply changes; otherwise it reports suggestions and fails
+# the check so you can address them.
+#
+# Optional env overrides:
+#   REFACTOR_AGENT_PRESET  - Comma-separated preset ids to run (default: all)
+#   REFACTOR_AGENT_GOAL    - Single goal when no config file (minimal setup)
+
+presets:
+  - id: layer-boundaries
+    goal: >
+      Enforce frontend/backend boundary; suggest moves so no backend code
+      is imported from frontend.
+
+  # - id: vertical-slices
+  #   goal: "Refactor toward vertical slices; suggest renames and moves."
+  #   language: typescript   # optional override
+  #   file_ext: "*.ts"      # optional override

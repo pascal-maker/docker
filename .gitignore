@@ -25,3 +25,6 @@ src/.files
 
 # Cloned playgrounds (third-party)
 playground/nestjs-layered-architecture/
+
+# CI report
+report.md

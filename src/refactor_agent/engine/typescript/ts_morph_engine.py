@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 _BRIDGE_DIR = Path(__file__).resolve().parent / "bridge"
 _BRIDGE_ENTRY = _BRIDGE_DIR / "src" / "index.ts"
-_TSX_BIN = _BRIDGE_DIR / "node_modules" / ".bin" / "tsx"
 
 
 # ---------------------------------------------------------------------------
@@ -48,8 +47,12 @@ class TsMorphEngine(SubprocessEngine):
         self._source = source
 
     def _command(self) -> list[str]:
-        """Return command to start the ts-morph bridge process."""
-        return [str(_TSX_BIN), str(_BRIDGE_ENTRY)]
+        """Return command to start the ts-morph bridge process (pnpm exec from bridge dir)."""
+        return ["pnpm", "exec", "tsx", str(_BRIDGE_ENTRY)]
+
+    def _cwd(self) -> Path | None:
+        """Run bridge from its directory so pnpm resolves tsx."""
+        return _BRIDGE_DIR
 
     async def __aenter__(self) -> TsMorphEngine:
         """Start the bridge and initialize it with the source."""
@@ -168,8 +171,12 @@ class TsMorphProjectEngine(SubprocessEngine):
         self._tsconfig = tsconfig_path
 
     def _command(self) -> list[str]:
-        """Return command to start the ts-morph bridge process."""
-        return [str(_TSX_BIN), str(_BRIDGE_ENTRY)]
+        """Return command to start the ts-morph bridge process (pnpm exec from bridge dir)."""
+        return ["pnpm", "exec", "tsx", str(_BRIDGE_ENTRY)]
+
+    def _cwd(self) -> Path | None:
+        """Run bridge from its directory so pnpm resolves tsx."""
+        return _BRIDGE_DIR
 
     async def __aenter__(self) -> TsMorphProjectEngine:
         """Start the bridge and load the project."""
