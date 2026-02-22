@@ -18,33 +18,32 @@ from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.typescript.ts_morph_engine import (
     TsMorphProjectEngine,
 )
+from refactor_agent.observability.langfuse_config import get_prompt, get_prompt_config
 
-_SYSTEM_PROMPT = """\
-You are a refactoring assistant. You operate on a workspace \
-of source files in the user's playground directory.
+_CHAT_PROMPT_NAME = "chat-agent"
 
-Available operations:
-- Rename symbols across all workspace files using rename_in_workspace.
-- Find all references to a symbol using find_references.
-- Remove a declaration (function, class, interface, type, enum, variable) \
-using remove_declaration.
-- Move a symbol from one file to another using move_symbol.
-- Format a file using format_file.
-- Organize imports in a file using organize_imports.
-- Show TypeScript diagnostics using show_diagnostics.
-- List workspace files using list_workspace_files.
-- Show the AST skeleton of a file using show_file_skeleton.
+# Single source of truth for tool names and one-line descriptions (used in prompt).
+_CHAT_TOOL_OPERATIONS: list[tuple[str, str]] = [
+    ("rename_in_workspace", "Rename symbols across all workspace files"),
+    ("find_references", "Find all references to a symbol"),
+    (
+        "remove_declaration",
+        "Remove a declaration (function, class, interface, type, enum, variable)",
+    ),
+    ("move_symbol", "Move a symbol from one file to another"),
+    ("format_file", "Format a file"),
+    ("organize_imports", "Organize imports in a file"),
+    ("show_diagnostics", "Show TypeScript diagnostics"),
+    ("list_workspace_files", "List workspace files"),
+    ("show_file_skeleton", "Show the AST skeleton of a file"),
+]
 
-When the user asks to rename something, use rename_in_workspace. \
-When asked about code structure, use show_file_skeleton or \
-list_workspace_files. For general questions, respond conversationally.
 
-If rename_in_workspace reports collisions (Python mode), inform the \
-user about the conflicting definitions and ask whether to proceed. \
-If they confirm, call rename_in_workspace again with force=True.
-
-Keep responses concise and helpful.\
-"""
+def _format_available_operations() -> str:
+    """Format tool operations for the chat agent prompt (Langfuse variable)."""
+    return "\n".join(
+        f"- {desc} using {name}." for name, desc in _CHAT_TOOL_OPERATIONS
+    )
 
 
 @dataclass
@@ -215,15 +214,6 @@ async def _rename_typescript(
 # ---------------------------------------------------------------------------
 # Model factory
 # ---------------------------------------------------------------------------
-
-
-def _create_model() -> AnthropicModel:
-    model_str = DEFAULT_MODEL
-    model_id = model_str.split(":")[-1] if ":" in model_str else model_str
-    provider = AnthropicProvider(
-        anthropic_client=AsyncAnthropic(timeout=60.0),
-    )
-    return AnthropicModel(model_id, provider=provider)
 
 
 # ---------------------------------------------------------------------------
@@ -459,14 +449,28 @@ def _register_mutation_tools(agent: Agent[ChatDeps, str]) -> None:
 
 
 def create_chat_agent() -> Agent[ChatDeps, str]:
-    """Create the chat-oriented refactoring agent."""
-    model = _create_model()
+    """Create the chat-oriented refactoring agent.
+
+    Fetches prompt and config from Langfuse (same pattern as AST refactor agent).
+    """
+    config = get_prompt_config(_CHAT_PROMPT_NAME)
+    model_str = config.model or DEFAULT_MODEL
+    instructions = get_prompt(
+        _CHAT_PROMPT_NAME,
+        available_operations=_format_available_operations(),
+    )
+
+    model_id = model_str.split(":")[-1] if ":" in model_str else model_str
+    model_settings = ModelSettings(max_tokens=config.max_tokens or 4096)
+    provider = AnthropicProvider(anthropic_client=AsyncAnthropic(timeout=60.0))
+    model = AnthropicModel(model_id, provider=provider, settings=model_settings)
+
     agent: Agent[ChatDeps, str] = Agent(
         model,
         deps_type=ChatDeps,
         output_type=str,
-        system_prompt=_SYSTEM_PROMPT,
-        model_settings=ModelSettings(max_tokens=4096),
+        instructions=instructions,
+        instrument=True,
     )
     _register_core_tools(agent)
     _register_analysis_tools(agent)

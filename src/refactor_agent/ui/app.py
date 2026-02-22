@@ -5,10 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import chainlit as cl
+from langfuse import get_client, propagate_attributes
 from pydantic_ai._agent_graph import End, ModelRequestNode
 
 from refactor_agent.observability.langfuse_config import init_langfuse
 from refactor_agent.ui.chat_agent import ChatDeps, create_chat_agent
+
+_TRACE_NAME = "chat-agent"
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -168,24 +171,36 @@ async def on_message(message: cl.Message) -> None:
         file_ext=_LANG_CONFIG[language]["ext"],
     )
 
-    try:
-        async with agent.iter(
-            message.content,
-            deps=deps,
-            message_history=history,
-        ) as run:
-            node = run.next_node
-            while not isinstance(node, End):
-                next_node = await run.next(node)
-                if isinstance(node, ModelRequestNode):
-                    await _show_tool_steps(run)
-                node = next_node
+    langfuse = get_client()
+    session_id = str(cl.user_session.get("id", ""))
 
-            await cl.Message(content=run.result.output).send()
-            cl.user_session.set(
-                "message_history",
-                run.all_messages(),
-            )
+    try:
+        with (
+            langfuse.start_as_current_observation(
+                as_type="agent",
+                name=_TRACE_NAME,
+                input=message.content,
+            ) as root_observation,
+            propagate_attributes(session_id=session_id),
+        ):
+            async with agent.iter(
+                message.content,
+                deps=deps,
+                message_history=history,
+            ) as run:
+                node = run.next_node
+                while not isinstance(node, End):
+                    next_node = await run.next(node)
+                    if isinstance(node, ModelRequestNode):
+                        await _show_tool_steps(run)
+                    node = next_node
+
+                root_observation.update(output=run.result.output)
+                await cl.Message(content=run.result.output).send()
+                cl.user_session.set(
+                    "message_history",
+                    run.all_messages(),
+                )
     except Exception as exc:
         await cl.Message(
             content=f"Something went wrong: {exc}",
