@@ -106,9 +106,10 @@ def test_parse_schedule_from_text_invalid_returns_none() -> None:
     assert _parse_schedule_from_text("not json at all") is None
     assert _parse_schedule_from_text("[]") is None
     # Invalid op type fails validation.
-    assert _parse_schedule_from_text(
-        '{"goal": "x", "operations": [{"op": "invalid"}]}'
-    ) is None
+    assert (
+        _parse_schedule_from_text('{"goal": "x", "operations": [{"op": "invalid"}]}')
+        is None
+    )
 
 
 def test_try_partial_on_limit_returns_result_when_parseable() -> None:

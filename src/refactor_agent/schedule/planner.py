@@ -7,7 +7,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from anthropic import AsyncAnthropic
 from langfuse import propagate_attributes
 from pydantic_ai import (
     Agent,
@@ -21,6 +20,7 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_graph import End
 
 from refactor_agent.config import DEFAULT_MODEL
+from refactor_agent.llm_client import get_anthropic_client
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
@@ -290,11 +290,14 @@ def create_planner_agent(
         config = get_prompt_config(_PLANNER_PROMPT_NAME)
         model_str = config.model or DEFAULT_MODEL
         model_id = model_str.split(":")[-1] if ":" in model_str else model_str
-        model_settings = ModelSettings(
+        # AnthropicModel merges AnthropicModelSettings at runtime; base ModelSettings TypedDict lacks anthropic_* keys.
+        model_settings = ModelSettings(  # type: ignore[typeddict-unknown-key]
             max_tokens=config.max_tokens or DEFAULT_PLANNER_MAX_TOKENS,
+            anthropic_cache_instructions=True,
+            anthropic_cache_tool_definitions=True,
         )
         provider = AnthropicProvider(
-            anthropic_client=AsyncAnthropic(timeout=PLANNER_REQUEST_TIMEOUT),
+            anthropic_client=get_anthropic_client(timeout=PLANNER_REQUEST_TIMEOUT),
         )
         model = AnthropicModel(
             model_id,
@@ -417,9 +420,7 @@ async def run_planner(
                         tool_calls > MAX_PLANNER_TOOL_CALLS_PER_RUN
                         or llm_rounds > MAX_PLANNER_LLM_ROUNDS
                     ):
-                        return _try_partial_on_limit(
-                            run, span, tool_calls, llm_rounds
-                        )
+                        return _try_partial_on_limit(run, span, tool_calls, llm_rounds)
                     node = next_node
 
                 result = run.result

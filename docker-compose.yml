@@ -1,5 +1,17 @@
-# POC: synced codebase + A2A refactor agent (sync server + A2A in one container)
+# POC: synced codebase + A2A refactor agent (sync server + A2A in one container).
+# LiteLLM proxy is included; all LLM traffic goes through it when both services run.
+# Set ANTHROPIC_API_KEY (env or .env). To run only the POC server: docker compose up poc-server
 services:
+  litellm:
+    image: docker.litellm.ai/berriai/litellm:main-latest
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./config/litellm.yaml:/app/config.yaml
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    command: ["--config", "/app/config.yaml"]
+
   poc-server:
     build: .
     ports:
@@ -8,4 +20,7 @@ services:
     environment:
       REPLICA_DIR: /workspace
       POC_SYNC_PORT: "8765"
+      LITELLM_PROXY_URL: http://litellm:4000
+    depends_on:
+      - litellm
     # Replica is in-container only; sync client pushes code via WebSocket

@@ -5,16 +5,20 @@
 
 from pathlib import Path
 
-from anthropic import AsyncAnthropic
 from pydantic_ai import Agent, ModelSettings, RunContext
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.tools import ToolDefinition
 
-from refactor_agent.config import DEFAULT_MODEL
+from refactor_agent.config import (
+    AGENT_REQUEST_TIMEOUT,
+    DEFAULT_AGENT_MAX_TOKENS,
+    DEFAULT_MODEL,
+)
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
+from refactor_agent.llm_client import get_anthropic_client
 from refactor_agent.observability.langfuse_config import get_prompt, get_prompt_config
 from refactor_agent.orchestrator.deps import (
     NeedInput,
@@ -537,9 +541,15 @@ def create_orchestrator_agent(
         config = get_prompt_config(_PROMPT_NAME)
         model_str = config.model or DEFAULT_MODEL
         model_id = model_str.split(":")[-1] if ":" in model_str else model_str
-        model_settings = ModelSettings(max_tokens=config.max_tokens or 4096)
+        # AnthropicModel merges AnthropicModelSettings at runtime; base ModelSettings TypedDict lacks anthropic_* keys.
+        model_settings = ModelSettings(  # type: ignore[typeddict-unknown-key]
+            max_tokens=config.max_tokens or DEFAULT_AGENT_MAX_TOKENS,
+            anthropic_cache_instructions=True,
+            anthropic_cache_tool_definitions=True,
+            anthropic_cache_messages=True,
+        )
         provider = AnthropicProvider(
-            anthropic_client=AsyncAnthropic(timeout=60.0),
+            anthropic_client=get_anthropic_client(timeout=AGENT_REQUEST_TIMEOUT),
         )
         model = AnthropicModel(
             model_id,
@@ -559,7 +569,7 @@ def create_orchestrator_agent(
         )
 
     agent: Agent[OrchestratorDeps, str] = Agent(
-        model,
+        model,  # type: ignore[call-overload]
         deps_type=OrchestratorDeps,
         output_type=str,
         instructions=instructions,

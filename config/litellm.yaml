@@ -1,0 +1,26 @@
+# LiteLLM proxy config for refactor-agent.
+# Run: litellm --config config/litellm.yaml
+# App uses this gateway when LITELLM_PROXY_URL is set (e.g. http://localhost:4000).
+
+model_list:
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+# Optional: duplicate entry for load balancing (e.g. second key or region)
+# - model_name: claude-sonnet-4-6
+#   litellm_params:
+#     model: anthropic/claude-sonnet-4-6
+#     api_key: os.environ/ANTHROPIC_API_KEY_2
+
+# Optional: response cache (requires Redis env: REDIS_HOST, REDIS_PORT, REDIS_PASSWORD)
+# litellm_settings:
+#   cache: true
+#   cache_params:
+#     type: redis
+#     ttl: 600
+
+# Optional: routing when multiple deployments share model_name
+# router_settings:
+#   routing_strategy: simple-shuffle
