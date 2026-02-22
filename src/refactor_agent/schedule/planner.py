@@ -5,21 +5,39 @@ from __future__ import annotations
 from pathlib import Path
 
 from anthropic import AsyncAnthropic
-from pydantic_ai import Agent, ModelSettings, RunContext
+from pydantic_ai import (
+    Agent,
+    CallToolsNode,
+    ModelRequestNode,
+    ModelSettings,
+    RunContext,
+)
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_graph import End
 
 from refactor_agent.config import DEFAULT_MODEL
 from refactor_agent.engine.registry import EngineRegistry
+from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
 from refactor_agent.observability.langfuse_config import (
+    get_prompt,
     get_prompt_config,
     langfuse_span,
 )
 from refactor_agent.orchestrator.deps import OrchestratorDeps
+from refactor_agent.schedule.codebase_structure import build_codebase_structure
+from refactor_agent.schedule.limits import (
+    MAX_CODEBASE_STRUCTURE_CHARS,
+    MAX_PLANNER_LLM_ROUNDS,
+    MAX_PLANNER_TOOL_CALLS_PER_RUN,
+)
 from refactor_agent.schedule.models import RefactorSchedule
+from refactor_agent.schedule.operation_descriptions import (
+    build_operation_types_documentation,
+)
 
-_PLANNER_PROMPT_NAME = "chat-agent"
+_PLANNER_PROMPT_NAME = "refactor-planner"
 _TS_ONLY = "This tool is only available for TypeScript workspaces."
 
 
@@ -62,8 +80,11 @@ def _register_planner_tools(
     ) -> str:
         """Show the AST skeleton of a workspace file."""
         if ctx.deps.language == "typescript":
-            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-                return await eng.get_skeleton(_abs(ctx.deps, file_path))
+            try:
+                async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                    return await eng.get_skeleton(_abs(ctx.deps, file_path))
+            except SubprocessError as exc:
+                return f"ERROR: get_skeleton failed for {file_path}: {exc}"
 
         full = ctx.deps.workspace / file_path
         if not full.exists():
@@ -85,11 +106,14 @@ def _register_planner_tools(
         """Find all references to a symbol across the project (TypeScript only)."""
         if ctx.deps.language != "typescript":
             return _TS_ONLY
-        async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
-            refs = await eng.find_references(
-                _abs(ctx.deps, file_path),
-                symbol_name,
-            )
+        try:
+            async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
+                refs = await eng.find_references(
+                    _abs(ctx.deps, file_path),
+                    symbol_name,
+                )
+        except SubprocessError as exc:
+            return f"ERROR: find_references ({symbol_name!r}): {exc}"
         if not refs:
             return f"No references found for '{symbol_name}'."
         lines = [f"Found {len(refs)} reference(s) for '{symbol_name}':"]
@@ -134,10 +158,33 @@ symbol, move file, remove node, organize imports, create file); no logic changes
 """
 
 
+class PlannerLimitExceededError(Exception):
+    """Raised when the planner hits max tool calls or max LLM rounds."""
+
+    def __init__(
+        self,
+        *,
+        tool_calls: int,
+        llm_rounds: int,
+    ) -> None:
+        self.tool_calls = tool_calls
+        self.llm_rounds = llm_rounds
+        super().__init__(
+            "Planner exceeded max tool calls or max rounds; "
+            "try a smaller workspace or a simpler goal."
+        )
+
+
 def create_planner_agent(
     model: AnthropicModel | object | None = None,
+    instructions_override: str | None = None,
 ) -> Agent[OrchestratorDeps, RefactorSchedule]:
-    """Create planner agent (structured output RefactorSchedule, read-only tools)."""
+    """Create planner agent (structured output RefactorSchedule, read-only tools).
+
+    When instructions_override is provided (e.g. from get_prompt with codebase
+    structure), it is used as the agent instructions; otherwise the default
+    static instructions are used.
+    """
     if model is None:
         config = get_prompt_config(_PLANNER_PROMPT_NAME)
         model_str = config.model or DEFAULT_MODEL
@@ -152,35 +199,94 @@ def create_planner_agent(
             settings=model_settings,
         )
 
+    instructions = (
+        instructions_override
+        if instructions_override is not None
+        else _PLANNER_INSTRUCTIONS
+    )
+    # model may be TestModel (object) in tests; pydantic-ai Agent accepts it at runtime
     agent: Agent[OrchestratorDeps, RefactorSchedule] = Agent(
-        model,
+        model,  # type: ignore[call-overload]
         deps_type=OrchestratorDeps,
         output_type=RefactorSchedule,
-        instructions=_PLANNER_INSTRUCTIONS,
+        instructions=instructions,
         instrument=True,
     )
     _register_planner_tools(agent)
     return agent
 
 
+def _count_tool_calls(node: object) -> int:
+    """Return the number of tool invocations in a CallToolsNode."""
+    results = getattr(node, "tool_call_results", None)
+    if results is None:
+        return 0
+    return len(results) if isinstance(results, dict) else 0
+
+
 async def run_planner(
-    agent: Agent[OrchestratorDeps, RefactorSchedule],
+    _agent: Agent[OrchestratorDeps, RefactorSchedule],
     deps: OrchestratorDeps,
     user_message: str,
 ) -> RefactorSchedule:
-    """Run the planner agent and return the validated RefactorSchedule."""
+    """Run the planner agent and return the validated RefactorSchedule.
+
+    Builds codebase structure, injects it via the refactor-planner prompt, and
+    runs with hard limits on tool calls and LLM rounds. Raises
+    PlannerLimitExceededError when a limit is exceeded.
+    """
+    codebase_structure = await build_codebase_structure(deps)
+    if len(codebase_structure) > MAX_CODEBASE_STRUCTURE_CHARS:
+        codebase_structure = (
+            codebase_structure[:MAX_CODEBASE_STRUCTURE_CHARS]
+            + "\n\n(truncated; structure may be incomplete)"
+        )
+    operation_types = build_operation_types_documentation()
+    instructions = get_prompt(
+        _PLANNER_PROMPT_NAME,
+        codebase_structure=codebase_structure,
+        operation_types=operation_types,
+    )
+    planner_agent = create_planner_agent(instructions_override=instructions)
+
     with langfuse_span(
         "refactor-planner",
         as_type="agent",
         span_input=user_message,
     ) as span:
-        result = await agent.run(user_message, deps=deps)
-        schedule = result.output
-        span.update(
-            output={
-                "goal": schedule.goal,
-                "operation_count": len(schedule.operations),
-                "operation_types": [op.op for op in schedule.operations],
-            },
-        )
-        return schedule
+        tool_calls = 0
+        llm_rounds = 0
+        async with planner_agent.iter(user_message, deps=deps) as run:
+            node: object = run.next_node
+            while not isinstance(node, End):
+                # node is AgentNode here (End excluded by while condition)
+                next_node = await run.next(node)  # type: ignore[arg-type]
+                if isinstance(node, ModelRequestNode):
+                    llm_rounds += 1
+                elif isinstance(node, CallToolsNode):
+                    tool_calls += _count_tool_calls(node)
+                if (
+                    tool_calls > MAX_PLANNER_TOOL_CALLS_PER_RUN
+                    or llm_rounds > MAX_PLANNER_LLM_ROUNDS
+                ):
+                    raise PlannerLimitExceededError(
+                        tool_calls=tool_calls,
+                        llm_rounds=llm_rounds,
+                    )
+                node = next_node
+
+            result = run.result
+            if result is None:
+                raise PlannerLimitExceededError(
+                    tool_calls=tool_calls,
+                    llm_rounds=llm_rounds,
+                )
+            schedule = result.output
+            span.update(
+                output={
+                    "goal": schedule.goal,
+                    "operation_count": len(schedule.operations),
+                    "operation_types": [op.op for op in schedule.operations],
+                },
+            )
+            return schedule

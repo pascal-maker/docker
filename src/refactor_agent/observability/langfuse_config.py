@@ -43,16 +43,25 @@ def langfuse_span(
     span_input: Any = None,  # noqa: ANN401 — Langfuse accepts arbitrary JSON
     metadata: dict[str, Any] | None = None,
 ) -> Generator[_SpanHandle, None, None]:
-    """Create a Langfuse observation span; yields a no-op handle if unavailable."""
+    """Create a Langfuse observation span; yields a no-op handle if unavailable.
+
+    Exceptions from the body are not thrown into the inner observation context
+    manager, to avoid "generator didn't stop after throw()" from Langfuse.
+    """
+    inner_cm = None
     try:
         client = get_client()
-        with client.start_as_current_observation(
+        inner_cm = client.start_as_current_observation(
             name=name,
             as_type=as_type,
             input=span_input,
             metadata=metadata,
-        ) as obs:
+        )
+        obs = inner_cm.__enter__()
+        try:
             yield _SpanHandle(obs)
+        finally:
+            inner_cm.__exit__(None, None, None)
     except Exception:
         yield _SpanHandle(None)
 
