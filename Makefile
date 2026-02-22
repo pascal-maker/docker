@@ -3,7 +3,7 @@
 RUN := uv run
 TS_BRIDGE := src/refactor_agent/engine/typescript/bridge
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui reset-playground ts-engine-install ts-engine-check
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-engine-install ts-engine-check
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -43,6 +43,15 @@ ci: ## Alias for check (CI usage)
 
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
 	CHAINLIT_APP_ROOT=src $(RUN) chainlit run src/refactor_agent/ui/app.py -w
+
+dashboard: ## Run refactor-issues dashboard backend (API; serves SPA if dashboard-ui/dist exists)
+	$(RUN) python -m refactor_agent.dashboard
+
+dashboard-ui: ## Run dashboard React UI dev server (proxy to backend on :8000)
+	cd dashboard-ui && pnpm dev
+
+dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
+	$(RUN) python scripts/seed_dashboard.py
 
 reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
 	./scripts/reset-playground.sh

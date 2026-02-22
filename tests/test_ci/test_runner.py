@@ -17,9 +17,7 @@ def workspace_with_config(tmp_path: Path) -> Path:
     """Workspace with .refactor-agent.yaml defining one preset."""
     config = tmp_path / ".refactor-agent.yaml"
     config.write_text(
-        "presets:\n"
-        "  - id: test-preset\n"
-        "    goal: Test goal for CI.\n",
+        "presets:\n  - id: test-preset\n    goal: Test goal for CI.\n",
         encoding="utf-8",
     )
     return tmp_path
@@ -34,7 +32,9 @@ async def test_run_ci_no_presets_returns_empty_report(tmp_path: Path) -> None:
 
 async def test_run_ci_no_api_key_raises(workspace_with_config: Path) -> None:
     """With presets but no API key, run_ci raises CiConfigError."""
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "", "LITELLM_MASTER_KEY": ""}, clear=False):
+    with patch.dict(
+        "os.environ", {"ANTHROPIC_API_KEY": "", "LITELLM_MASTER_KEY": ""}, clear=False
+    ):
         with pytest.raises(CiConfigError, match="LLM API key"):
             await run_ci(workspace=workspace_with_config)
 

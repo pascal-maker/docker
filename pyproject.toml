@@ -156,6 +156,13 @@ ban-relative-imports = "all"
     "D", "ANN", "T20",
     "ASYNC240",  # local-disk file I/O in Chainlit handlers is fine sync
 ]
+"src/refactor_agent/dashboard/**/*.py" = [
+    "TC001", "TC002", "TC003",  # FastAPI/Pydantic use Request and models at runtime
+    "PLR0913",  # route handlers need many query/path params
+    "S104",  # 0.0.0.0 intentional for local server
+    "PLC0415",  # lazy imports for RedirectResponse/PlainTextResponse/uvicorn
+    "S608",  # where clause built from fixed condition list, not user input
+]
 
 # ---------------------------------------------------------------------------
 # Mypy – static type checking
