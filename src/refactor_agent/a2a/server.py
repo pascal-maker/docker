@@ -14,42 +14,30 @@ from refactor_agent.a2a.executor import (
     ASTRefactorAgentExecutor,
 )
 
-RENAME_SKILL = AgentSkill(
-    id="rename_symbol",
-    name="Rename symbol",
+REFACTOR_SKILL = AgentSkill(
+    id="refactor",
+    name="Refactor code",
     description=(
-        "Rename a Python symbol with scope-aware AST analysis. Preserves "
-        "formatting and comments. Determines full impact: send a workspace "
-        "(all relevant file contents); the agent returns refactored results "
-        "only for files that reference the symbol. Client applies every "
-        "returned artifact (modified_source to path). Input: JSON with "
-        "old_name, new_name, optional scope_node, and workspace: [{path, "
-        "source}, ...]. Single-file: source + path; or files: [...] for "
-        "explicit list. Collision check (single-file) may pause for approval."
+        "Submit a refactoring request; the agent applies supported "
+        "transformations and returns updated code. When approval is needed "
+        "(e.g. name conflict), the agent will ask; reply in the same context "
+        "to continue or cancel."
     ),
-    tags=["refactor", "rename", "python", "ast"],
-    examples=[
-        "Rename in one file",
-        '{"source": "def foo(): pass", "old_name": "foo", "new_name": "bar", '
-        '"path": "src/foo.py"}',
-        "Full impact: send workspace, get artifacts only for impacted files",
-        '{"old_name": "greet", "new_name": "greet_by_name", "workspace": ['
-        '{"path": "a.py", "source": "..."}, {"path": "b.py", "source": "..."}]}',
-    ],
+    tags=["refactor", "code"],
 )
 
 DEFAULT_AGENT_CARD = AgentCard(
     name="AST Refactor Agent",
     description=(
-        "Semantic AST-level code refactoring for Python. Rename symbols with "
-        "scope awareness; full formatting and comment preservation."
+        "Semantic code refactoring. Submit a refactor request and get "
+        "updated code. Supports human-in-the-loop when input is required."
     ),
     url="http://localhost:9999/",
     version="0.1.0",
     default_input_modes=["text"],
     default_output_modes=["text"],
     capabilities=AgentCapabilities(streaming=True),
-    skills=[RENAME_SKILL],
+    skills=[REFACTOR_SKILL],
 )
 
 

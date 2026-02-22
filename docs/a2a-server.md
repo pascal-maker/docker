@@ -1,6 +1,8 @@
 # A2A server (HTTP)
 
-Start the A2A server for agent-to-agent refactor tasks (default port 9999):
+A2A surface for agent-to-agent refactor tasks; shares the same [orchestrator](architecture.md) as the Chat UI. Human-in-the-loop (e.g. name collision) uses `input_required` and resumption.
+
+Start the server (default port 9999):
 
 ```bash
 uv run python scripts/run_ast_refactor_a2a.py
@@ -14,8 +16,8 @@ uv run python scripts/run_ast_refactor_a2a.py 8080
 
 ## Endpoints
 
-- **Agent Card:** `GET http://localhost:9999/.well-known/agent-card.json` — discover skills and capabilities.
-- **Rename task:** `POST http://localhost:9999` — send an A2A `message/send` JSON-RPC request.
+- **Agent Card:** `GET http://localhost:9999/.well-known/agent-card.json` — discover skills and capabilities. The card exposes one generic **refactor** skill (no enumeration of operations).
+- **Refactor task:** `POST http://localhost:9999` — send an A2A `message/send` JSON-RPC request. Backward compatible: same JSON shapes (e.g. `old_name`, `new_name`, `source` or `workspace`) are accepted.
 
 ## Request formats
 
@@ -59,7 +61,7 @@ This GETs the agent card and POSTs a rename task. Optional: pass a base URL, e.g
 
 ## Human-in-the-loop (collision detection)
 
-To trigger the "pause and ask" flow, send a rename that would cause a name collision (e.g. rename `greet` to `main` when `main` already exists). The agent returns `input_required`; you send a second message to confirm or cancel.
+To trigger the "pause and ask" flow, send a rename that would cause a name collision (e.g. rename `greet` to `main` when `main` already exists). The agent returns `input_required`; you send a second message: **yes** to force, **no** to cancel, or a **new name** to use instead.
 
 ### Using the test script
 

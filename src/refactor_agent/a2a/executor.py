@@ -1,13 +1,13 @@
-"""A2A AgentExecutor: single refactor task type (rename_symbol) using LibCSTEngine."""
+"""A2A executor: shared orchestrator; translate message, run, emit artifacts."""
 
 from __future__ import annotations
 
 import json
-import os
+import shutil
+import tempfile
 import uuid
 from pathlib import Path
 
-# RequestContext and EventQueue used in method signatures at runtime
 from a2a.server.agent_execution import AgentExecutor, RequestContext  # noqa: TC002
 from a2a.server.events import EventQueue  # noqa: TC002
 from a2a.types import (
@@ -23,37 +23,23 @@ from a2a.types import (
     TextPart,
 )
 
-# CollisionInfo used at runtime for collision list type
-from refactor_agent.engine.base import (
-    CollisionInfo,  # noqa: TC001 — runtime use in type annotation
+from refactor_agent.orchestrator import (
+    NeedInputResult,
+    OrchestratorDeps,
+    create_orchestrator_agent,
+    run_orchestrator,
 )
-from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 
-PENDING_RENAME_KEY = "pending_rename"
-RENAME_RESULT_KEY = "rename_result"
-MODIFIED_SOURCE_MARKER = "\n\n--- Modified source ---\n"
 REPLICA_DIR_ENV = "REPLICA_DIR"
+ORCHESTRATOR_STATE_KEY = "orchestrator_state"
 
+# task_id -> {message_history, workspace_dir} for pause/resume
+_orchestrator_state: dict[str, dict] = {}
 
-def _load_workspace_from_replica(replica_root: Path) -> list[dict[str, str]]:
-    """Scan replica_root for **/*.py and return workspace list [{ path, source }]."""
-    out: list[dict[str, str]] = []
-    root = replica_root.resolve()
-    for path in root.rglob("*.py"):
-        if not path.is_file():
-            continue
-        try:
-            rel = path.relative_to(root)
-            path_str = str(rel).replace("\\", "/")
-            content = path.read_text(encoding="utf-8")
-            out.append({"path": path_str, "source": content})
-        except (OSError, ValueError):
-            continue
-    return out
+_ARTIFACT_PREVIEW_LEN = 200
 
 
 def _agent_message(text: str) -> Message:
-    """Build an A2A Message with role=agent and a single text part."""
     return Message(
         message_id=uuid.uuid4().hex,
         role=Role.agent,
@@ -69,7 +55,6 @@ def _status_event(
     *,
     final: bool = True,
 ) -> TaskStatusUpdateEvent:
-    """Build TaskStatusUpdateEvent so the bridge receives result.id, result.status."""
     return TaskStatusUpdateEvent(
         task_id=task_id,
         context_id=context_id,
@@ -78,8 +63,8 @@ def _status_event(
     )
 
 
-def _parse_rename_params(user_input: str) -> dict[str, str | None] | str:  # noqa: PLR0911, PLR0912, C901 — single- and multi-file validation
-    """Parse JSON to rename params. Returns dict or error string."""
+def _parse_rename_params(user_input: str) -> dict | str:  # noqa: C901, PLR0911, PLR0912
+    """Parse JSON to rename params. Returns dict or error string. Backward compat."""
     try:
         data = json.loads(user_input)
     except json.JSONDecodeError as e:
@@ -96,7 +81,6 @@ def _parse_rename_params(user_input: str) -> dict[str, str | None] | str:  # noq
 
     workspace = data.get("workspace")
     if isinstance(workspace, list) and len(workspace) > 0:
-        # Workspace: agent finds impact by trying rename in each file
         out_workspace: list[dict[str, str]] = []
         for i, item in enumerate(workspace):
             if not isinstance(item, dict):
@@ -113,14 +97,10 @@ def _parse_rename_params(user_input: str) -> dict[str, str | None] | str:  # noq
             "old_name": old_name,
             "new_name": new_name,
             "scope_node": scope_node,
-            "source": None,
-            "path": None,
-            "files": None,
         }
 
     files = data.get("files")
     if isinstance(files, list) and len(files) > 0:
-        # Multi-file: each item must have path and source
         out_files: list[dict[str, str]] = []
         for i, item in enumerate(files):
             if not isinstance(item, dict):
@@ -133,28 +113,12 @@ def _parse_rename_params(user_input: str) -> dict[str, str | None] | str:  # noq
                 return f"ERROR: 'files[{i}].source' must be a string"
             out_files.append({"path": p, "source": s})
         return {
-            "files": out_files,
+            "workspace": out_files,
             "old_name": old_name,
             "new_name": new_name,
             "scope_node": scope_node,
-            "source": None,
-            "path": None,
         }
 
-    # Replica: build workspace from REPLICA_DIR when use_replica is true
-    if data.get("use_replica"):
-        return {
-            "use_replica": True,
-            "workspace": None,
-            "old_name": old_name,
-            "new_name": new_name,
-            "scope_node": scope_node,
-            "source": None,
-            "path": None,
-            "files": None,
-        }
-
-    # Single-file
     source = data.get("source")
     path = data.get("path")
     if not isinstance(source, str):
@@ -167,99 +131,65 @@ def _parse_rename_params(user_input: str) -> dict[str, str | None] | str:  # noq
         "new_name": new_name,
         "scope_node": scope_node,
         "path": path,
-        "files": None,
     }
 
 
-def _recover_pending_rename_from_artifacts(
-    artifacts: list[Artifact] | None,
-) -> dict[str, str | None] | None:
-    """Return pending_rename from the most recent artifact that has it, or None."""
-    if not artifacts:
-        return None
-    for artifact in reversed(artifacts):
-        for part in artifact.parts:
-            root = getattr(part, "root", None)
-            if isinstance(root, DataPart) and PENDING_RENAME_KEY in root.data:
-                payload = root.data[PENDING_RENAME_KEY]
-                if (
-                    isinstance(payload, dict)
-                    and "source" in payload
-                    and "old_name" in payload
-                    and "new_name" in payload
-                ):
-                    return {
-                        "source": payload.get("source"),
-                        "old_name": payload.get("old_name"),
-                        "new_name": payload.get("new_name"),
-                        "scope_node": payload.get("scope_node"),
-                    }
-    return None
+def _build_workspace_dir(parsed: dict) -> Path:
+    """Create a temp dir and write workspace files from parsed. Caller must cleanup."""
+    tmp = tempfile.mkdtemp(prefix="refactor_a2a_")
+    root = Path(tmp)
+    workspace = parsed.get("workspace")
+    if isinstance(workspace, list):
+        for item in workspace:
+            path = item.get("path", "")
+            source = item.get("source", "")
+            out_path = root / path
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(source, encoding="utf-8")
+    else:
+        source = parsed.get("source", "")
+        path = parsed.get("path") or "file.py"
+        out_path = root / path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(source, encoding="utf-8")
+    return root
 
 
-def _is_confirmation_yes(user_input: str) -> bool:
-    """True if user input means proceed (yes, y, proceed)."""
-    normalized = user_input.strip().lower()
-    return normalized in ("yes", "y", "proceed")
+def _internal_message_from_parsed(parsed: dict) -> str:
+    """Build the prompt we send to the orchestrator for rename-shaped input."""
+    old_name = parsed.get("old_name", "")
+    new_name = parsed.get("new_name", "")
+    return (
+        f"Rename the symbol '{old_name}' to '{new_name}' across the workspace. "
+        "Apply the rename to every file that references the symbol."
+    )
 
 
-def _is_confirmation_no(user_input: str) -> bool:
-    """True if user input means cancel (no, n, cancel)."""
-    normalized = user_input.strip().lower()
-    return normalized in ("no", "n", "cancel")
-
-
-async def _do_rename(params: dict[str, str | None]) -> str:
-    """Run rename via LibCSTEngine. Returns summary and modified source or error."""
-    source = params["source"]
-    old_name = params["old_name"]
-    new_name = params["new_name"]
-    scope_node = params["scope_node"]
-    if not (
-        isinstance(source, str)
-        and isinstance(old_name, str)
-        and isinstance(new_name, str)
-    ):
-        return "ERROR: invalid params (source/old_name/new_name must be strings)"
-    try:
-        engine = LibCSTEngine(source)
-    except Exception as e:
-        return f"ERROR: invalid Python syntax: {e}"
-    result = await engine.rename_symbol(old_name, new_name, scope_node)
-    if result.startswith("ERROR:"):
-        return result
-    modified = await engine.to_source()
-    return f"{result}{MODIFIED_SOURCE_MARKER}{modified}"
-
-
-def _success_artifact(
+def _artifact_from_modified_file(
     task_id: str,
     context_id: str,
-    result_text: str,
-    path: str | None,
+    path: str,
+    modified_source: str,
     *,
     append: bool = False,
 ) -> TaskArtifactUpdateEvent:
-    """Build artifact with modified_source and path so the client can apply the edit."""
-    if MODIFIED_SOURCE_MARKER in result_text:
-        summary, _, modified = result_text.partition(MODIFIED_SOURCE_MARKER)
-        summary = summary.strip()
-    else:
-        summary = result_text.strip()
-        modified = ""
+    """Build a rename-result artifact from path and modified source."""
     data: dict[str, str | None] = {
-        "summary": summary,
-        "modified_source": modified,
-        RENAME_RESULT_KEY: "1",
+        "summary": f"Modified {path}",
+        "modified_source": modified_source,
+        "path": path,
     }
-    if path is not None:
-        data["path"] = path
     artifact = Artifact(
         artifact_id=uuid.uuid4().hex,
         name="rename-result",
-        description="Refactored source; apply modified_source to path (if given).",
+        description="Refactored source; apply modified_source to path.",
         parts=[
-            Part(root=TextPart(text=result_text)),
+            Part(
+                root=TextPart(
+                    text=modified_source[:_ARTIFACT_PREVIEW_LEN]
+                    + ("..." if len(modified_source) > _ARTIFACT_PREVIEW_LEN else "")
+                )
+            ),
             Part(root=DataPart(data=data)),
         ],
     )
@@ -271,144 +201,153 @@ def _success_artifact(
     )
 
 
-async def _handle_rename_task(user_input: str) -> str:
-    """Parse JSON input, run rename via LibCSTEngine, return result text.
-
-    Expected JSON: {"source": "...", "old_name": "...", "new_name": "...",
-                    "scope_node": "..." (optional)}.
-    Returns summary and modified source, or an error string.
-    """
-    parsed = _parse_rename_params(user_input)
-    if isinstance(parsed, str):
-        return parsed
-    return await _do_rename(parsed)
-
-
-def _collision_artifact_and_status(
+async def _emit_artifacts_from_workspace(
+    workspace_dir: Path,
     task_id: str,
     context_id: str,
-    collisions: list[CollisionInfo],
-    new_name: str,
-    params: dict[str, str | None],
-) -> tuple[TaskArtifactUpdateEvent, TaskStatusUpdateEvent]:
-    """Build artifact (text + pending_rename data) and input_required status."""
-    lines = [
-        f"Name collision detected: '{new_name}' already exists in this file.",
-        "",
-        "Conflicting definitions:",
-        *[f"  - {c.kind} at {c.location}" for c in collisions],
-        "",
-    ]
-    lines.append("Proceeding would shadow these definitions.")
-    lines.append("Confirm? (yes/no)")
-    text = "\n".join(lines)
-    payload = {
-        "source": params["source"],
-        "old_name": params["old_name"],
-        "new_name": params["new_name"],
-        "scope_node": params["scope_node"],
-    }
-    artifact = Artifact(
-        artifact_id=uuid.uuid4().hex,
-        name="rename-collision",
-        description="Name collision; approval required",
-        parts=[
-            Part(root=TextPart(text=text)),
-            Part(root=DataPart(data={PENDING_RENAME_KEY: payload})),
-        ],
-    )
-    artifact_event = TaskArtifactUpdateEvent(
-        task_id=task_id,
-        context_id=context_id,
-        artifact=artifact,
-        append=False,
-    )
-    status_message = _agent_message("Name collision — approval required")
-    status_event = TaskStatusUpdateEvent(
-        task_id=task_id,
-        context_id=context_id,
-        status=TaskStatus(
-            state=TaskState.input_required,
-            message=status_message,
-        ),
-        final=False,
-    )
-    return artifact_event, status_event
+    event_queue: EventQueue,
+) -> None:
+    """Emit one rename-result artifact per .py file in the workspace."""
+    first = True
+    for fp in sorted(workspace_dir.rglob("*.py")):  # noqa: ASYNC240
+        if not fp.is_file():
+            continue
+        rel = fp.relative_to(workspace_dir)
+        path_str = str(rel).replace("\\", "/")
+        content = fp.read_text(encoding="utf-8")
+        await event_queue.enqueue_event(
+            _artifact_from_modified_file(
+                task_id,
+                context_id,
+                path_str,
+                content,
+                append=not first,
+            )
+        )
+        first = False
 
 
 class ASTRefactorAgentExecutor(AgentExecutor):
-    """A2A executor for rename_symbol: structured JSON in, result message out."""
+    """Translate A2A message, run orchestrator, emit input_required or artifacts."""
 
-    async def execute(  # noqa: PLR0911, PLR0912, PLR0915, C901 — resumption, single/multi-file, collision
+    def __init__(
+        self,
+        state_store: dict[str, dict] | None = None,
+        agent: object | None = None,
+    ) -> None:
+        self._state_store = (
+            state_store if state_store is not None else _orchestrator_state
+        )
+        self._agent = agent if agent is not None else create_orchestrator_agent()
+
+    async def execute(  # noqa: C901, PLR0911, PLR0912, PLR0915
         self,
         context: RequestContext,
         event_queue: EventQueue,
     ) -> None:
-        """Run rename task: check collisions, pause for approval, or run rename."""
-        user_input = context.get_user_input()
+        """Run orchestrator; emit input_required or artifacts."""
+        user_input = (context.get_user_input() or "").strip()
         task_id = context.task_id
         context_id = context.context_id
         if task_id is None or context_id is None:
-            # No task/context to attach; bridge would still get Message not Task
             await event_queue.enqueue_event(
                 _agent_message("ERROR: missing task_id or context_id")
             )
             return
-        assert task_id is not None  # noqa: S101 — narrow for mypy
-        assert context_id is not None  # noqa: S101
         current_task = getattr(context, "current_task", None)
 
-        # Resumption: we were waiting for yes/no
+        # Resumption: we were waiting for user input
+        saved = self._state_store.get(task_id)
         if (
-            current_task is not None
+            saved is not None
+            and current_task is not None
             and current_task.status.state == TaskState.input_required
         ):
-            pending = _recover_pending_rename_from_artifacts(current_task.artifacts)
-            if pending is not None:
-                if _is_confirmation_yes(user_input):
-                    result = await _do_rename(pending)
-                    await event_queue.enqueue_event(
-                        _success_artifact(
-                            task_id,
-                            context_id,
-                            result,
-                            pending.get("path"),
-                        )
-                    )
-                    await event_queue.enqueue_event(
-                        _status_event(task_id, context_id, TaskState.completed, result)
-                    )
-                    return
-                if _is_confirmation_no(user_input):
+            message_history = saved.get("message_history")
+            workspace_dir_str = saved.get("workspace_dir")
+            if message_history is not None and workspace_dir_str is not None:
+                workspace_dir = Path(workspace_dir_str)
+                if not workspace_dir.exists():  # noqa: ASYNC240
+                    del self._state_store[task_id]
                     await event_queue.enqueue_event(
                         _status_event(
                             task_id,
                             context_id,
-                            TaskState.completed,
-                            "Rename canceled.",
+                            TaskState.failed,
+                            "Session expired; please submit the request again.",
                         )
                     )
                     return
+                deps = OrchestratorDeps(
+                    language="python",
+                    workspace=workspace_dir,
+                    mode="Auto",
+                    file_ext="*.py",
+                    get_user_input=None,
+                )
+                result, run_state = await run_orchestrator(
+                    self._agent,
+                    deps,
+                    user_input,
+                    message_history=message_history,
+                )
+                if isinstance(result, NeedInputResult):
+                    await event_queue.enqueue_event(
+                        TaskArtifactUpdateEvent(
+                            task_id=task_id,
+                            context_id=context_id,
+                            artifact=Artifact(
+                                artifact_id=uuid.uuid4().hex,
+                                name="refactor-input-required",
+                                description=result.need_input.message,
+                                parts=[
+                                    Part(root=TextPart(text=result.need_input.message)),
+                                    Part(root=DataPart(data=result.need_input.payload)),
+                                ],
+                            ),
+                            append=False,
+                        )
+                    )
+                    await event_queue.enqueue_event(
+                        _status_event(
+                            task_id,
+                            context_id,
+                            TaskState.input_required,
+                            result.need_input.message,
+                            final=False,
+                        )
+                    )
+                    self._state_store[task_id] = {
+                        "message_history": run_state,
+                        "workspace_dir": workspace_dir_str,
+                    }
+                    return
+                # FinalOutput
+                await _emit_artifacts_from_workspace(
+                    workspace_dir, task_id, context_id, event_queue
+                )
                 await event_queue.enqueue_event(
                     _status_event(
                         task_id,
                         context_id,
-                        TaskState.input_required,
-                        "Reply with yes or no to confirm or cancel.",
-                        final=False,
+                        TaskState.completed,
+                        result.output,
                     )
                 )
+                del self._state_store[task_id]
+                if workspace_dir.exists():  # noqa: ASYNC240
+                    shutil.rmtree(workspace_dir, ignore_errors=True)
                 return
 
         # Initial request
-        if not user_input.strip():
+        if not user_input:
             await event_queue.enqueue_event(
                 _status_event(
                     task_id,
                     context_id,
                     TaskState.failed,
-                    "ERROR: empty input. Send JSON: "
-                    '{"source": "...", "old_name": "...", "new_name": "..."}',
+                    "ERROR: empty input. Send JSON with refactor request (e.g. "
+                    "old_name, new_name, source or workspace).",
                 )
             )
             return
@@ -420,167 +359,68 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             )
             return
 
-        # When use_replica is true, build workspace from REPLICA_DIR
-        if parsed.get("use_replica") and not parsed.get("workspace"):
-            replica_dir = os.environ.get(REPLICA_DIR_ENV)
-            if not replica_dir:
-                await event_queue.enqueue_event(
-                    _status_event(
-                        task_id,
-                        context_id,
-                        TaskState.failed,
-                        "ERROR: use_replica is true but REPLICA_DIR is not set",
-                    )
-                )
-                return
-            parsed["workspace"] = _load_workspace_from_replica(Path(replica_dir))
-            if not parsed["workspace"]:
-                await event_queue.enqueue_event(
-                    _status_event(
-                        task_id,
-                        context_id,
-                        TaskState.failed,
-                        "ERROR: replica directory is empty or has no .py files",
-                    )
-                )
-                return
-
-        workspace_list = parsed.get("workspace")
-        if isinstance(workspace_list, list) and len(workspace_list) > 0:
-            # Impact by trying rename in each file; return artifact per impacted file
-            results: list[str] = []
-            first_artifact = True
-            for file_spec in workspace_list:
-                single = {
-                    "source": file_spec["source"],
-                    "old_name": parsed["old_name"],
-                    "new_name": parsed["new_name"],
-                    "scope_node": parsed.get("scope_node"),
-                }
-                result = await _do_rename(single)
-                if result.startswith("ERROR:"):
-                    continue  # Symbol not in this file, skip
-                await event_queue.enqueue_event(
-                    _success_artifact(
-                        task_id,
-                        context_id,
-                        result,
-                        file_spec["path"],
-                        append=not first_artifact,
-                    )
-                )
-                first_artifact = False
-                if MODIFIED_SOURCE_MARKER in result:
-                    summary, _, _ = result.partition(MODIFIED_SOURCE_MARKER)
-                    results.append(f"{file_spec['path']}: {summary.strip()}")
-                else:
-                    results.append(file_spec["path"])
-            if not results:
-                await event_queue.enqueue_event(
-                    _status_event(
-                        task_id,
-                        context_id,
-                        TaskState.failed,
-                        "ERROR: no files in workspace reference the symbol "
-                        f"'{parsed['old_name']}'",
-                    )
-                )
-                return
-            summary_msg = "Renamed in {} file(s):\n{}".format(
-                len(results),
-                "\n".join(f"  - {r}" for r in results),
-            )
-            await event_queue.enqueue_event(
-                _status_event(task_id, context_id, TaskState.completed, summary_msg)
-            )
-            return
-
-        files = parsed.get("files")
-        if isinstance(files, list) and len(files) > 0:
-            # Multi-file rename: one artifact per file, then one summary status
-            results: list[str] = []
-            for i, file_spec in enumerate(files):
-                single = {
-                    "source": file_spec["source"],
-                    "old_name": parsed["old_name"],
-                    "new_name": parsed["new_name"],
-                    "scope_node": parsed.get("scope_node"),
-                }
-                result = await _do_rename(single)
-                if result.startswith("ERROR:"):
-                    await event_queue.enqueue_event(
-                        _status_event(
-                            task_id,
-                            context_id,
-                            TaskState.failed,
-                            f"{result} (file: {file_spec['path']})",
-                        )
-                    )
-                    return
-                await event_queue.enqueue_event(
-                    _success_artifact(
-                        task_id,
-                        context_id,
-                        result,
-                        file_spec["path"],
-                        append=(i > 0),
-                    )
-                )
-                if MODIFIED_SOURCE_MARKER in result:
-                    summary, _, _ = result.partition(MODIFIED_SOURCE_MARKER)
-                    results.append(f"{file_spec['path']}: {summary.strip()}")
-                else:
-                    results.append(file_spec["path"])
-            summary_msg = "Renamed in {} file(s):\n{}".format(
-                len(results),
-                "\n".join(f"  - {r}" for r in results),
-            )
-            await event_queue.enqueue_event(
-                _status_event(task_id, context_id, TaskState.completed, summary_msg)
-            )
-            return
-
+        workspace_dir = _build_workspace_dir(parsed)
         try:
-            engine = LibCSTEngine(parsed["source"])  # type: ignore[arg-type]
-        except Exception as e:
+            deps = OrchestratorDeps(
+                language="python",
+                workspace=workspace_dir,
+                mode="Auto",
+                file_ext="*.py",
+                get_user_input=None,
+            )
+            internal_message = _internal_message_from_parsed(parsed)
+            result, run_state = await run_orchestrator(
+                self._agent,
+                deps,
+                internal_message,
+                message_history=None,
+            )
+            if isinstance(result, NeedInputResult):
+                await event_queue.enqueue_event(
+                    TaskArtifactUpdateEvent(
+                        task_id=task_id,
+                        context_id=context_id,
+                        artifact=Artifact(
+                            artifact_id=uuid.uuid4().hex,
+                            name="refactor-input-required",
+                            description=result.need_input.message,
+                            parts=[
+                                Part(root=TextPart(text=result.need_input.message)),
+                                Part(root=DataPart(data=result.need_input.payload)),
+                            ],
+                        ),
+                        append=False,
+                    )
+                )
+                await event_queue.enqueue_event(
+                    _status_event(
+                        task_id,
+                        context_id,
+                        TaskState.input_required,
+                        result.need_input.message,
+                        final=False,
+                    )
+                )
+                self._state_store[task_id] = {
+                    "message_history": run_state,
+                    "workspace_dir": str(workspace_dir),
+                }
+                return
+            await _emit_artifacts_from_workspace(
+                workspace_dir, task_id, context_id, event_queue
+            )
             await event_queue.enqueue_event(
                 _status_event(
                     task_id,
                     context_id,
-                    TaskState.failed,
-                    f"ERROR: invalid Python syntax: {e}",
+                    TaskState.completed,
+                    result.output,
                 )
             )
-            return
-
-        collisions = await engine.check_name_collisions(
-            parsed["new_name"],  # type: ignore[arg-type]
-            parsed["scope_node"],
-        )
-        if collisions:
-            artifact_ev, status_ev = _collision_artifact_and_status(
-                task_id,
-                context_id,
-                collisions,
-                parsed["new_name"],  # type: ignore[arg-type]
-                parsed,
-            )
-            await event_queue.enqueue_event(artifact_ev)
-            await event_queue.enqueue_event(status_ev)
-            return
-
-        result = await _do_rename(parsed)
-        await event_queue.enqueue_event(
-            _success_artifact(
-                task_id,
-                context_id,
-                result,
-                parsed.get("path"),
-            )
-        )
-        await event_queue.enqueue_event(
-            _status_event(task_id, context_id, TaskState.completed, result)
-        )
+        finally:
+            # Cleanup temp dir only when we are not storing state (no NeedInput)
+            if task_id not in self._state_store and workspace_dir.exists():
+                shutil.rmtree(workspace_dir, ignore_errors=True)
 
     async def cancel(
         self,

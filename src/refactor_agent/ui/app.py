@@ -9,7 +9,8 @@ from langfuse import get_client, propagate_attributes
 from pydantic_ai._agent_graph import End, ModelRequestNode
 
 from refactor_agent.observability.langfuse_config import init_langfuse
-from refactor_agent.ui.chat_agent import ChatDeps, create_chat_agent
+from refactor_agent.orchestrator import NeedInput, OrchestratorDeps  # noqa: TC001
+from refactor_agent.ui.chat_agent import create_chat_agent
 
 _TRACE_NAME = "chat-agent"
 
@@ -164,11 +165,21 @@ async def on_message(message: cl.Message) -> None:
     history = cl.user_session.get("message_history") or []
     mode = cl.user_session.get("chat_profile") or "Ask"
 
-    deps = ChatDeps(
+    async def get_user_input(need: NeedInput) -> str:
+        res = await cl.AskUserMessage(
+            content=need.message,
+            timeout=60,
+        ).send()
+        if res is None:
+            return "cancel"
+        return (res.get("output") or "").strip()
+
+    deps = OrchestratorDeps(
         language=language,
         workspace=_workspace_dir(language),
         mode=mode,
         file_ext=_LANG_CONFIG[language]["ext"],
+        get_user_input=get_user_input,
     )
 
     langfuse = get_client()

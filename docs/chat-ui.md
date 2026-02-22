@@ -1,6 +1,6 @@
 # Chat UI (Chainlit)
 
-Local dev UI for interactive refactoring. Reads and writes `playground/` files directly — no Docker, no sync server needed.
+Local dev UI for interactive refactoring. It is one of two surfaces that share the same [orchestrator](architecture.md) (tools + engines). Reads and writes `playground/` files directly — no Docker, no sync server needed.
 
 ```bash
 make ui
