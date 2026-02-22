@@ -19,6 +19,7 @@ from refactor_agent.orchestrator.deps import (
     OrchestratorDeps,
     serialize_need_input,
 )
+from refactor_agent.schedule import create_planner_agent, run_planner
 
 _PROMPT_NAME = "chat-agent"
 
@@ -35,6 +36,10 @@ _TOOL_OPERATIONS: list[tuple[str, str]] = [
     ("show_diagnostics", "Show TypeScript diagnostics"),
     ("list_workspace_files", "List workspace files"),
     ("show_file_skeleton", "Show the AST skeleton of a file"),
+    (
+        "create_refactor_schedule",
+        "Produce a multi-step refactor schedule; use for plan/schedule requests",
+    ),
 ]
 
 
@@ -388,6 +393,30 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # no
             return result
 
 
+def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
+    """Register create_refactor_schedule; runs planner, stores schedule when ref set."""
+
+    @agent.tool
+    async def create_refactor_schedule(
+        ctx: RunContext[OrchestratorDeps],
+        goal: str,
+    ) -> str:
+        """Produce a refactor schedule for a multi-step goal (e.g. enforce boundaries).
+
+        Use when the user asks for a plan, schedule, or multi-step refactor. Run the
+        planner to get a RefactorSchedule; it is stored for the app to execute by mode.
+        """
+        planner_agent = create_planner_agent()
+        schedule = await run_planner(planner_agent, ctx.deps, goal)
+        if ctx.deps.schedule_output_ref is not None:
+            ctx.deps.schedule_output_ref.append(schedule.model_dump_json())
+        n = len(schedule.operations)
+        return (
+            f"RefactorSchedule produced: goal={schedule.goal!r}, "
+            f"operations={n}. Use dependsOn for execution order."
+        )
+
+
 def create_orchestrator_agent(
     model: AnthropicModel | object | None = None,
 ) -> Agent[OrchestratorDeps, str]:
@@ -424,4 +453,5 @@ def create_orchestrator_agent(
     _register_core_tools(agent)
     _register_analysis_tools(agent)
     _register_mutation_tools(agent)
+    _register_schedule_tool(agent)
     return agent

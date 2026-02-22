@@ -1,0 +1,19 @@
+{
+  "goal": "Enforce frontend/backend boundary: move get_order_handler to application layer",
+  "operations": [
+    {
+      "op": "move_symbol",
+      "id": "op1",
+      "source_file": "frontend/get_order.py",
+      "target_file": "application/use_cases/get_order.py",
+      "symbol_name": "get_order_handler",
+      "rationale": "Backend use case belongs in application layer"
+    },
+    {
+      "op": "organize_imports",
+      "id": "op2",
+      "dependsOn": ["op1"],
+      "file_path": "application/use_cases/get_order.py"
+    }
+  ]
+}

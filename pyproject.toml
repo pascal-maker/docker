@@ -144,7 +144,9 @@ ban-relative-imports = "all"
 "src/**/_compat.py" = [
     "PLC0415", "ANN", "F401",
 ]
-"playground/**/*.py" = ["T20", "D"]
+"playground/**/*.py" = ["T20", "D", "TC001"]
+"src/refactor_agent/schedule/executor.py" = ["C901", "PLR0911", "TC001", "TC003"]
+"src/refactor_agent/schedule/planner.py" = ["C901", "TC002", "PLC0415"]
 "src/refactor_agent/ui/**/*.py" = [
     "D", "ANN", "T20",
     "ASYNC240",  # local-disk file I/O in Chainlit handlers is fine sync

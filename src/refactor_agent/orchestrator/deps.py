@@ -30,6 +30,8 @@ class OrchestratorDeps:
 
     When get_user_input is set (e.g. Chainlit), tools call it and block.
     When None (A2A), tools return serialized NeedInput and the runner surfaces it.
+    When schedule_output_ref is set (e.g. Dev UI), create_refactor_schedule
+    appends the schedule JSON so the app can run the executor by mode.
     """
 
     language: str
@@ -37,6 +39,7 @@ class OrchestratorDeps:
     mode: str
     file_ext: str
     get_user_input: Callable[[NeedInput], Awaitable[str]] | None = None
+    schedule_output_ref: list[str] | None = None
 
 
 def serialize_need_input(need: NeedInput) -> str:

@@ -10,5 +10,5 @@
     "rootDir": ".",
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "src/**/*.ts"]
 }

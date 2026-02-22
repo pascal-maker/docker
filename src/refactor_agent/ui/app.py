@@ -10,6 +10,10 @@ from pydantic_ai._agent_graph import End, ModelRequestNode
 
 from refactor_agent.observability.langfuse_config import init_langfuse
 from refactor_agent.orchestrator import NeedInput, OrchestratorDeps  # noqa: TC001
+from refactor_agent.schedule import (
+    RefactorSchedule,
+    execute_schedule,
+)
 from refactor_agent.ui.chat_agent import create_chat_agent
 
 _TRACE_NAME = "chat-agent"
@@ -111,13 +115,14 @@ async def _show_workspace(language: str) -> None:
     else:
         listing = "(no files)"
     mode = cl.user_session.get("chat_profile") or "Ask"
+    mode_hint = "Ask | Edit (Auto) | Plan — switch via chat profile."
     await cl.Message(
         content=(
             f"**Workspace:** `playground/{language}/`\n\n"
             f"**Files:**\n{listing}\n\n"
-            f"**Mode:** {mode}\n\n"
-            "Ask me to rename symbols, show file structure, "
-            "or answer questions about your code."
+            f"**Mode:** **{mode}** — {mode_hint}\n\n"
+            "Ask me to rename symbols, show file structure, plan a multi-step "
+            "refactor, or answer questions about your code."
         ),
     ).send()
 
@@ -137,6 +142,7 @@ _TOOL_LABELS: dict[str, str] = {
     "show_diagnostics": "Checking diagnostics",
     "list_workspace_files": "Listing workspace files",
     "show_file_skeleton": "Reading `{file_path}` structure",
+    "create_refactor_schedule": "Creating refactor schedule for `{goal}`",
 }
 
 
@@ -146,6 +152,65 @@ def _step_label(tool_name: str, args: dict) -> str:  # type: ignore[type-arg]
         return template.format_map(args)
     except KeyError:
         return tool_name
+
+
+def _format_schedule(schedule: RefactorSchedule) -> str:
+    """Format a RefactorSchedule for display."""
+    lines = [f"**Goal:** {schedule.goal}", "", "**Operations:**"]
+    for i, op in enumerate(schedule.operations):
+        dep = getattr(op, "depends_on", None)
+        dep_str = f" (depends on {dep})" if dep else ""
+        lines.append(f"{i + 1}. `{op.op}`{dep_str}")
+    return "\n".join(lines)
+
+
+async def _handle_schedule_produced(
+    schedule_json: str,
+    mode: str,
+    deps: OrchestratorDeps,
+) -> None:
+    """Display schedule and optionally run executor based on mode."""
+    try:
+        schedule = RefactorSchedule.model_validate_json(schedule_json)
+    except Exception:
+        return
+
+    await cl.Message(content=_format_schedule(schedule)).send()
+
+    if mode == "Plan":
+        await cl.Message(
+            content=(
+                "*Plan mode: schedule displayed only. "
+                "Switch to Auto or Ask to execute.*"
+            ),
+        ).send()
+        return
+
+    if mode == "Ask":
+        res = await cl.AskUserMessage(
+            content="Proceed with execution? Reply yes to run the schedule.",
+            timeout=60,
+        ).send()
+        if res is None or (res.get("output") or "").strip().lower() not in (
+            "yes",
+            "y",
+        ):
+            await cl.Message(content="Execution canceled.").send()
+            return
+
+    result = await execute_schedule(schedule, deps)
+    if result.success:
+        summary = "\n".join(
+            f"- {r.op_id or '?'}: {r.op_type} — {r.summary}"
+            for r in result.results
+        )
+        await cl.Message(
+            content=f"**Schedule executed.**\n\n{summary}",
+        ).send()
+    else:
+        await cl.Message(
+            content=f"**Execution failed:** {result.error}",
+        ).send()
 
 
 @cl.on_message
@@ -174,12 +239,14 @@ async def on_message(message: cl.Message) -> None:
             return "cancel"
         return (res.get("output") or "").strip()
 
+    schedule_output_ref: list[str] = []
     deps = OrchestratorDeps(
         language=language,
         workspace=_workspace_dir(language),
         mode=mode,
         file_ext=_LANG_CONFIG[language]["ext"],
         get_user_input=get_user_input,
+        schedule_output_ref=schedule_output_ref,
     )
 
     langfuse = get_client()
@@ -212,6 +279,13 @@ async def on_message(message: cl.Message) -> None:
                     "message_history",
                     run.all_messages(),
                 )
+
+                if schedule_output_ref:
+                    await _handle_schedule_produced(
+                        schedule_output_ref[-1],
+                        mode,
+                        deps,
+                    )
     except Exception as exc:
         await cl.Message(
             content=f"Something went wrong: {exc}",
