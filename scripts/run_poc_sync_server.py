@@ -1,13 +1,14 @@
-"""Run the POC WebSocket sync server (replica dir + port via env)."""
+"""Run the POC sync server (WebSocket + HTTP POST /sync/workspace)."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import sys
 
-from refactor_agent.sync.server import run_sync_server
+import uvicorn
+
+from refactor_agent.sync.app import app
 
 SYNC_PORT = int(os.environ.get("POC_SYNC_PORT", "8765"))
 
@@ -16,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 def main() -> None:
     """Run sync server until interrupted."""
-    asyncio.run(run_sync_server(port=SYNC_PORT))
+    uvicorn.run(app, host="0.0.0.0", port=SYNC_PORT)  # noqa: S104
 
 
 if __name__ == "__main__":

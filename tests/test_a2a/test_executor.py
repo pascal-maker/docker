@@ -268,6 +268,46 @@ async def test_executor_resumption_no_cancels() -> None:
         assert "cancel" in ev.status.message.parts[0].root.text.lower()
 
 
+async def test_executor_use_replica_uses_replica_dir() -> None:
+    """When use_replica is true and REPLICA_DIR exists, executor uses it as workspace."""
+    with tempfile.TemporaryDirectory() as tmp:
+        replica = Path(tmp)
+        (replica / "a.py").write_text("def foo(): pass\n")
+        with patch(
+            "refactor_agent.a2a.executor.run_orchestrator",
+            new_callable=AsyncMock,
+            return_value=(
+                FinalOutput(output="Rename complete (1 file(s))"),
+                [],
+            ),
+        ), patch.dict("os.environ", {"REPLICA_DIR": str(replica)}, clear=False):
+            context = MagicMock()
+            context.task_id = "task-1"
+            context.context_id = "ctx-1"
+            context.current_task = None
+            context.get_user_input.return_value = json.dumps(
+                {"old_name": "foo", "new_name": "bar", "use_replica": True}
+            )
+            events: list = []  # type: ignore[type-arg]
+            queue = AsyncMock()
+            queue.enqueue_event = AsyncMock(side_effect=events.append)
+
+            executor = ASTRefactorAgentExecutor(agent=MagicMock())
+            await executor.execute(context, queue)
+
+        assert len(events) >= 2
+        art_ev = events[0]
+        assert isinstance(art_ev, TaskArtifactUpdateEvent)
+        assert art_ev.artifact.name == "rename-result"
+        data_part = next(
+            p.root for p in art_ev.artifact.parts if isinstance(p.root, DataPart)
+        )
+        assert data_part.data.get("path") == "a.py"
+        assert data_part.data.get("modified_source") is not None
+        status_ev = events[-1]
+        assert status_ev.status.state == TaskState.completed
+
+
 async def test_executor_cancel_raises() -> None:
     """Executor cancel() raises NotImplementedError."""
     executor = ASTRefactorAgentExecutor(agent=MagicMock())

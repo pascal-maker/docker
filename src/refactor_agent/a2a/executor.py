@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tempfile
 import uuid
@@ -78,6 +79,15 @@ def _parse_rename_params(user_input: str) -> dict | str:  # noqa: C901, PLR0911,
         return "ERROR: missing or invalid 'new_name' (must be a string)"
     if scope_node is not None and not isinstance(scope_node, str):
         return "ERROR: 'scope_node' must be a string or null"
+
+    use_replica = data.get("use_replica") is True
+    if use_replica:
+        return {
+            "old_name": old_name,
+            "new_name": new_name,
+            "scope_node": scope_node,
+            "use_replica": True,
+        }
 
     workspace = data.get("workspace")
     if isinstance(workspace, list) and len(workspace) > 0:
@@ -320,9 +330,9 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                     self._state_store[task_id] = {
                         "message_history": run_state,
                         "workspace_dir": workspace_dir_str,
+                        "use_replica": saved.get("use_replica", False),
                     }
                     return
-                # FinalOutput
                 await _emit_artifacts_from_workspace(
                     workspace_dir, task_id, context_id, event_queue
                 )
@@ -334,8 +344,9 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                         result.output,
                     )
                 )
+                use_replica_saved = saved.get("use_replica", False)
                 del self._state_store[task_id]
-                if workspace_dir.exists():  # noqa: ASYNC240
+                if not use_replica_saved and workspace_dir.exists():  # noqa: ASYNC240
                     shutil.rmtree(workspace_dir, ignore_errors=True)
                 return
 
@@ -359,7 +370,23 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             )
             return
 
-        workspace_dir = _build_workspace_dir(parsed)
+        use_replica = parsed.get("use_replica") is True
+        if use_replica:
+            replica_dir = os.environ.get(REPLICA_DIR_ENV, "/workspace")
+            workspace_dir = Path(replica_dir)
+            if not workspace_dir.exists():
+                await event_queue.enqueue_event(
+                    _status_event(
+                        task_id,
+                        context_id,
+                        TaskState.failed,
+                        "use_replica is true but REPLICA_DIR does not exist; "
+                        "push workspace via sync service first.",
+                    )
+                )
+                return
+        else:
+            workspace_dir = _build_workspace_dir(parsed)
         try:
             deps = OrchestratorDeps(
                 language="python",
@@ -404,6 +431,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                 self._state_store[task_id] = {
                     "message_history": run_state,
                     "workspace_dir": str(workspace_dir),
+                    "use_replica": use_replica,
                 }
                 return
             await _emit_artifacts_from_workspace(
@@ -418,8 +446,12 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                 )
             )
         finally:
-            # Cleanup temp dir only when we are not storing state (no NeedInput)
-            if task_id not in self._state_store and workspace_dir.exists():
+            # Cleanup temp dir only when not storing state and not using replica
+            if (
+                task_id not in self._state_store
+                and not use_replica
+                and workspace_dir.exists()
+            ):
                 shutil.rmtree(workspace_dir, ignore_errors=True)
 
     async def cancel(

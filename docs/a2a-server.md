@@ -45,6 +45,16 @@ The agent finds which files reference the symbol and returns one artifact per im
 
 Refactors a fixed list. Apply each artifact's `modified_source` to its `path`.
 
+### Use replica (sync service)
+
+When the client has pushed workspace to the **sync service** (see [sync-service.md](sync-service.md)), send:
+
+```json
+{"old_name": "greet", "new_name": "greet_user", "use_replica": true}
+```
+
+The server uses `REPLICA_DIR` as the workspace and does not read workspace from the request body. The sync server must be running and the client must have pushed files (WebSocket or HTTP upload) before calling A2A with `use_replica: true`.
+
 ## Limitations
 
 The A2A refactor agent is stateless and has no filesystem access. It only sees the JSON request body. For full cross-file impact, the client must send a `workspace` or `files` array with all relevant file contents. A local relay (e.g. a custom MCP bridge with repo access) can gather the workspace and push it to the agent.

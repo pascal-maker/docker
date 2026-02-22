@@ -1,0 +1,73 @@
+{
+  "name": "refactor-agent",
+  "displayName": "Refactor Agent",
+  "description": "Refactor Agent – rename Python symbols via A2A. Standalone sidebar panel.",
+  "version": "0.1.0",
+  "publisher": "refactor-agent",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onView:refactorAgent.refactorView",
+    "onCommand:refactorAgent.focusView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "refactorAgent.sidebar",
+          "title": "Refactor Agent",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "refactorAgent.sidebar": [
+        {
+          "type": "webview",
+          "id": "refactorAgent.refactorView",
+          "name": "Refactor",
+          "contextTitle": "Refactor Agent"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "refactorAgent.focusView",
+        "title": "Refactor Agent: Focus Refactor View"
+      }
+    ],
+    "configuration": {
+      "title": "Refactor Agent",
+      "properties": {
+        "refactorAgent.a2aBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:9999",
+          "description": "A2A server base URL (e.g. http://localhost:9999 or https://refactor-agent.example.com)"
+        },
+        "refactorAgent.syncUrl": {
+          "type": "string",
+          "default": "http://localhost:8765",
+          "description": "Sync service URL for workspace push (HTTP base for POST /sync/workspace)"
+        },
+        "refactorAgent.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional API key for hosted A2A (sent as Authorization: Bearer <key>)",
+          "secret": true
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "typescript": "~5.7.0"
+  }
+}

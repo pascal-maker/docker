@@ -132,6 +132,54 @@ async def _handle_connection(
         logger.exception("Sync handler error: %s", e)
 
 
+async def _handle_connection_starlette(
+    websocket: object,
+    replica_root: Path,
+) -> None:
+    """Handle one WebSocket connection (Starlette API): parse JSON, apply to replica."""
+    peer = getattr(websocket, "client", ("unknown",))
+    logger.info("Sync client connected: %s", peer)
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+            except (json.JSONDecodeError, TypeError) as e:
+                await websocket.send_text(json.dumps({"error": f"invalid JSON: {e}"}))
+                continue
+            if not isinstance(msg, dict):
+                await websocket.send_text(
+                    json.dumps({"error": "message must be an object"})
+                )
+                continue
+            msg_type = msg.get("type")
+            if msg_type == "bootstrap":
+                err = await _handle_bootstrap(replica_root, msg)
+                if err:
+                    await websocket.send_text(json.dumps({"error": err}))
+                else:
+                    await websocket.send_text(json.dumps({"ok": "bootstrap"}))
+            elif msg_type == "bootstrap_start":
+                err = await _handle_bootstrap_start(replica_root)
+                if err:
+                    await websocket.send_text(json.dumps({"error": err}))
+                else:
+                    await websocket.send_text(json.dumps({"ok": "bootstrap_start"}))
+            elif msg_type == "file":
+                err = await _handle_file(replica_root, msg)
+                if err:
+                    await websocket.send_text(json.dumps({"error": err}))
+                else:
+                    await websocket.send_text(json.dumps({"ok": "file"}))
+            else:
+                await websocket.send_text(
+                    json.dumps({"error": f"unknown type: {msg_type!r}"})
+                )
+    except Exception as e:
+        if "disconnect" not in str(e).lower():
+            logger.exception("Sync handler error: %s", e)
+
+
 async def run_sync_server(
     host: str = "0.0.0.0",
     port: int = DEFAULT_WS_PORT,
