@@ -5,11 +5,11 @@ from pydantic_ai import Agent, ModelSettings
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
-from refactor_agent.agent.deps import ASTDeps
 from refactor_agent.agent.constants import _PROMPT_NAME
+from refactor_agent.agent.deps import ASTDeps
 from refactor_agent.agent.tools import _register_tools
 from refactor_agent.config import DEFAULT_MODEL
-from refactor_agent.observability.langfuse_config import get_prompt_config, get_prompt
+from refactor_agent.observability.langfuse_config import get_prompt, get_prompt_config
 
 
 def create_ast_refactor_agent() -> Agent[ASTDeps, None]:

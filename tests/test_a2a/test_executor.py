@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -23,56 +24,57 @@ from refactor_agent.a2a.executor import (
 )
 
 
-def test_handle_rename_task_success() -> None:
+async def test_handle_rename_task_success() -> None:
     """Structured JSON yields rename summary and modified source."""
     payload = {
         "source": "def calculate_tax(amount, rate):\n    return amount * rate\n",
         "old_name": "calculate_tax",
         "new_name": "compute_tax",
     }
-    result = _handle_rename_task(__import__("json").dumps(payload))
+    result = await _handle_rename_task(json.dumps(payload))
     assert "Renamed" in result
     assert "compute_tax" in result
     assert "--- Modified source ---" in result
     assert "def compute_tax(" in result
-    # Modified source block must not contain the old name as definition
     assert "def calculate_tax(" not in result
 
 
-def test_handle_rename_task_invalid_json() -> None:
+async def test_handle_rename_task_invalid_json() -> None:
     """Invalid JSON returns error."""
-    result = _handle_rename_task("not json")
+    result = await _handle_rename_task("not json")
     assert "ERROR" in result
     assert "JSON" in result
 
 
-def test_handle_rename_task_missing_fields() -> None:
+async def test_handle_rename_task_missing_fields() -> None:
     """Missing required fields return error."""
-    result = _handle_rename_task('{"source": "def f(): pass"}')
+    result = await _handle_rename_task('{"source": "def f(): pass"}')
     assert "ERROR" in result
     assert "old_name" in result or "new_name" in result
 
 
-def test_handle_rename_task_symbol_not_found() -> None:
+async def test_handle_rename_task_symbol_not_found() -> None:
     """Symbol not in source returns error from engine."""
     payload = {
         "source": "def foo(): pass\n",
         "old_name": "bar",
         "new_name": "baz",
     }
-    result = _handle_rename_task(__import__("json").dumps(payload))
+    result = await _handle_rename_task(json.dumps(payload))
     assert "ERROR" in result
 
 
-def test_handle_rename_task_scope_node() -> None:
+async def test_handle_rename_task_scope_node() -> None:
     """Optional scope_node is passed to engine."""
     payload = {
-        "source": "def outer():\n    x = 1\n    return x\n\ndef other():\n    x = 2\n",
+        "source": (
+            "def outer():\n    x = 1\n    return x\n\ndef other():\n    x = 2\n"
+        ),
         "old_name": "x",
         "new_name": "value",
         "scope_node": "outer",
     }
-    result = _handle_rename_task(__import__("json").dumps(payload))
+    result = await _handle_rename_task(json.dumps(payload))
     assert "Renamed" in result
     assert "value = 1" in result
     assert "x = 2" in result
@@ -85,14 +87,14 @@ async def test_executor_enqueues_agent_message() -> None:
     context.task_id = "task-1"
     context.context_id = "ctx-1"
     context.current_task = None
-    context.get_user_input.return_value = __import__("json").dumps(
+    context.get_user_input.return_value = json.dumps(
         {
             "source": "def old_name(): pass\n",
             "old_name": "old_name",
             "new_name": "new_name",
         }
     )
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -124,7 +126,7 @@ async def test_executor_multi_file_rename_enqueues_one_artifact_per_file() -> No
     context.task_id = "task-1"
     context.context_id = "ctx-1"
     context.current_task = None
-    context.get_user_input.return_value = __import__("json").dumps(
+    context.get_user_input.return_value = json.dumps(
         {
             "old_name": "greet",
             "new_name": "greet_by_name",
@@ -140,14 +142,13 @@ async def test_executor_multi_file_rename_enqueues_one_artifact_per_file() -> No
             ],
         }
     )
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
     executor = ASTRefactorAgentExecutor()
     await executor.execute(context, queue)
 
-    # Two artifacts (one per file) + one status
     assert len(events) == 3
     art1, art2, status_ev = events[0], events[1], events[2]
     assert isinstance(art1, TaskArtifactUpdateEvent)
@@ -171,7 +172,7 @@ async def test_executor_workspace_returns_artifacts_only_for_impacted_files() ->
     context.task_id = "task-1"
     context.context_id = "ctx-1"
     context.current_task = None
-    context.get_user_input.return_value = __import__("json").dumps(
+    context.get_user_input.return_value = json.dumps(
         {
             "old_name": "greet",
             "new_name": "greet_by_name",
@@ -191,14 +192,13 @@ async def test_executor_workspace_returns_artifacts_only_for_impacted_files() ->
             ],
         }
     )
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
     executor = ASTRefactorAgentExecutor()
     await executor.execute(context, queue)
 
-    # Two artifacts (greeter, caller); other.py does not reference greet
     assert len(events) == 3
     art1, art2, status_ev = events[0], events[1], events[2]
     assert isinstance(art1, TaskArtifactUpdateEvent)
@@ -220,7 +220,7 @@ async def test_executor_workspace_no_references_returns_failed() -> None:
     context.task_id = "task-1"
     context.context_id = "ctx-1"
     context.current_task = None
-    context.get_user_input.return_value = __import__("json").dumps(
+    context.get_user_input.return_value = json.dumps(
         {
             "old_name": "missing",
             "new_name": "other",
@@ -229,7 +229,7 @@ async def test_executor_workspace_no_references_returns_failed() -> None:
             ],
         }
     )
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -252,7 +252,7 @@ async def test_executor_empty_input_returns_error() -> None:
     context.context_id = "ctx-1"
     context.current_task = None
     context.get_user_input.return_value = "   "
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -275,16 +275,15 @@ async def test_executor_collision_enqueues_artifact_and_status() -> None:
     context.task_id = "task-1"
     context.context_id = "ctx-1"
     context.current_task = None
-    # Source has main() and greet(); renaming greet -> main causes collision
     source = "def main() -> None:\n    pass\n\ndef greet(n):\n    return n\n"
-    context.get_user_input.return_value = __import__("json").dumps(
+    context.get_user_input.return_value = json.dumps(
         {
             "source": source,
             "old_name": "greet",
             "new_name": "main",
         }
     )
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -292,7 +291,6 @@ async def test_executor_collision_enqueues_artifact_and_status() -> None:
     await executor.execute(context, queue)
 
     assert len(events) == 2
-    # First event: TaskArtifactUpdateEvent with artifact containing pending_rename
     artifact_ev = events[0]
     assert getattr(artifact_ev, "artifact", None) is not None
     artifact = artifact_ev.artifact
@@ -301,11 +299,9 @@ async def test_executor_collision_enqueues_artifact_and_status() -> None:
         for p in artifact.parts
         if hasattr(p, "root") and hasattr(p.root, "data")
     )
-    # Second event: TaskStatusUpdateEvent with input_required
     status_ev = events[1]
     assert getattr(status_ev, "status", None) is not None
     assert status_ev.status.state == TaskState.input_required
-    # No "Renamed" message
     for e in events:
         if hasattr(e, "parts") and e.parts:
             text = getattr(e.parts[0].root, "text", "") or ""
@@ -338,7 +334,7 @@ async def test_executor_resumption_yes_proceeds_with_rename() -> None:
     context.current_task = task
     context.get_user_input.return_value = "yes"
 
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -377,7 +373,7 @@ async def test_executor_resumption_no_cancels() -> None:
     context.current_task = task
     context.get_user_input.return_value = "no"
 
-    events: list = []
+    events: list = []  # type: ignore[type-arg]
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 

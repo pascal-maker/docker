@@ -24,10 +24,10 @@ from a2a.types import (
 )
 
 # CollisionInfo used at runtime for collision list type
-from refactor_agent.engine.libcst_engine import (  # noqa: TC001
-    CollisionInfo,
-    LibCSTEngine,
+from refactor_agent.engine.base import (
+    CollisionInfo,  # noqa: TC001 — runtime use in type annotation
 )
+from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 
 PENDING_RENAME_KEY = "pending_rename"
 RENAME_RESULT_KEY = "rename_result"
@@ -209,13 +209,12 @@ def _is_confirmation_no(user_input: str) -> bool:
     return normalized in ("no", "n", "cancel")
 
 
-def _do_rename(params: dict[str, str | None]) -> str:
+async def _do_rename(params: dict[str, str | None]) -> str:
     """Run rename via LibCSTEngine. Returns summary and modified source or error."""
     source = params["source"]
     old_name = params["old_name"]
     new_name = params["new_name"]
     scope_node = params["scope_node"]
-    # Params are validated by _parse_rename_params before _do_rename is called
     if not (
         isinstance(source, str)
         and isinstance(old_name, str)
@@ -226,10 +225,10 @@ def _do_rename(params: dict[str, str | None]) -> str:
         engine = LibCSTEngine(source)
     except Exception as e:
         return f"ERROR: invalid Python syntax: {e}"
-    result = engine.rename_symbol(old_name, new_name, scope_node)
+    result = await engine.rename_symbol(old_name, new_name, scope_node)
     if result.startswith("ERROR:"):
         return result
-    modified = engine.to_source()
+    modified = await engine.to_source()
     return f"{result}{MODIFIED_SOURCE_MARKER}{modified}"
 
 
@@ -272,7 +271,7 @@ def _success_artifact(
     )
 
 
-def _handle_rename_task(user_input: str) -> str:
+async def _handle_rename_task(user_input: str) -> str:
     """Parse JSON input, run rename via LibCSTEngine, return result text.
 
     Expected JSON: {"source": "...", "old_name": "...", "new_name": "...",
@@ -282,7 +281,7 @@ def _handle_rename_task(user_input: str) -> str:
     parsed = _parse_rename_params(user_input)
     if isinstance(parsed, str):
         return parsed
-    return _do_rename(parsed)
+    return await _do_rename(parsed)
 
 
 def _collision_artifact_and_status(
@@ -367,7 +366,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             pending = _recover_pending_rename_from_artifacts(current_task.artifacts)
             if pending is not None:
                 if _is_confirmation_yes(user_input):
-                    result = _do_rename(pending)
+                    result = await _do_rename(pending)
                     await event_queue.enqueue_event(
                         _success_artifact(
                             task_id,
@@ -458,7 +457,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                     "new_name": parsed["new_name"],
                     "scope_node": parsed.get("scope_node"),
                 }
-                result = _do_rename(single)
+                result = await _do_rename(single)
                 if result.startswith("ERROR:"):
                     continue  # Symbol not in this file, skip
                 await event_queue.enqueue_event(
@@ -507,7 +506,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                     "new_name": parsed["new_name"],
                     "scope_node": parsed.get("scope_node"),
                 }
-                result = _do_rename(single)
+                result = await _do_rename(single)
                 if result.startswith("ERROR:"):
                     await event_queue.enqueue_event(
                         _status_event(
@@ -554,7 +553,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             )
             return
 
-        collisions = engine.check_name_collisions(
+        collisions = await engine.check_name_collisions(
             parsed["new_name"],  # type: ignore[arg-type]
             parsed["scope_node"],
         )
@@ -570,7 +569,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             await event_queue.enqueue_event(status_ev)
             return
 
-        result = _do_rename(parsed)
+        result = await _do_rename(parsed)
         await event_queue.enqueue_event(
             _success_artifact(
                 task_id,

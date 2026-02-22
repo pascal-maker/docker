@@ -24,7 +24,7 @@ def _register_tools(agent: Agent[ASTDeps, None]) -> None:
             scope_node: Optional function or class name to restrict the rename
                 to that scope; None for file-wide rename.
         """
-        return ctx.deps.engine.rename_symbol(old_name, new_name, scope_node)
+        return await ctx.deps.engine.rename_symbol(old_name, new_name, scope_node)
 
     @agent.tool
     async def extract_function(
@@ -47,7 +47,7 @@ def _register_tools(agent: Agent[ASTDeps, None]) -> None:
             end_line: Last line of the block (1-based, inclusive).
             new_function_name: Name for the extracted function.
         """
-        return ctx.deps.engine.extract_function(
+        return await ctx.deps.engine.extract_function(
             scope_function, start_line, end_line, new_function_name
         )
 

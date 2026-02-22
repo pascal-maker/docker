@@ -7,12 +7,12 @@ from pathlib import Path
 import libcst as cst
 from fastmcp import FastMCP
 
-from refactor_agent.engine.libcst_engine import LibCSTEngine
+from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 
 mcp = FastMCP("ast-refactor")
 
 
-def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for clarity
+async def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for clarity
     file_path: Path,
     old_name: str,
     new_name: str,
@@ -23,7 +23,7 @@ def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for clarity
     Returns summary or error string.
     """
     try:
-        source = file_path.read_text(encoding="utf-8")
+        source = file_path.read_text(encoding="utf-8")  # noqa: ASYNC240 — sync file I/O is fine for MCP tool
     except FileNotFoundError:
         return f"ERROR: file not found: {file_path}"
     except OSError as e:
@@ -34,12 +34,13 @@ def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for clarity
     except cst.ParserSyntaxError as e:
         return f"ERROR: invalid Python syntax: {e}"
 
-    result = engine.rename_symbol(old_name, new_name, scope_node)
+    result = await engine.rename_symbol(old_name, new_name, scope_node)
     if result.startswith("ERROR:"):
         return result
 
     try:
-        file_path.write_text(engine.to_source(), encoding="utf-8")
+        new_source = await engine.to_source()
+        file_path.write_text(new_source, encoding="utf-8")  # noqa: ASYNC240 — sync file I/O is fine for MCP tool
     except OSError as e:
         return f"ERROR: could not write file: {e}"
 
@@ -47,7 +48,7 @@ def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for clarity
 
 
 @mcp.tool()
-def rename_symbol(
+async def rename_symbol(
     file_path: str,
     old_name: str,
     new_name: str,
@@ -66,11 +67,11 @@ def rename_symbol(
             to that scope; None for file-wide rename.
 
     Returns:
-        Summary string (e.g. 'Renamed X → Y: N occurrence(s) at lines ...')
+        Summary string (e.g. 'Renamed X -> Y: N occurrence(s) at lines ...')
         or an error string starting with 'ERROR:'.
     """
-    path = Path(file_path).resolve()
-    return _rename_symbol_in_file(path, old_name, new_name, scope_node)
+    path = Path(file_path).resolve()  # noqa: ASYNC240 — sync path resolution is fine
+    return await _rename_symbol_in_file(path, old_name, new_name, scope_node)
 
 
 if __name__ == "__main__":

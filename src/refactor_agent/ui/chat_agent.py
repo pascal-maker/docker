@@ -9,11 +9,11 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from refactor_agent.config import DEFAULT_MODEL
-from refactor_agent.engine.libcst_engine import LibCSTEngine
+from refactor_agent.engine.registry import EngineRegistry
 
 _SYSTEM_PROMPT = """\
-You are a Python refactoring assistant. You operate on a workspace \
-of Python files in the user's playground directory.
+You are a refactoring assistant. You operate on a workspace \
+of source files in the user's playground directory.
 
 Available operations:
 - Rename symbols (variables, functions, classes, parameters) across \
@@ -49,7 +49,7 @@ def _scan_workspace(deps: ChatDeps) -> list[Path]:
     return sorted(deps.workspace.rglob(deps.file_ext))
 
 
-def _check_all_collisions(
+async def _check_all_collisions(
     deps: ChatDeps,
     files: list[Path],
     new_name: str,
@@ -59,13 +59,14 @@ def _check_all_collisions(
     for fp in files:
         source = fp.read_text(encoding="utf-8")
         try:
-            engine = LibCSTEngine(source)
+            engine = EngineRegistry.create(deps.language, source)
         except Exception:  # noqa: S112 — skip unparseable files
             continue
-        collisions = engine.check_name_collisions(
-            new_name,
-            scope_node,
-        )
+        async with engine:
+            collisions = await engine.check_name_collisions(
+                new_name,
+                scope_node,
+            )
         if collisions:
             rel = str(fp.relative_to(deps.workspace))
             items = ", ".join(f"{c.kind} at {c.location}" for c in collisions)
@@ -73,7 +74,7 @@ def _check_all_collisions(
     return reports
 
 
-def _apply_renames(
+async def _apply_renames(
     deps: ChatDeps,
     files: list[Path],
     old_name: str,
@@ -84,22 +85,28 @@ def _apply_renames(
     for fp in files:
         source = fp.read_text(encoding="utf-8")
         try:
-            engine = LibCSTEngine(source)
+            engine = EngineRegistry.create(deps.language, source)
         except Exception:  # noqa: S112 — skip unparseable files
             continue
-        result = engine.rename_symbol(old_name, new_name, scope_node)
-        if result.startswith("ERROR:"):
-            continue
-        rel = str(fp.relative_to(deps.workspace))
-        if deps.mode == "Plan":
-            results.append(f"[plan] {rel}: {result}")
-        else:
-            fp.write_text(engine.to_source(), encoding="utf-8")
-            results.append(f"{rel}: {result}")
+        async with engine:
+            result = await engine.rename_symbol(
+                old_name,
+                new_name,
+                scope_node,
+            )
+            if result.startswith("ERROR:"):
+                continue
+            rel = str(fp.relative_to(deps.workspace))
+            if deps.mode == "Plan":
+                results.append(f"[plan] {rel}: {result}")
+            else:
+                new_source = await engine.to_source()
+                fp.write_text(new_source, encoding="utf-8")
+                results.append(f"{rel}: {result}")
     return results
 
 
-def _rename_across_files(
+async def _rename_across_files(
     deps: ChatDeps,
     old_name: str,
     new_name: str,
@@ -111,7 +118,7 @@ def _rename_across_files(
         return "No files found in workspace."
 
     if not force and deps.mode == "Ask":
-        collision_reports = _check_all_collisions(
+        collision_reports = await _check_all_collisions(
             deps,
             files,
             new_name,
@@ -125,7 +132,7 @@ def _rename_across_files(
                 "proceeding with force=True."
             )
 
-    results = _apply_renames(
+    results = await _apply_renames(
         deps,
         files,
         old_name,
@@ -167,7 +174,7 @@ def _register_tools(agent: "Agent[ChatDeps, str]") -> None:
             scope_node: Optional function/class to restrict scope.
             force: Proceed despite name collisions.
         """
-        return _rename_across_files(
+        return await _rename_across_files(
             ctx.deps,
             old_name,
             new_name,
@@ -205,10 +212,11 @@ def _register_tools(agent: "Agent[ChatDeps, str]") -> None:
             return f"File not found: {file_path}"
         source = full.read_text(encoding="utf-8")
         try:
-            engine = LibCSTEngine(source)
+            engine = EngineRegistry.create(ctx.deps.language, source)
         except Exception:
             return f"Could not parse {file_path}."
-        return engine.get_skeleton()
+        async with engine:
+            return await engine.get_skeleton()
 
 
 def create_chat_agent() -> "Agent[ChatDeps, str]":

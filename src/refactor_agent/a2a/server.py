@@ -7,11 +7,11 @@ from a2a.server.apps import A2AStarletteApplication
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 
-from refactor_agent.a2a.executor import (
-    ASTRefactorAgentExecutor,
-)
 from refactor_agent.a2a.bridge import (
     BridgeCompatibleRequestHandler,
+)
+from refactor_agent.a2a.executor import (
+    ASTRefactorAgentExecutor,
 )
 
 RENAME_SKILL = AgentSkill(

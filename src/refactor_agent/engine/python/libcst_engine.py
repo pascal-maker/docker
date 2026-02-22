@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 import libcst as cst
 from libcst.metadata import MetadataWrapper, PositionProvider, ScopeProvider
 
+from refactor_agent.engine.base import CollisionInfo
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -88,9 +90,6 @@ class _RenameTransformer(cst.CSTTransformer):
         return updated_node.with_changes(
             name=updated_node.name.with_changes(value=self._new_name)
         )
-
-
-from refactor_agent.engine.base import CollisionInfo
 
 
 def _cst_node_in_scope(
@@ -194,33 +193,97 @@ def _cst_skeleton_line_for_class(module: cst.Module, node: cst.ClassDef) -> str:
 
 
 class LibCSTEngine:
-    """Holds parsed LibCST module; lossless round-trip, scope-aware rename."""
+    """Holds parsed LibCST module; lossless round-trip, scope-aware rename.
+
+    All public methods are async to satisfy the ``RefactorEngine`` protocol.
+    The actual work is CPU-bound and runs synchronously under the hood.
+
+    Supports ``async with`` for compatibility with subprocess engines
+    (enter/exit are no-ops for this in-process engine).
+    """
+
+    language: str = "python"
 
     def __init__(self, source: str) -> None:
         """Parse source into a CST. Raises cst.ParserSyntaxError on invalid Python."""
         self.source = source
         self._module = cst.parse_module(source)
 
-    def get_skeleton(self) -> str:
-        """Produce a text skeleton: function/class names, args, calls, line numbers."""
-        parts: list[str] = []
-        for node in self._module.body:
-            if isinstance(node, cst.FunctionDef):
-                parts.append(_cst_skeleton_line_for_function(self._module, node))
-            elif isinstance(node, cst.ClassDef):
-                parts.append(_cst_skeleton_line_for_class(self._module, node))
-        return "\n\n".join(parts) if parts else ""
+    async def __aenter__(self) -> LibCSTEngine:
+        """No-op: in-process engine needs no startup."""
+        return self
 
-    def check_name_collisions(
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """No-op: in-process engine needs no cleanup."""
+
+    async def get_skeleton(self) -> str:
+        """Produce a text skeleton: function/class names, args, calls, line numbers."""
+        return self._get_skeleton_sync()
+
+    async def rename_symbol(
+        self,
+        old_name: str,
+        new_name: str,
+        scope_node: str | None = None,
+    ) -> str:
+        """Rename a symbol file-wide or within a function/class scope.
+
+        Returns a short summary or an error string. Preserves formatting/comments.
+        """
+        return self._rename_symbol_sync(old_name, new_name, scope_node)
+
+    async def extract_function(
+        self,
+        _scope_function: str,
+        _start_line: int,
+        _end_line: int,
+        _new_function_name: str,
+    ) -> str:
+        """Stub: extract_function not yet implemented on LibCSTEngine."""
+        return (
+            "ERROR: extract_function is not yet implemented with LibCST; "
+            "use the deprecated ASTEngine for extract operations."
+        )
+
+    async def check_name_collisions(
         self,
         new_name: str,
         scope_node: str | None = None,
     ) -> list[CollisionInfo]:
-        """Return definitions that already use new_name in the same scope.
+        """Return definitions that already use new_name in the same scope."""
+        return self._check_name_collisions_sync(new_name, scope_node)
 
-        Used to detect collisions before renaming (e.g. renaming to 'main'
-        when 'main' is already defined). Respects scope_node like rename_symbol.
-        """
+    async def to_source(self) -> str:
+        """Return source for the current CST (lossless except intentional edits)."""
+        return self._module.code
+
+    # ------------------------------------------------------------------
+    # Sync internals
+    # ------------------------------------------------------------------
+
+    def _get_skeleton_sync(self) -> str:
+        parts: list[str] = []
+        for node in self._module.body:
+            if isinstance(node, cst.FunctionDef):
+                parts.append(
+                    _cst_skeleton_line_for_function(self._module, node),
+                )
+            elif isinstance(node, cst.ClassDef):
+                parts.append(
+                    _cst_skeleton_line_for_class(self._module, node),
+                )
+        return "\n\n".join(parts) if parts else ""
+
+    def _check_name_collisions_sync(
+        self,
+        new_name: str,
+        scope_node: str | None = None,
+    ) -> list[CollisionInfo]:
         collisions: list[CollisionInfo] = []
         for node in _cst_walk(self._module):
             kind: str | None = None
@@ -242,19 +305,17 @@ class LibCSTEngine:
             if not _cst_node_in_scope(self._module, node, scope_node):
                 continue
             line_no = _cst_line_no(self._module, node)
-            collisions.append(CollisionInfo(location=f"line {line_no}", kind=kind))
+            collisions.append(
+                CollisionInfo(location=f"line {line_no}", kind=kind),
+            )
         return collisions
 
-    def rename_symbol(
+    def _rename_symbol_sync(
         self,
         old_name: str,
         new_name: str,
         scope_node: str | None = None,
     ) -> str:
-        """Rename a symbol file-wide or within a function/class scope.
-
-        Returns a short summary or an error string. Preserves formatting/comments.
-        """
         found = any(
             (isinstance(n, cst.FunctionDef) and n.name.value == old_name)
             or (isinstance(n, cst.ClassDef) and n.name.value == old_name)
@@ -279,20 +340,3 @@ class LibCSTEngine:
             f"{len(transformer.renamed_lines)} occurrence(s) "
             f"at lines {transformer.renamed_lines}"
         )
-
-    def extract_function(
-        self,
-        _scope_function: str,
-        _start_line: int,
-        _end_line: int,
-        _new_function_name: str,
-    ) -> str:
-        """Stub: extract_function not yet implemented on LibCSTEngine."""
-        return (
-            "ERROR: extract_function is not yet implemented with LibCST; "
-            "use the deprecated ASTEngine for extract operations."
-        )
-
-    def to_source(self) -> str:
-        """Return source for the current CST (lossless except intentional edits)."""
-        return self._module.code

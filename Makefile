@@ -1,8 +1,9 @@
 .DEFAULT_GOAL := help
 
 RUN := uv run
+TS_BRIDGE := src/refactor_agent/engine/typescript/bridge
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui
+.PHONY: help format format-check lint fix typecheck test check ci clean ui ts-engine-install ts-engine-check
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -42,6 +43,12 @@ ci: ## Alias for check (CI usage)
 
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
 	CHAINLIT_APP_ROOT=src $(RUN) chainlit run src/refactor_agent/ui/app.py -w
+
+ts-engine-install: ## Install ts-morph bridge npm dependencies
+	cd $(TS_BRIDGE) && npm install
+
+ts-engine-check: ## Typecheck the ts-morph bridge
+	cd $(TS_BRIDGE) && npx tsc --noEmit
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info

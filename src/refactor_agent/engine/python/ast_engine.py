@@ -3,8 +3,11 @@ from __future__ import annotations
 import ast
 import copy
 import warnings
-
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from refactor_agent.engine.base import CollisionInfo
 
 
 @dataclass
@@ -24,7 +27,11 @@ class ASTEngine:
 
     Deprecated. Use LibCSTEngine for new code; this implementation loses
     comments and formatting via ast.unparse. No further development.
+
+    All public methods are async to satisfy the ``RefactorEngine`` protocol.
     """
+
+    language: str = "python"
 
     def __init__(self, source: str) -> None:
         """Parse source into an AST. Raises SyntaxError on invalid Python."""
@@ -36,8 +43,77 @@ class ASTEngine:
         self.source = source
         self.tree = ast.parse(source)
 
-    def get_skeleton(self) -> str:
+    async def __aenter__(self) -> ASTEngine:
+        """No-op: in-process engine needs no startup."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """No-op: in-process engine needs no cleanup."""
+
+    async def get_skeleton(self) -> str:
         """Produce a text skeleton: function/class names, args, calls, line numbers."""
+        return self._get_skeleton_sync()
+
+    async def rename_symbol(
+        self,
+        old_name: str,
+        new_name: str,
+        scope_node: str | None = None,
+    ) -> str:
+        """Rename a symbol in the AST; optionally restrict to a function/class scope.
+
+        Returns a short summary or "ERROR: symbol not found". Mutates the tree
+        in place.
+        """
+        if scope_node is None:
+            return _rename_file_wide(self.tree, old_name, new_name)
+        return _rename_in_scope(self.tree, old_name, new_name, scope_node)
+
+    async def extract_function(
+        self,
+        scope_function: str,
+        start_line: int,
+        end_line: int,
+        new_function_name: str,
+    ) -> str:
+        """Extract a line range from a function into a new function.
+
+        The new function is inserted immediately before scope_function.
+        Parameters are inferred from names used in the block but defined
+        outside it.
+
+        Returns a short summary or an error string. Mutates the tree in place.
+        """
+        return _extract_function_impl(
+            self.tree,
+            scope_function,
+            start_line,
+            end_line,
+            new_function_name,
+        )
+
+    async def check_name_collisions(
+        self,
+        _new_name: str,
+        _scope_node: str | None = None,
+    ) -> list[CollisionInfo]:
+        """Collision detection not implemented for ASTEngine."""
+        return []
+
+    async def to_source(self) -> str:
+        """Return source code for the current AST."""
+        return ast.unparse(self.tree)
+
+    # ------------------------------------------------------------------
+    # Sync internals
+    # ------------------------------------------------------------------
+
+    def _get_skeleton_sync(self) -> str:
         scopes: list[_ScopeInfo] = []
         for node in ast.walk(self.tree):
             if isinstance(node, ast.FunctionDef):
@@ -55,46 +131,6 @@ class ASTEngine:
                 lines.append(f"  assigns: {sorted(set(s.assigns))}")
             lines.append("")
         return "\n".join(lines).strip()
-
-    def rename_symbol(
-        self,
-        old_name: str,
-        new_name: str,
-        scope_node: str | None = None,
-    ) -> str:
-        """Rename a symbol in the AST; optionally restrict to a function/class scope.
-
-        Returns a short summary or "ERROR: symbol not found". Mutates the tree in place.
-        """
-        if scope_node is None:
-            return _rename_file_wide(self.tree, old_name, new_name)
-        return _rename_in_scope(self.tree, old_name, new_name, scope_node)
-
-    def extract_function(
-        self,
-        scope_function: str,
-        start_line: int,
-        end_line: int,
-        new_function_name: str,
-    ) -> str:
-        """Extract a line range from a function into a new function; replace with call.
-
-        The new function is inserted immediately before scope_function. Parameters
-        are inferred from names used in the block but defined outside it.
-
-        Returns a short summary or an error string. Mutates the tree in place.
-        """
-        return _extract_function_impl(
-            self.tree,
-            scope_function,
-            start_line,
-            end_line,
-            new_function_name,
-        )
-
-    def to_source(self) -> str:
-        """Return source code for the current AST."""
-        return ast.unparse(self.tree)
 
 
 def _scope_info_for_function(node: ast.FunctionDef) -> _ScopeInfo:
@@ -267,7 +303,7 @@ def _find_scope_and_parent(
 def _body_statement_slice(
     body: list[ast.stmt], start_line: int, end_line: int
 ) -> tuple[int, int] | None:
-    """Return (start_idx, end_idx) of contiguous statements overlapping the range."""
+    """Return (start_idx, end_idx) of contiguous stmts overlapping the range."""
     indices: list[int] = []
     for i, stmt in enumerate(body):
         if _stmt_overlaps_range(stmt, start_line, end_line):
@@ -306,7 +342,18 @@ def _names_defined_in_block(block: list[ast.stmt]) -> set[str]:
 
 
 _BUILTIN_NAMES = frozenset(
-    {"print", "len", "range", "open", "str", "int", "float", "list", "dict", "set"}
+    {
+        "print",
+        "len",
+        "range",
+        "open",
+        "str",
+        "int",
+        "float",
+        "list",
+        "dict",
+        "set",
+    }
 )
 
 
@@ -364,7 +411,6 @@ def _extract_function_impl(
         decorator_list=[],
         returns=None,
     )
-    # Required for ast.unparse in Python 3.12+
     new_func.lineno = scope_node.lineno
     new_func.end_lineno = (
         scope_node.end_lineno

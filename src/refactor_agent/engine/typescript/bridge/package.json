@@ -1,0 +1,19 @@
+{
+  "name": "ts-morph-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JSON-RPC bridge exposing ts-morph operations over stdin/stdout",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ts-morph": "^25.0.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.0",
+    "@types/node": "^22.14.0"
+  }
+}

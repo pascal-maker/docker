@@ -18,6 +18,7 @@ _WORKSPACE_ROOT = Path(__file__).resolve().parents[3] / "playground"
 
 _LANG_CONFIG: dict[str, dict[str, str]] = {
     "python": {"ext": "*.py", "subdir": "python"},
+    "typescript": {"ext": "*.ts", "subdir": "typescript"},
 }
 
 
@@ -70,8 +71,6 @@ async def on_chat_start():
     init_langfuse()
     language = await _ask_language()
     cl.user_session.set("language", language)
-    if language != "python":
-        return
     agent = create_chat_agent()
     cl.user_session.set("chat_agent", agent)
     cl.user_session.set("message_history", [])
@@ -95,15 +94,6 @@ async def _ask_language() -> str:
         ],
     ).send()
     if res is None or res["name"] == "python":
-        return "python"
-    ts_dir = _WORKSPACE_ROOT / "typescript"
-    if not ts_dir.exists():
-        await cl.Message(
-            content=(
-                "TypeScript playground not set up yet. "
-                "Coming soon! Defaulting to Python."
-            ),
-        ).send()
         return "python"
     return "typescript"
 
@@ -151,9 +141,9 @@ def _step_label(tool_name: str, args: dict) -> str:  # type: ignore[type-arg]
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
     language = cl.user_session.get("language")
-    if not language or language != "python":
+    if not language or language not in _LANG_CONFIG:
         await cl.Message(
-            content="No active Python workspace. Restart.",
+            content="No active workspace. Restart.",
         ).send()
         return
 

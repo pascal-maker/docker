@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from refactor_agent.agent.deps import ASTDeps
 from refactor_agent.agent.factory import create_ast_refactor_agent
-from refactor_agent.engine.ast_engine import ASTEngine
-from refactor_agent.engine.libcst_engine import LibCSTEngine
+from refactor_agent.engine.python.ast_engine import ASTEngine
+from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 from refactor_agent.observability.langfuse_config import init_langfuse
 
 
@@ -28,7 +28,7 @@ async def run_ast_refactor(
     deps = ASTDeps(engine=engine, target_rename=(old_name, new_name))
     agent = create_ast_refactor_agent()
 
-    skeleton = engine.get_skeleton()
+    skeleton = await engine.get_skeleton()
     prompt = (
         f"AST skeleton of the file:\n\n{skeleton}\n\n"
         f"Task: rename {old_name!r} to {new_name!r} across all references. "
@@ -36,7 +36,7 @@ async def run_ast_refactor(
     )
 
     await agent.run(prompt, deps=deps)
-    return engine.to_source()
+    return await engine.to_source()
 
 
 async def run_ast_extract_function(
@@ -65,7 +65,7 @@ async def run_ast_extract_function(
     deps = ASTDeps(engine=engine, target_rename=("", ""))
     agent = create_ast_refactor_agent()
 
-    skeleton = engine.get_skeleton()
+    skeleton = await engine.get_skeleton()
     prompt = (
         f"AST skeleton of the file:\n\n{skeleton}\n\n"
         f"Task: extract lines {start_line}-{end_line} from function "
@@ -74,4 +74,4 @@ async def run_ast_extract_function(
     )
 
     await agent.run(prompt, deps=deps)
-    return engine.to_source()
+    return await engine.to_source()
