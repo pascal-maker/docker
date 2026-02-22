@@ -1,0 +1,57 @@
+# Permissions so Cloud Build can read the uploaded source and push images.
+# The build runs as the default Compute Engine SA (or Cloud Build SA); both need access
+# to the Cloud Build GCS bucket and to Artifact Registry. Keeps everything in IaC for a small team.
+
+# Bucket used by gcloud builds submit for source uploads. Same region as rest of infra (europe-west1 = Belgium, Ghent area).
+# If this bucket already exists (e.g. from a prior gcloud builds submit), import it:
+#   terraform import -var-file=dev.tfvars google_storage_bucket.cloudbuild PROJECT_ID_cloudbuild
+resource "google_storage_bucket" "cloudbuild" {
+  project                    = var.project_id
+  name                       = "${var.project_id}_cloudbuild"
+  location                   = var.region
+  force_destroy              = false
+  uniform_bucket_level_access = true
+  depends_on                 = [google_project_service.storage]
+
+  # If the bucket was created by GCP/Cloud Build in another region (e.g. US), importing it would
+  # otherwise force replacement (location is immutable). Keep existing location.
+  lifecycle {
+    ignore_changes = [location]
+  }
+}
+
+# Default Compute Engine SA (often used by Cloud Build to run the build).
+locals {
+  compute_sa_email     = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  cloudbuild_sa_email  = "${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+# So the build can read the uploaded tarball.
+resource "google_storage_bucket_iam_member" "cloudbuild_bucket_compute_sa" {
+  bucket = google_storage_bucket.cloudbuild.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${local.compute_sa_email}"
+}
+
+resource "google_storage_bucket_iam_member" "cloudbuild_bucket_cloudbuild_sa" {
+  bucket = google_storage_bucket.cloudbuild.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${local.cloudbuild_sa_email}"
+}
+
+# So the build can push the image to Artifact Registry.
+resource "google_artifact_registry_repository_iam_member" "cloudbuild_compute_sa" {
+  project    = var.project_id
+  location   = google_artifact_registry_repository.refactor_agent.location
+  repository = google_artifact_registry_repository.refactor_agent.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${local.compute_sa_email}"
+}
+
+resource "google_artifact_registry_repository_iam_member" "cloudbuild_cloudbuild_sa" {
+  project    = var.project_id
+  location   = google_artifact_registry_repository.refactor_agent.location
+  repository = google_artifact_registry_repository.refactor_agent.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${local.cloudbuild_sa_email}"
+}

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import uuid
 
@@ -224,7 +225,10 @@ def main() -> None:
     app_factory = build_app()
     asgi_app = app_factory.build()
     wrapped = wrap_with_method_logging(asgi_app)
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT
+    port_val = (
+        sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PORT", str(DEFAULT_PORT))
+    )
+    port = int(port_val)
     uvicorn.run(wrapped, host="0.0.0.0", port=port)  # noqa: S104
     # Listen on all interfaces for local dev / bridge access
 

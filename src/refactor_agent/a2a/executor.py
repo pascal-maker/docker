@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext  # noqa: TC002
 from a2a.server.events import EventQueue  # noqa: TC002
@@ -140,12 +141,16 @@ def _parse_rename_params(user_input: str) -> dict | str:  # noqa: C901, PLR0911,
             if not isinstance(s, str):
                 return f"ERROR: 'workspace[{i}].source' must be a string"
             out_workspace.append({"path": p, "source": s})
-        return {
+        out_dict: dict[str, Any] = {
             "workspace": out_workspace,
             "old_name": old_name,
             "new_name": new_name,
             "scope_node": scope_node,
         }
+        prompt_val = data.get("prompt") or data.get("user_message")
+        if isinstance(prompt_val, str):
+            out_dict["prompt"] = prompt_val
+        return out_dict
 
     files = data.get("files")
     if isinstance(files, list) and len(files) > 0:

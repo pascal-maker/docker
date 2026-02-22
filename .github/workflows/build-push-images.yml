@@ -1,0 +1,55 @@
+# Build and push A2A server image to Artifact Registry.
+# Staging: push a tag (e.g. staging or staging-*) → image :<tag>. Production: publish a release → image :<release_tag>.
+# No build on push to main. Requires: GCP_PROJECT_ID, GCP_SA_KEY.
+name: Build and push images
+
+on:
+  push:
+    tags:
+      - "staging"
+      - "staging-*"
+  release:
+    types: [published]
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_REGION || 'europe-west1' }}-docker.pkg.dev --quiet
+
+      - name: Set image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push A2A server image
+        run: |
+          PROJECT_ID="${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}"
+          REGION="${{ vars.GCP_REGION || 'europe-west1' }}"
+          REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/refactor-agent"
+          IMAGE="${REPO}/a2a-server:${{ steps.tag.outputs.tag }}"
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions=_IMAGE_URL="${IMAGE}" \
+            --project "${PROJECT_ID}" \
+            .

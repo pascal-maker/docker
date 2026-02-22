@@ -1,0 +1,18 @@
+# Docker layer cache: pull previous image then build with --cache-from.
+# Used by: make image-push or gcloud builds submit --config=cloudbuild.yaml --substitutions=_IMAGE_URL=...
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - "docker pull $_IMAGE_URL || true"
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "--cache-from"
+      - "$_IMAGE_URL"
+      - "-t"
+      - "$_IMAGE_URL"
+      - "."
+images:
+  - "$_IMAGE_URL"

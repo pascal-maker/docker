@@ -68,4 +68,6 @@ See [A2A server (HTTP)](a2a-server.md) for endpoints and request formats.
 | **Dev UI** | deps + `get_user_input`      | Tools block on Chainlit Ask   |
 | **A2A**    | deps, no callback; runner    | NeedInput → `input_required` → resume |
 
+**A2A is opaque** (single refactor skill; tools/engine not exposed to callers). **Dev UI (Chainlit) is transparent** (full feature visibility) and must be highly secured when hosted; see [GCP infrastructure](infra-gcp.md) for deployment.
+
 One orchestrator, two surfaces; all substantial logic lives in the shared core.

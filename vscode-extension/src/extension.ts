@@ -29,6 +29,27 @@ interface SyncStatusUpdater {
   update(status: SyncStatus, message?: string): void;
 }
 
+const A2A_URL_FILE = ".refactor-agent-a2a-url";
+
+/** A2A base URL: workspace file .refactor-agent-a2a-url (from make infra-a2a-url) overrides settings. */
+async function getA2aBaseUrl(
+  folder: vscode.WorkspaceFolder | undefined
+): Promise<string> {
+  const fromConfig = vscode.workspace
+    .getConfiguration("refactorAgent")
+    .get<string>("a2aBaseUrl", "http://localhost:9999");
+  if (!folder) return fromConfig;
+  try {
+    const uri = vscode.Uri.joinPath(folder.uri, A2A_URL_FILE);
+    const buf = await vscode.workspace.fs.readFile(uri);
+    const url = Buffer.from(buf).toString("utf8").trim();
+    if (url) return url;
+  } catch {
+    // file missing or unreadable
+  }
+  return fromConfig;
+}
+
 /** Parse "rename X to Y", "rename X Y", or JSON { old_name, new_name }. */
 function parseRenameIntentFromPrompt(
   prompt: string
@@ -611,9 +632,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     resume: { taskId: string; contextId: string; replyText: string } | null,
     promptText?: string
   ): Promise<void> {
-    const a2aBaseUrl = vscode.workspace
-      .getConfiguration("refactorAgent")
-      .get<string>("a2aBaseUrl", "http://localhost:9999");
+    const a2aBaseUrl = await getA2aBaseUrl(folder);
     const syncUrl = vscode.workspace
       .getConfiguration("refactorAgent")
       .get<string>("syncUrl", "http://localhost:8765");

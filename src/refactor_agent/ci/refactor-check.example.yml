@@ -1,0 +1,133 @@
+# Example GitHub Actions workflow for the refactor check.
+# Copy to .github/workflows/refactor-check.yml to enable.
+#
+# Two jobs:
+#   - smoke: always runs on PR. No LLM (presets: []). Verifies the CI module loads.
+#   - refactor: runs only on workflow_dispatch with full_check=true. Full LLM run on
+#     playground/typescript; expects suggestions (smoke test for the real check).
+name: Refactor check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full_check:
+        description: "Run full refactor check (LLM, costs $)"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  smoke:
+    name: Smoke (no LLM)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: uv sync
+
+      - name: Health check (no LLM)
+        run: |
+          mkdir -p /tmp/ci-health
+          echo 'presets: []' > /tmp/ci-health/.refactor-agent.yaml
+          uv run python -m refactor_agent.ci \
+            --workspace /tmp/ci-health \
+            --config /tmp/ci-health/.refactor-agent.yaml \
+            --output markdown \
+            --output-file report.md
+          echo "CI module OK (no presets, no LLM calls)." >> report.md
+
+      - name: Create check run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8').replace(/\r\n/g, '\n') : 'No report.';
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Refactor check (smoke)',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: 'success',
+              output: { title: 'Smoke: CI module OK (no LLM)', summary: report },
+            });
+
+  refactor:
+    name: Refactor (LLM)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.full_check == 'true'
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: uv sync
+
+      - name: Setup Node/pnpm for TypeScript engine
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install ts-morph bridge deps
+        run: pnpm install --dir src/refactor_agent/engine/typescript/bridge
+
+      - name: Run refactor check (no auto-apply)
+        id: run-refactor
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+        run: |
+          uv run python -m refactor_agent.ci \
+            --workspace playground/typescript \
+            --no-auto-apply \
+            --output markdown \
+            --output-file report.md
+
+      - name: Create check run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const suggestionsFound = '${{ steps.run-refactor.outcome }}' === 'failure';
+            const conclusion = suggestionsFound ? 'success' : 'failure';
+            const report = fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8').replace(/\r\n/g, '\n') : 'No report.';
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Refactor check',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion,
+              output: {
+                title: suggestionsFound ? 'Refactor: suggestions found (as expected)' : 'Refactor: no suggestions',
+                summary: report,
+              },
+            });
+
+      - name: Fail job when expected suggestions but got none
+        if: steps.run-refactor.outcome == 'success'
+        run: exit 1

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import urllib.error
+import urllib.request
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import chainlit as cl
 from chainlit.data import get_data_layer
@@ -66,6 +70,33 @@ def _scan_files(workspace: Path, ext: str) -> list[Path]:
     if not workspace.exists():
         return []
     return sorted(workspace.rglob(ext))
+
+
+def _workspace_payload(language: str) -> list[dict[str, str]]:
+    """Build workspace list of {path, source} for A2A remote mode."""
+    ws = _workspace_dir(language)
+    ext = _LANG_CONFIG[language]["ext"]
+    files = _scan_files(ws, ext)
+    return [
+        {"path": str(p.relative_to(ws)), "source": p.read_text(encoding="utf-8")}
+        for p in files
+    ]
+
+
+def _a2a_post_sync(base_url: str, body: dict[str, Any]) -> dict[str, Any]:
+    """POST JSON-RPC to A2A server (run in thread to avoid blocking)."""
+    url = base_url.rstrip("/")
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        return cast(dict[str, Any], json.loads(resp.read().decode()))
 
 
 # ---------------------------------------------------------------------------
@@ -372,8 +403,117 @@ async def _handle_schedule_produced(
         ).send()
 
 
+async def _run_request_remote(content: str, language: str, base_url: str) -> None:
+    """Send request to hosted A2A and poll for result; handle input_required with resume."""
+    task_id = uuid.uuid4().hex
+    context_id = uuid.uuid4().hex
+    workspace_list = _workspace_payload(language)
+    if not workspace_list:
+        workspace_list = [
+            {"path": ".keep", "source": "# No workspace files; placeholder for A2A."},
+        ]
+    payload = {
+        "old_name": "",
+        "new_name": "",
+        "prompt": content,
+        "workspace": workspace_list,
+        "language": language,
+    }
+    message_body = {
+        "kind": "message",
+        "role": "user",
+        "messageId": uuid.uuid4().hex,
+        "task_id": task_id,
+        "context_id": context_id,
+        "parts": [{"kind": "text", "text": json.dumps(payload)}],
+    }
+    body: dict[str, Any] = {
+        "jsonrpc": "2.0",
+        "id": uuid.uuid4().hex,
+        "method": "message/send",
+        "params": {"message": message_body},
+    }
+
+    def _get_task() -> dict[str, Any]:
+        get_body = {
+            "jsonrpc": "2.0",
+            "id": uuid.uuid4().hex,
+            "method": "tasks/get",
+            "params": {"id": task_id},
+        }
+        resp = _a2a_post_sync(base_url, get_body)
+        if "result" in resp:
+            return cast(dict[str, Any], resp["result"])
+        return {}
+
+    try:
+        while True:
+            resp = await asyncio.to_thread(_a2a_post_sync, base_url, body)
+            if "error" in resp:
+                err = resp["error"]
+                msg = err.get("message", json.dumps(err))
+                await cl.Message(content=f"A2A error: {msg}").send()
+                return
+            await asyncio.sleep(1.0)
+            task = await asyncio.to_thread(_get_task)
+            status = task.get("status") or {}
+            state = status.get("state")
+            msg_parts = status.get("message", {}).get("parts") or []
+            msg_text = ""
+            for p in msg_parts:
+                if isinstance(p, dict) and "text" in p:
+                    msg_text = p["text"]
+                    break
+            if state == "completed":
+                await cl.Message(content=msg_text or "Done.").send()
+                return
+            if state == "failed":
+                await cl.Message(content=msg_text or "Task failed.").send()
+                return
+            if state == "input_required":
+                await cl.Message(content=msg_text or "Input required.").send()
+                res = await cl.AskUserMessage(
+                    content="Reply to the agent (or type 'cancel' to stop):",
+                    timeout=120,
+                ).send()
+                if res is None:
+                    await cl.Message(content="Canceled.").send()
+                    return
+                reply = (res.get("output") or "").strip() or "cancel"
+                message_body = {
+                    "kind": "message",
+                    "role": "user",
+                    "messageId": uuid.uuid4().hex,
+                    "task_id": task_id,
+                    "context_id": context_id,
+                    "parts": [{"kind": "text", "text": reply}],
+                }
+                body = {
+                    "jsonrpc": "2.0",
+                    "id": uuid.uuid4().hex,
+                    "method": "message/send",
+                    "params": {"message": message_body},
+                }
+                continue
+            await asyncio.sleep(1.5)
+    except urllib.error.URLError as e:
+        logging.exception("A2A request failed")
+        await cl.Message(
+            content=f"Could not reach A2A server: {e}\n\nCheck REFACTOR_AGENT_A2A_URL.",
+        ).send()
+    except Exception as exc:
+        logging.exception("Remote request failed")
+        await cl.Message(
+            content=f"Something went wrong: {exc}\n\nCheck the terminal for traceback.",
+        ).send()
+
+
 async def _run_request(content: str, language: str) -> None:
     """Run the orchestrator agent with the given message content."""
+    a2a_url = _env("REFACTOR_AGENT_A2A_URL")
+    if a2a_url:
+        await _run_request_remote(content, language, a2a_url)
+        return
     history = cl.user_session.get("message_history") or []
     mode = cl.user_session.get("chat_profile") or "Ask"
 

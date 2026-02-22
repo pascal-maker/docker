@@ -11,15 +11,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 1. Install dependencies only (layer cached when pyproject.toml/uv.lock unchanged)
+# (No BuildKit --mount here so Cloud Build and plain docker build work.)
 COPY pyproject.toml uv.lock README.md ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    pip install --no-cache-dir uv \
+RUN pip install --no-cache-dir uv \
     && uv sync --frozen --no-dev --no-install-project
 
 # 2. Copy app source and install project (layer cached when src/ unchanged)
 COPY src ./src
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 # 2b. Install TypeScript bridge deps so A2A can run ts-morph subprocess (rename for TypeScript)
 RUN cd /app/src/refactor_agent/engine/typescript/bridge && npm install
