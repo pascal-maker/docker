@@ -14,34 +14,61 @@ interface SyncStatusUpdater {
   update(status: SyncStatus, message?: string): void;
 }
 
-/** Parse "rename X to Y" or JSON { old_name, new_name }. */
-function parseRenameIntent(
-  oldName: string,
-  newName: string
+/** Parse "rename X to Y", "rename X Y", or JSON { old_name, new_name }. */
+function parseRenameIntentFromPrompt(
+  prompt: string
 ): { old_name: string; new_name: string } | null {
-  const o = oldName?.trim() ?? "";
-  const n = newName?.trim() ?? "";
-  if (o && n) return { old_name: o, new_name: n };
+  const trimmed = prompt.trim();
+  try {
+    const data = JSON.parse(trimmed) as { old_name?: string; new_name?: string };
+    if (
+      typeof data?.old_name === "string" &&
+      typeof data?.new_name === "string"
+    ) {
+      return { old_name: data.old_name, new_name: data.new_name };
+    }
+  } catch {
+    // not JSON
+  }
+  const toMatch =
+    trimmed.match(/rename\s+(\S+)\s+to\s+(\S+)/i) ||
+    trimmed.match(/rename\s+(\S+)\s+(\S+)/i);
+  if (toMatch) {
+    return { old_name: toMatch[1], new_name: toMatch[2] };
+  }
   return null;
 }
 
+type Engine = "python" | "typescript";
+
+function getGlobPatterns(engine: Engine): string[] {
+  if (engine === "typescript") {
+    return ["**/*.ts", "**/*.tsx"];
+  }
+  return ["**/*.py"];
+}
+
 async function gatherWorkspaceFiles(
-  workspaceFolder: vscode.WorkspaceFolder
+  workspaceFolder: vscode.WorkspaceFolder,
+  engine: Engine
 ): Promise<{ path: string; content: string }[]> {
   const files: { path: string; content: string }[] = [];
-  const pyUris = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(workspaceFolder, "**/*.py"),
-    null,
-    2000
-  );
-  for (const uri of pyUris) {
-    const rel = vscode.workspace.asRelativePath(uri, false);
-    const path = rel.replace(/\\/g, "/");
-    try {
-      const doc = await vscode.workspace.openTextDocument(uri);
-      files.push({ path, content: doc.getText() });
-    } catch {
-      // skip unreadable
+  const patterns = getGlobPatterns(engine);
+  for (const pattern of patterns) {
+    const uris = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(workspaceFolder, pattern),
+      null,
+      2000
+    );
+    for (const uri of uris) {
+      const rel = vscode.workspace.asRelativePath(uri, false);
+      const path = rel.replace(/\\/g, "/");
+      try {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        files.push({ path, content: doc.getText() });
+      } catch {
+        // skip unreadable
+      }
     }
   }
   return files;
@@ -214,79 +241,79 @@ function getWebviewContent(nonce: string): string {
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
   <style>
-    body { font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); padding: 8px; margin: 0; color: var(--vscode-foreground); }
-    .sync-status { margin-bottom: 8px; font-size: 12px; }
+    html, body { height: 100%; min-height: 100vh; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; }
+    body { font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); display: flex; flex-direction: column; padding: 8px; padding-bottom: 60px; }
+    .sync-status { margin-bottom: 8px; font-size: 12px; flex-shrink: 0; }
     .sync-ok { color: var(--vscode-testing-iconPassed); }
     .sync-err { color: var(--vscode-testing-iconFailed); }
     .sync-unknown { color: var(--vscode-descriptionForeground); }
-    form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-    input, button { padding: 6px 10px; }
-    button { cursor: pointer; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; }
-    button:hover { background: var(--vscode-button-hoverBackground); }
-    #messages { max-height: 300px; overflow-y: auto; border: 1px solid var(--vscode-panel-border); padding: 8px; font-size: 12px; }
-    .msg { margin: 4px 0; }
+    #messages { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; font-size: 12px; }
+    .msg { margin: 6px 0; padding: 6px 8px; border-radius: 4px; }
+    .msg.user { background: var(--vscode-input-background); margin-left: 16px; }
+    .msg.agent { background: var(--vscode-editor-inactiveSelectionBackground); margin-right: 16px; }
     .msg.progress { color: var(--vscode-descriptionForeground); }
     .msg.error { color: var(--vscode-errorForeground); }
+    .chatbox { position: fixed; bottom: 0; left: 0; right: 0; border: 1px solid var(--vscode-input-border); border-radius: 8px 8px 0 0; background: var(--vscode-input-background); padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; margin: 0 8px 8px 8px; }
+    .chatbox:focus-within { border-color: var(--vscode-focusBorder); outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+    #chatInput { flex: 1; padding: 8px 10px; border: none; background: transparent; color: var(--vscode-input-foreground); font: inherit; resize: none; min-height: 20px; max-height: 120px; }
+    #chatInput::placeholder { color: var(--vscode-input-placeholderForeground); }
+    #chatInput:focus { outline: none; }
+    #sendBtn { flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; }
+    #sendBtn:hover { background: var(--vscode-button-hoverBackground); }
+    #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
   <div class="sync-status" id="syncStatus"><span class="sync-unknown">Sync: not checked</span></div>
-  <div id="renameForm">
-    <form id="form">
-      <input type="text" id="oldName" placeholder="Old symbol name" />
-      <input type="text" id="newName" placeholder="New symbol name" />
-      <button type="submit" id="submitBtn">Rename</button>
-    </form>
-  </div>
-  <div id="replyForm" style="display:none;">
-    <form id="replyFormEl">
-      <input type="text" id="replyInput" placeholder="Your reply (e.g. yes, no, or new name)" />
-      <button type="submit" id="replyBtn">Send reply</button>
-    </form>
-  </div>
   <div id="messages"></div>
+  <form id="chatForm" class="chatbox">
+    <textarea id="chatInput" rows="1" placeholder="e.g. rename foo to bar or paste JSON" aria-label="Refactor request"></textarea>
+    <button type="submit" id="sendBtn" title="Send" aria-label="Send">&#8593;</button>
+  </form>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
-    const form = document.getElementById('form');
-    const oldName = document.getElementById('oldName');
-    const newName = document.getElementById('newName');
-    const submitBtn = document.getElementById('submitBtn');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
     const messages = document.getElementById('messages');
     const syncStatus = document.getElementById('syncStatus');
-    const renameForm = document.getElementById('renameForm');
-    const replyForm = document.getElementById('replyForm');
-    const replyFormEl = document.getElementById('replyFormEl');
-    const replyInput = document.getElementById('replyInput');
-    const replyBtn = document.getElementById('replyBtn');
 
-    form.addEventListener('submit', (e) => {
+    function submit() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      const el = document.createElement('div');
+      el.className = 'msg user';
+      el.textContent = text;
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+      sendBtn.disabled = true;
+      vscode.postMessage({ type: 'submit', text: text });
+    }
+
+    chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const o = oldName.value.trim();
-      const n = newName.value.trim();
-      if (!o || !n) return;
-      submitBtn.disabled = true;
-      vscode.postMessage({ type: 'submit', oldName: o, newName: n });
+      submit();
     });
 
-    replyFormEl.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const t = replyInput.value.trim();
-      if (!t) return;
-      replyBtn.disabled = true;
-      vscode.postMessage({ type: 'reply', text: t });
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submit();
+      }
     });
 
     window.addEventListener('message', (event) => {
       const msg = event.data;
       if (msg.type === 'append') {
         const el = document.createElement('div');
-        el.className = 'msg ' + (msg.kind || '');
+        el.className = 'msg ' + (msg.role || 'agent') + ' ' + (msg.kind || '');
         el.textContent = msg.text || '';
         messages.appendChild(el);
         messages.scrollTop = messages.scrollHeight;
       } else if (msg.type === 'submitDone') {
-        submitBtn.disabled = false;
-        replyBtn.disabled = false;
+        sendBtn.disabled = false;
       } else if (msg.type === 'syncStatus') {
         const span = document.createElement('span');
         if (msg.status === 'ok') { span.className = 'sync-ok'; span.textContent = 'Sync: OK'; }
@@ -294,11 +321,6 @@ function getWebviewContent(nonce: string): string {
         else { span.className = 'sync-unknown'; span.textContent = 'Sync: not checked'; }
         syncStatus.innerHTML = '';
         syncStatus.appendChild(span);
-      } else if (msg.type === 'setReplyMode') {
-        const reply = msg.active === true;
-        renameForm.style.display = reply ? 'none' : 'block';
-        replyForm.style.display = reply ? 'block' : 'none';
-        if (reply) replyInput.value = '';
       }
     });
   </script>
@@ -332,44 +354,35 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = getWebviewContent(getNonce());
 
     webviewView.webview.onDidReceiveMessage(async (data: unknown) => {
-      const msg = data as { type: string; oldName?: string; newName?: string; text?: string };
+      const msg = data as { type: string; text?: string };
       if (!msg?.type) return;
 
       const post = (type: string, payload?: Record<string, unknown>) => {
         this._view?.webview.postMessage({ type, ...payload });
       };
       const append = (kind: string, text: string) => {
-        post("append", { kind, text });
+        post("append", { role: "agent", kind, text });
       };
       const globalState = this._extContext.globalState;
       const folder = vscode.workspace.workspaceFolders?.[0];
 
-      if (msg.type === "submit" && msg.oldName != null && msg.newName != null) {
-        await this.runRefactor(
-          globalState,
-          folder,
-          post,
-          append,
-          null,
-          msg.oldName,
-          msg.newName
-        );
-      } else if (msg.type === "reply" && typeof msg.text === "string") {
+      if (msg.type === "submit" && typeof msg.text === "string") {
         const pending = globalState.get<PendingReply>(PENDING_STATE_KEY);
-        if (!folder || !pending || pending.workspaceUri !== folder.uri.toString()) {
-          append("error", "No pending reply for this workspace.");
-          post("submitDone");
-          return;
+        if (
+          pending &&
+          folder &&
+          pending.workspaceUri === folder.uri.toString()
+        ) {
+          await this.runRefactor(
+            globalState,
+            folder,
+            post,
+            append,
+            { taskId: pending.taskId, contextId: pending.contextId, replyText: msg.text }
+          );
+        } else {
+          await this.runRefactor(globalState, folder, post, append, null, msg.text);
         }
-        await this.runRefactor(
-          globalState,
-          folder,
-          post,
-          append,
-          { taskId: pending.taskId, contextId: pending.contextId, replyText: msg.text },
-          "",
-          ""
-        );
       }
     });
   }
@@ -380,8 +393,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     post: (type: string, payload?: Record<string, unknown>) => void,
     append: (kind: string, text: string) => void,
     resume: { taskId: string; contextId: string; replyText: string } | null,
-    oldName: string,
-    newName: string
+    promptText?: string
   ): Promise<void> {
     const a2aBaseUrl = vscode.workspace
       .getConfiguration("refactorAgent")
@@ -428,17 +440,31 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      const intent = parseRenameIntent(oldName, newName);
+      const intent =
+        promptText != null
+          ? parseRenameIntentFromPrompt(promptText)
+          : null;
       if (!intent) {
-        append("error", "Enter both old and new symbol names.");
+        append(
+          "message",
+          "Say something like: rename foo to bar, or paste JSON: {\"old_name\": \"foo\", \"new_name\": \"bar\"}"
+        );
         post("submitDone");
         return;
       }
 
+      const engine = vscode.workspace
+        .getConfiguration("refactorAgent")
+        .get<Engine>("engine", "python");
+
       append("progress", "Gathering workspace files…");
-      const files = await gatherWorkspaceFiles(folder);
+      const files = await gatherWorkspaceFiles(folder, engine);
       if (files.length === 0) {
-        append("error", "No Python files found in the workspace.");
+        const msg =
+          engine === "typescript"
+            ? "No TypeScript files found in the workspace."
+            : "No Python files found in the workspace.";
+        append("error", msg);
         post("submitDone");
         return;
       }
@@ -459,6 +485,8 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         old_name: intent.old_name,
         new_name: intent.new_name,
         use_replica: true,
+        language: engine,
+        prompt: promptText,
       };
       const { response, error } = await sendA2AMessage(
         a2aBaseUrl,
@@ -506,17 +534,18 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     );
 
     if (state === "input_required") {
-      append("message", messageText || "Agent needs your input.");
+      append(
+        "message",
+        messageText ||
+          "Agent needs your input. Reply above (e.g. yes, no, or a new name)."
+      );
       globalState.update(PENDING_STATE_KEY, {
         taskId: String(res?.id ?? ""),
         contextId: String(res?.contextId ?? ""),
         workspaceUri: folder.uri.toString(),
       });
-      post("setReplyMode", { active: true });
       return;
     }
-
-    post("setReplyMode", { active: false });
 
     if (state === "completed") {
       const artifacts = extractRenameArtifacts(res);
@@ -575,14 +604,14 @@ export function activate(extContext: vscode.ExtensionContext): void {
   const provider = new RefactorViewProvider(extContext, syncStatus);
   extContext.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      "refactorAgent.refactorView",
+      "refactorAgent-refactorView",
       provider
     )
   );
 
   extContext.subscriptions.push(
     vscode.commands.registerCommand("refactorAgent.focusView", () => {
-      vscode.commands.executeCommand("refactorAgent.refactorView.focus");
+      vscode.commands.executeCommand("refactorAgent-refactorView.focus");
     })
   );
 

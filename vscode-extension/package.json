@@ -1,7 +1,7 @@
 {
   "name": "refactor-agent",
   "displayName": "Refactor Agent",
-  "description": "Refactor Agent – rename Python symbols via A2A. Standalone sidebar panel.",
+  "description": "Refactor Agent – rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
   "version": "0.1.0",
   "publisher": "refactor-agent",
   "engines": {
@@ -9,7 +9,7 @@
   },
   "categories": ["Other"],
   "activationEvents": [
-    "onView:refactorAgent.refactorView",
+    "onView:refactorAgent-refactorView",
     "onCommand:refactorAgent.focusView"
   ],
   "main": "./out/extension.js",
@@ -17,17 +17,17 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "refactorAgent.sidebar",
+          "id": "refactorAgent-sidebar",
           "title": "Refactor Agent",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "refactorAgent.sidebar": [
+      "refactorAgent-sidebar": [
         {
           "type": "webview",
-          "id": "refactorAgent.refactorView",
+          "id": "refactorAgent-refactorView",
           "name": "Refactor",
           "contextTitle": "Refactor Agent"
         }
@@ -57,6 +57,12 @@
           "default": "",
           "description": "Optional API key for hosted A2A (sent as Authorization: Bearer <key>)",
           "secret": true
+        },
+        "refactorAgent.engine": {
+          "type": "string",
+          "default": "python",
+          "enum": ["python", "typescript"],
+          "description": "Language engine (must match opened workspace; set by try_extension.sh <playground>)."
         }
       }
     }

@@ -273,14 +273,17 @@ async def test_executor_use_replica_uses_replica_dir() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         replica = Path(tmp)
         (replica / "a.py").write_text("def foo(): pass\n")
-        with patch(
-            "refactor_agent.a2a.executor.run_orchestrator",
-            new_callable=AsyncMock,
-            return_value=(
-                FinalOutput(output="Rename complete (1 file(s))"),
-                [],
+        with (
+            patch(
+                "refactor_agent.a2a.executor.run_orchestrator",
+                new_callable=AsyncMock,
+                return_value=(
+                    FinalOutput(output="Rename complete (1 file(s))"),
+                    [],
+                ),
             ),
-        ), patch.dict("os.environ", {"REPLICA_DIR": str(replica)}, clear=False):
+            patch.dict("os.environ", {"REPLICA_DIR": str(replica)}, clear=False),
+        ):
             context = MagicMock()
             context.task_id = "task-1"
             context.context_id = "ctx-1"

@@ -34,6 +34,36 @@ from refactor_agent.orchestrator import (
 REPLICA_DIR_ENV = "REPLICA_DIR"
 ORCHESTRATOR_STATE_KEY = "orchestrator_state"
 
+_SUPPORTED_LANGUAGES = ("python", "typescript")
+_FILE_EXT_BY_LANG = {"python": "*.py", "typescript": "*.ts"}
+
+
+def _detect_language_from_workspace(workspace_dir: Path) -> str:
+    """Infer language from workspace contents: TypeScript if any .ts/.tsx exist, else Python."""
+    if not workspace_dir.exists():
+        return "python"
+    try:
+        for ext in ("*.ts", "*.tsx"):
+            if next(workspace_dir.rglob(ext), None) is not None:
+                return "typescript"
+    except OSError:
+        pass
+    return "python"
+
+
+def _language_and_ext(
+    parsed: dict, workspace_dir: Path | None = None
+) -> tuple[str, str]:
+    """Return (language, file_ext) from parsed params; infer from workspace if missing."""
+    lang = parsed.get("language")
+    if lang not in _SUPPORTED_LANGUAGES:
+        if workspace_dir is not None:
+            lang = _detect_language_from_workspace(workspace_dir)
+        else:
+            lang = "python"
+    return lang, _FILE_EXT_BY_LANG[lang]
+
+
 # task_id -> {message_history, workspace_dir} for pause/resume
 _orchestrator_state: dict[str, dict] = {}
 
@@ -82,12 +112,20 @@ def _parse_rename_params(user_input: str) -> dict | str:  # noqa: C901, PLR0911,
 
     use_replica = data.get("use_replica") is True
     if use_replica:
-        return {
+        lang = data.get("language")
+        if lang not in ("python", "typescript"):
+            lang = "python"
+        out: dict = {
             "old_name": old_name,
             "new_name": new_name,
             "scope_node": scope_node,
             "use_replica": True,
+            "language": lang,
         }
+        prompt_val = data.get("prompt") or data.get("user_message")
+        if isinstance(prompt_val, str):
+            out["prompt"] = prompt_val
+        return out
 
     workspace = data.get("workspace")
     if isinstance(workspace, list) and len(workspace) > 0:
@@ -165,12 +203,13 @@ def _build_workspace_dir(parsed: dict) -> Path:
     return root
 
 
-def _internal_message_from_parsed(parsed: dict) -> str:
-    """Build the prompt we send to the orchestrator for rename-shaped input."""
+def _internal_message_from_parsed(parsed: dict, lang: str) -> str:
+    """Build the prompt we send to the orchestrator when no raw prompt is provided."""
     old_name = parsed.get("old_name", "")
     new_name = parsed.get("new_name", "")
+    kind = "TypeScript" if lang == "typescript" else "Python"
     return (
-        f"Rename the Python symbol '{old_name}' to '{new_name}' across the "
+        f"Rename the {kind} symbol '{old_name}' to '{new_name}' across the "
         "workspace. Use the rename_in_workspace tool to apply the rename."
     )
 
@@ -216,25 +255,27 @@ async def _emit_artifacts_from_workspace(
     task_id: str,
     context_id: str,
     event_queue: EventQueue,
+    *,
+    lang: str = "python",
 ) -> None:
-    """Emit one rename-result artifact per .py file in the workspace."""
-    first = True
-    for fp in sorted(workspace_dir.rglob("*.py")):  # noqa: ASYNC240
-        if not fp.is_file():
-            continue
-        rel = fp.relative_to(workspace_dir)
-        path_str = str(rel).replace("\\", "/")
-        content = fp.read_text(encoding="utf-8")
-        await event_queue.enqueue_event(
-            _artifact_from_modified_file(
-                task_id,
-                context_id,
-                path_str,
-                content,
-                append=not first,
+    """Emit one rename-result artifact per workspace file (by language)."""
+    patterns = ("*.ts", "*.tsx") if lang == "typescript" else ("*.py",)
+    for pattern in patterns:
+        for fp in sorted(workspace_dir.rglob(pattern)):  # noqa: ASYNC240
+            if not fp.is_file():
+                continue
+            rel = fp.relative_to(workspace_dir)
+            path_str = str(rel).replace("\\", "/")
+            content = fp.read_text(encoding="utf-8")
+            await event_queue.enqueue_event(
+                _artifact_from_modified_file(
+                    task_id,
+                    context_id,
+                    path_str,
+                    content,
+                    append=False,
+                )
             )
-        )
-        first = False
 
 
 class ASTRefactorAgentExecutor(AgentExecutor):
@@ -288,11 +329,13 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                         )
                     )
                     return
+                lang = saved.get("language", "python")
+                ext = _FILE_EXT_BY_LANG.get(lang, "*.py")
                 deps = OrchestratorDeps(
-                    language="python",
+                    language=lang,
                     workspace=workspace_dir,
                     mode="Ask",
-                    file_ext="*.py",
+                    file_ext=ext,
                     get_user_input=None,
                 )
                 result, run_state = await run_orchestrator(
@@ -331,10 +374,15 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                         "message_history": run_state,
                         "workspace_dir": workspace_dir_str,
                         "use_replica": saved.get("use_replica", False),
+                        "language": lang,
                     }
                     return
                 await _emit_artifacts_from_workspace(
-                    workspace_dir, task_id, context_id, event_queue
+                    workspace_dir,
+                    task_id,
+                    context_id,
+                    event_queue,
+                    lang=lang,
                 )
                 await event_queue.enqueue_event(
                     _status_event(
@@ -387,15 +435,20 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                 return
         else:
             workspace_dir = _build_workspace_dir(parsed)
+        lang, file_ext = _language_and_ext(parsed, workspace_dir)
         try:
             deps = OrchestratorDeps(
-                language="python",
+                language=lang,
                 workspace=workspace_dir,
                 mode="Ask",
-                file_ext="*.py",
+                file_ext=file_ext,
                 get_user_input=None,
             )
-            internal_message = _internal_message_from_parsed(parsed)
+            raw_prompt = parsed.get("prompt") or parsed.get("user_message")
+            if isinstance(raw_prompt, str) and raw_prompt.strip():
+                internal_message = raw_prompt.strip()
+            else:
+                internal_message = _internal_message_from_parsed(parsed, lang)
             result, run_state = await run_orchestrator(
                 self._agent,
                 deps,
@@ -432,10 +485,15 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                     "message_history": run_state,
                     "workspace_dir": str(workspace_dir),
                     "use_replica": use_replica,
+                    "language": lang,
                 }
                 return
             await _emit_artifacts_from_workspace(
-                workspace_dir, task_id, context_id, event_queue
+                workspace_dir,
+                task_id,
+                context_id,
+                event_queue,
+                lang=lang,
             )
             await event_queue.enqueue_event(
                 _status_event(
