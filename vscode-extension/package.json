@@ -1,16 +1,19 @@
 {
   "name": "refactor-agent",
   "displayName": "Refactor Agent",
-  "description": "Refactor Agent – rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
+  "description": "Refactor Agent \u2013 rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
   "version": "0.1.0",
   "publisher": "refactor-agent",
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onView:refactorAgent-refactorView",
-    "onCommand:refactorAgent.focusView"
+    "onCommand:refactorAgent.focusView",
+    "onCommand:refactorAgent.openWebviewDevTools"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,6 +40,10 @@
       {
         "command": "refactorAgent.focusView",
         "title": "Refactor Agent: Focus Refactor View"
+      },
+      {
+        "command": "refactorAgent.openWebviewDevTools",
+        "title": "Refactor Agent: Open Webview Developer Tools"
       }
     ],
     "configuration": {
@@ -61,7 +68,10 @@
         "refactorAgent.engine": {
           "type": "string",
           "default": "python",
-          "enum": ["python", "typescript"],
+          "enum": [
+            "python",
+            "typescript"
+          ],
           "description": "Language engine (must match opened workspace; set by try_extension.sh <playground>)."
         }
       }

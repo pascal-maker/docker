@@ -1,11 +1,26 @@
 import * as vscode from "vscode";
 
 const PENDING_STATE_KEY = "refactorAgent.pendingReply";
+const CONVERSATIONS_KEY = "refactorAgent.conversations";
+const CURRENT_CONVERSATION_ID_KEY = "refactorAgent.currentConversationId";
+const MAX_CONVERSATIONS = 50;
 
 interface PendingReply {
   taskId: string;
   contextId: string;
   workspaceUri: string;
+}
+
+interface ChatMessage {
+  role: "user" | "agent";
+  kind?: string;
+  text: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
 }
 
 type SyncStatus = "ok" | "error" | "unknown";
@@ -226,12 +241,32 @@ async function applyArtifacts(
   workspaceFolder: vscode.WorkspaceFolder,
   artifacts: { path: string; modified_source: string }[]
 ): Promise<void> {
-  const edit = new vscode.WorkspaceEdit();
+  const uris: vscode.Uri[] = [];
   for (const { path: relPath, modified_source } of artifacts) {
     const uri = vscode.Uri.joinPath(workspaceFolder.uri, relPath);
-    edit.replace(uri, new vscode.Range(0, 0, 999999, 999999), modified_source);
+    uris.push(uri);
+    await vscode.workspace.fs.writeFile(
+      uri,
+      new TextEncoder().encode(modified_source)
+    );
+  }
+  const edit = new vscode.WorkspaceEdit();
+  for (let i = 0; i < artifacts.length; i++) {
+    edit.replace(
+      uris[i],
+      new vscode.Range(0, 0, 999999, 999999),
+      artifacts[i].modified_source
+    );
   }
   await vscode.workspace.applyEdit(edit);
+  for (const uri of uris) {
+    const doc = vscode.workspace.textDocuments.find(
+      (d) => d.uri.toString() === uri.toString()
+    );
+    if (doc?.isDirty) {
+      await doc.save();
+    }
+  }
 }
 
 function getWebviewContent(nonce: string): string {
@@ -253,6 +288,12 @@ function getWebviewContent(nonce: string): string {
     .msg.agent { background: var(--vscode-editor-inactiveSelectionBackground); margin-right: 16px; }
     .msg.progress { color: var(--vscode-descriptionForeground); }
     .msg.error { color: var(--vscode-errorForeground); }
+    #messages pre, #messages code { font-family: var(--vscode-editor-font-family); font-size: 12px; }
+    #messages code { background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; }
+    #messages pre { overflow-x: auto; padding: 8px; margin: 6px 0; }
+    #messages pre code { padding: 0; background: transparent; }
+    .conversation-row { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .conversation-row select { flex: 1; padding: 4px 8px; font: inherit; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; }
     .chatbox { position: fixed; bottom: 0; left: 0; right: 0; border: 1px solid var(--vscode-input-border); border-radius: 8px 8px 0 0; background: var(--vscode-input-background); padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; margin: 0 8px 8px 8px; }
     .chatbox:focus-within { border-color: var(--vscode-focusBorder); outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
     #chatInput { flex: 1; padding: 8px 10px; border: none; background: transparent; color: var(--vscode-input-foreground); font: inherit; resize: none; min-height: 20px; max-height: 120px; }
@@ -265,32 +306,97 @@ function getWebviewContent(nonce: string): string {
 </head>
 <body>
   <div class="sync-status" id="syncStatus"><span class="sync-unknown">Sync: not checked</span></div>
+  <div class="conversation-row">
+    <select id="conversationSelect" aria-label="Conversation">
+      <option value="">New chat</option>
+    </select>
+  </div>
   <div id="messages"></div>
   <form id="chatForm" class="chatbox">
     <textarea id="chatInput" rows="1" placeholder="e.g. rename foo to bar or paste JSON" aria-label="Refactor request"></textarea>
     <button type="submit" id="sendBtn" title="Send" aria-label="Send">&#8593;</button>
   </form>
   <script nonce="${nonce}">
+    (function() {
+      function log() { try { console.log.apply(console, ['[Refactor Agent]'].concat(Array.prototype.slice.call(arguments))); } catch (e) {} }
+      function logErr() { try { console.error.apply(console, ['[Refactor Agent]'].concat(Array.prototype.slice.call(arguments))); } catch (e) {} }
     const vscode = acquireVsCodeApi();
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
     const messages = document.getElementById('messages');
     const syncStatus = document.getElementById('syncStatus');
+    const conversationSelect = document.getElementById('conversationSelect');
+    log('Webview script loaded. messages=', !!messages, 'chatForm=', !!chatForm);
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function renderMarkdown(text) {
+      text = (text != null && typeof text !== 'string') ? String(text) : (text || '');
+      if (!text) return '';
+      let out = escapeHtml(text);
+      out = out.replace(/\\\\n/g, '\\n');
+      const lines = out.split('\\n');
+      const result = [];
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        const fence = line.match(/^\\x60\\x60\\x60(\\w*)$/);
+        if (fence) {
+          const lang = fence[1] || '';
+          const block = [];
+          i++;
+          while (i < lines.length && lines[i] !== '\\x60\\x60\\x60') {
+            block.push(lines[i]);
+            i++;
+          }
+          if (i < lines.length) i++;
+          result.push('<pre><code class="' + escapeHtml(lang) + '">' + block.join('\\n') + '</code></pre>');
+          continue;
+        }
+        let ln = line;
+        ln = ln.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+        ln = ln.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
+        ln = ln.replace(/\\x60([^\\x60]+)\\x60/g, '<code>$1</code>');
+        result.push(ln + '<br>');
+        i++;
+      }
+      return result.join('\\n');
+    }
+
+    function appendMessage(role, kind, text, useMarkdown) {
+      if (!messages) return;
+      const el = document.createElement('div');
+      el.className = 'msg ' + (role || 'agent') + (kind ? ' ' + kind : '');
+      const safeText = (text != null && typeof text !== 'string') ? String(text) : (text || '');
+      if (useMarkdown && (role === 'agent' || role === 'user')) {
+        el.innerHTML = renderMarkdown(safeText);
+      } else {
+        el.textContent = safeText;
+      }
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+    }
 
     function submit() {
       const text = chatInput.value.trim();
       if (!text) return;
-      const el = document.createElement('div');
-      el.className = 'msg user';
-      el.textContent = text;
-      messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
+      appendMessage('user', '', text, false);
       chatInput.value = '';
       chatInput.style.height = 'auto';
       sendBtn.disabled = true;
       vscode.postMessage({ type: 'submit', text: text });
     }
+
+    conversationSelect.addEventListener('change', () => {
+      const val = conversationSelect.value;
+      if (val === '') {
+        vscode.postMessage({ type: 'newChat' });
+      } else {
+        vscode.postMessage({ type: 'selectConversation', id: val });
+      }
+    });
 
     chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -306,23 +412,60 @@ function getWebviewContent(nonce: string): string {
 
     window.addEventListener('message', (event) => {
       const msg = event.data;
-      if (msg.type === 'append') {
-        const el = document.createElement('div');
-        el.className = 'msg ' + (msg.role || 'agent') + ' ' + (msg.kind || '');
-        el.textContent = msg.text || '';
-        messages.appendChild(el);
-        messages.scrollTop = messages.scrollHeight;
+      log('message received', msg && msg.type, msg && msg.type === 'append' ? '(append)' : msg && msg.type === 'restore' ? 'restore convs=' + (msg.conversations && msg.conversations.length) + ' msgs=' + (msg.messages && msg.messages.length) : '');
+      if (!msg || !msg.type) return;
+      if (msg.type === 'restore') {
+        const list = Array.isArray(msg.conversations) ? msg.conversations : [];
+        const currentId = msg.currentId != null ? msg.currentId : null;
+        const msgs = Array.isArray(msg.messages) ? msg.messages : [];
+        if (conversationSelect) conversationSelect.innerHTML = '<option value="">New chat</option>';
+        list.forEach(function(c) {
+          if (!c || typeof c.id !== 'string') return;
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.title != null ? String(c.title) : 'Chat') || 'Chat';
+          if (c.id === currentId) opt.selected = true;
+          conversationSelect && conversationSelect.appendChild(opt);
+        });
+        if (messages) messages.innerHTML = '';
+        msgs.forEach(function(m) {
+          try {
+            appendMessage(m && m.role, m && m.kind, m && m.text, true);
+          } catch (err) {
+            logErr('restore appendMessage error', err);
+            appendMessage('agent', 'error', String(m && m.text || 'Invalid message'), false);
+          }
+        });
+        if (messages) messages.scrollTop = messages.scrollHeight;
+      } else if (msg.type === 'append') {
+        try {
+          appendMessage(msg.role || 'agent', msg.kind, msg.text, true);
+        } catch (err) {
+          logErr('append error', err, 'msg.text type=', typeof msg.text);
+          if (messages) {
+            const fallback = document.createElement('div');
+            fallback.className = 'msg agent error';
+            fallback.textContent = typeof msg.text === 'string' ? msg.text : 'Message could not be displayed';
+            messages.appendChild(fallback);
+          }
+        }
       } else if (msg.type === 'submitDone') {
-        sendBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
       } else if (msg.type === 'syncStatus') {
-        const span = document.createElement('span');
-        if (msg.status === 'ok') { span.className = 'sync-ok'; span.textContent = 'Sync: OK'; }
-        else if (msg.status === 'error') { span.className = 'sync-err'; span.textContent = 'Sync: ' + (msg.message || 'Error'); }
-        else { span.className = 'sync-unknown'; span.textContent = 'Sync: not checked'; }
-        syncStatus.innerHTML = '';
-        syncStatus.appendChild(span);
+        if (syncStatus) {
+          const span = document.createElement('span');
+          if (msg.status === 'ok') { span.className = 'sync-ok'; span.textContent = 'Sync: OK'; }
+          else if (msg.status === 'error') { span.className = 'sync-err'; span.textContent = 'Sync: ' + (msg.message || 'Error'); }
+          else { span.className = 'sync-unknown'; span.textContent = 'Sync: not checked'; }
+          syncStatus.innerHTML = '';
+          syncStatus.appendChild(span);
+        }
       }
     });
+
+    log('posting ready');
+    vscode.postMessage({ type: 'ready' });
+    })();
   </script>
 </body>
 </html>`;
@@ -354,19 +497,92 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = getWebviewContent(getNonce());
 
     webviewView.webview.onDidReceiveMessage(async (data: unknown) => {
-      const msg = data as { type: string; text?: string };
+      const msg = data as { type: string; text?: string; id?: string };
       if (!msg?.type) return;
 
       const post = (type: string, payload?: Record<string, unknown>) => {
         this._view?.webview.postMessage({ type, ...payload });
       };
-      const append = (kind: string, text: string) => {
-        post("append", { role: "agent", kind, text });
-      };
+      const ws = this._extContext.workspaceState;
       const globalState = this._extContext.globalState;
       const folder = vscode.workspace.workspaceFolders?.[0];
 
+      const getConversations = (): Conversation[] =>
+        ws.get<Conversation[]>(CONVERSATIONS_KEY) ?? [];
+      const getCurrentId = (): string | undefined =>
+        ws.get<string>(CURRENT_CONVERSATION_ID_KEY);
+      const persistConversations = (list: Conversation[], currentId?: string) => {
+        const trimmed =
+          list.length > MAX_CONVERSATIONS
+            ? list.slice(-MAX_CONVERSATIONS)
+            : list;
+        ws.update(CONVERSATIONS_KEY, trimmed);
+        ws.update(CURRENT_CONVERSATION_ID_KEY, currentId ?? undefined);
+      };
+
+      if (msg.type === "ready") {
+        const conversations = getConversations();
+        const currentId = getCurrentId();
+        const current = conversations.find((c) => c.id === currentId);
+        post("restore", {
+          conversations,
+          currentId: currentId ?? null,
+          messages: current?.messages ?? [],
+        });
+        return;
+      }
+
+      if (msg.type === "selectConversation" && typeof msg.id === "string") {
+        ws.update(CURRENT_CONVERSATION_ID_KEY, msg.id);
+        const conversations = getConversations();
+        const conv = conversations.find((c) => c.id === msg.id);
+        post("restore", {
+          conversations,
+          currentId: msg.id,
+          messages: conv?.messages ?? [],
+        });
+        return;
+      }
+
+      if (msg.type === "newChat") {
+        ws.update(CURRENT_CONVERSATION_ID_KEY, undefined);
+        post("restore", {
+          conversations: getConversations(),
+          currentId: null,
+          messages: [],
+        });
+        return;
+      }
+
       if (msg.type === "submit" && typeof msg.text === "string") {
+        const conversations = getConversations();
+        let currentId = getCurrentId();
+        let current = currentId
+          ? conversations.find((c) => c.id === currentId)
+          : undefined;
+        if (!current) {
+          currentId = crypto.randomUUID();
+          const title = msg.text.slice(0, 40).trim();
+          current = {
+            id: currentId,
+            title: title || "New chat",
+            messages: [],
+          };
+          conversations.push(current);
+          persistConversations(conversations, currentId);
+        }
+        current.messages.push({ role: "user", text: msg.text });
+        persistConversations(conversations, currentId);
+
+        const append = (kind: string, text: string) => {
+          post("append", { role: "agent", kind, text });
+          const conv = getConversations().find((c) => c.id === currentId);
+          if (conv) {
+            conv.messages.push({ role: "agent", kind, text });
+            persistConversations(getConversations(), currentId);
+          }
+        };
+
         const pending = globalState.get<PendingReply>(PENDING_STATE_KEY);
         if (
           pending &&
@@ -615,8 +831,13 @@ export function activate(extContext: vscode.ExtensionContext): void {
     })
   );
 
-  // Optional: check sync when view becomes visible (provider can call syncStatus.update after a quick check)
-  // For now we only update on actual sync attempt during refactor.
+  extContext.subscriptions.push(
+    vscode.commands.registerCommand("refactorAgent.openWebviewDevTools", () => {
+      void vscode.commands.executeCommand(
+        "workbench.action.webview.openDeveloperTools"
+      );
+    })
+  );
 }
 
 export function deactivate(): void {}

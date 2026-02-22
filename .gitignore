@@ -12,6 +12,9 @@ __pycache__/
 dist/
 node_modules/
 
+# VS Code extension build output
+vscode-extension/out/
+
 # Tool runtime state
 registered_agents.json
 task_agent_mapping.json
