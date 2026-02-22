@@ -11,8 +11,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     pip install --no-cache-dir uv \
     && uv sync --frozen --no-dev
 
-# Copy scripts and entrypoint last so changes here don't trigger dependency reinstall
+# Copy scripts, prompts (fallback when Langfuse not configured), and entrypoint
 COPY scripts ./scripts
+COPY prompts ./prompts
 COPY docker ./docker
 
 ENV REPLICA_DIR=/workspace

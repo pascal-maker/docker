@@ -1,11 +1,40 @@
 from __future__ import annotations
 
+import os
+import re
+from pathlib import Path
 from typing import Any
 
 from langfuse import get_client
 from pydantic_ai import Agent
 
 from refactor_agent.models.prompt_config import PromptConfig
+
+
+def _is_langfuse_available() -> bool:
+    """True if Langfuse is configured (public key set)."""
+    return bool(os.environ.get("LANGFUSE_PUBLIC_KEY"))
+
+
+def _fallback_prompt_path(name: str) -> Path:
+    """Path to local prompt file when Langfuse is not used."""
+    base = Path(os.environ.get("REFACTOR_AGENT_PROMPTS_DIR", "prompts"))
+    if not base.is_absolute():
+        base = Path.cwd() / base
+    return base / f"{name}.txt"
+
+
+def _load_fallback_prompt(name: str, **variables: str) -> str:
+    """Load prompt from prompts/<name>.txt and substitute {{key}} with variables."""
+    path = _fallback_prompt_path(name)
+    if not path.exists():
+        return ""
+    text = path.read_text()
+    for key, value in variables.items():
+        text = text.replace("{{" + key + "}}", value)
+    # Replace any remaining {{...}} with empty string
+    text = re.sub(r"\{\{\w+\}\}", "", text)
+    return text
 
 
 def init_langfuse() -> None:
@@ -18,14 +47,25 @@ def init_langfuse() -> None:
 
 
 def get_prompt(name: str, **variables: str) -> str:
-    """Fetch a prompt from the Langfuse registry and compile it with variables."""
+    """Fetch a prompt from the Langfuse registry and compile it with variables.
+
+    When Langfuse is not configured (LANGFUSE_PUBLIC_KEY unset), loads from
+    prompts/<name>.txt (or REFACTOR_AGENT_PROMPTS_DIR) and substitutes {{key}}.
+    """
+    if not _is_langfuse_available():
+        return _load_fallback_prompt(name, **variables)
     langfuse = get_client()
     prompt = langfuse.get_prompt(name)
     return prompt.compile(**variables)
 
 
 def get_prompt_config(name: str) -> PromptConfig:
-    """Fetch a prompt's config from Langfuse (model, temperature, etc.)."""
+    """Fetch a prompt's config from Langfuse (model, temperature, etc.).
+
+    When Langfuse is not configured, returns empty config (callers use app defaults).
+    """
+    if not _is_langfuse_available():
+        return PromptConfig()
     langfuse = get_client()
     prompt = langfuse.get_prompt(name)
     return PromptConfig.model_validate(prompt.config or {})
@@ -34,8 +74,11 @@ def get_prompt_config(name: str) -> PromptConfig:
 def get_prompt_name_and_version(name: str) -> tuple[str, str | int | None]:
     """Fetch prompt name and version from Langfuse for linked generation metadata.
 
-    Returns (name, version). Version may be None if not available.
+    Returns (name, version). Version may be None if not available or when
+    Langfuse is not configured.
     """
+    if not _is_langfuse_available():
+        return (name, None)
     try:
         langfuse = get_client()
         prompt = langfuse.get_prompt(name)

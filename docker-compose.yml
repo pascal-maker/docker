@@ -1,6 +1,10 @@
-# POC: synced codebase + A2A refactor agent (sync server + A2A in one container).
-# LiteLLM proxy is included; all LLM traffic goes through it when both services run.
-# Set ANTHROPIC_API_KEY (env or .env). To run only the POC server: docker compose up poc-server
+# A2A server (sync + A2A in one container) and LiteLLM proxy.
+# Set ANTHROPIC_API_KEY (env or .env). Optional: LANGFUSE_* for prompt registry.
+# To run only the A2A server: docker compose up a2a-server
+#
+# Open WebUI stack: adapter + Open WebUI. One command: docker compose up adapter openwebui
+# (or docker compose up -d adapter openwebui). Open WebUI at http://localhost:3000;
+# adapter at http://localhost:8000. Connection is set via env (no Admin UI).
 services:
   litellm:
     image: docker.litellm.ai/berriai/litellm:main-latest
@@ -12,7 +16,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     command: ["--config", "/app/config.yaml"]
 
-  poc-server:
+  a2a-server:
     build: .
     ports:
       - "8765:8765"   # WebSocket sync
@@ -21,6 +25,9 @@ services:
       REPLICA_DIR: /workspace
       POC_SYNC_PORT: "8765"
       LITELLM_PROXY_URL: http://litellm:4000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
     depends_on:
       - litellm
     # Replica is in-container only; sync client pushes code via WebSocket

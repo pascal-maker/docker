@@ -8,7 +8,7 @@ Runs the sync server and A2A refactor agent in one isolated container. The local
 docker compose up --build
 ```
 
-This starts both the **LiteLLM proxy** (port 4000) and the **POC server** (8765 WebSocket sync, 9999 A2A HTTP). Set `ANTHROPIC_API_KEY` in the environment or `.env`; the POC server sends all LLM traffic through the proxy. To run only the POC server (e.g. to talk to Anthropic directly), use `docker compose up poc-server` and unset `LITELLM_PROXY_URL` in the environment.
+This starts both the **LiteLLM proxy** (port 4000) and the **A2A server** (8765 WebSocket sync, 9999 A2A HTTP). Set `ANTHROPIC_API_KEY` in the environment or `.env`; the A2A server sends all LLM traffic through the proxy. Optional: set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to use Langfuse for prompts and tracing; if unset, prompts are loaded from the bundled `prompts/` directory. To run only the A2A server (e.g. to talk to Anthropic directly), use `docker compose up a2a-server` and unset `LITELLM_PROXY_URL` in the environment.
 
 ## Sync your workspace to the replica
 
@@ -33,6 +33,18 @@ uv run python <this-repo>/scripts/run_poc_sync_client.py /path/to/your/python/pr
 ```
 
 Default WebSocket URL is `ws://localhost:8765`; override with `POC_SYNC_WS_URL` if needed.
+
+## Sync server when not using Docker
+
+The A2A server in Docker runs both the **WebSocket sync server** and the **A2A HTTP server** in one container (see `docker/entrypoint.sh`). When running locally (no Docker), start them separately:
+
+1. **Sync server** (so a replica exists for `use_replica`):  
+   `uv run python -m refactor_agent.sync` or `uv run python scripts/run_poc_sync_server.py`  
+   Listens on port 8765 by default (`POC_SYNC_PORT`).
+
+2. **A2A HTTP server**:  
+   `uv run python scripts/run_ast_refactor_a2a.py`  
+   Listens on port 9999. The sync server must be running (and the client must have synced a workspace) if you use `use_replica`.
 
 ## MCP bridge
 
