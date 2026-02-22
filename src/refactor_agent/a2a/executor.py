@@ -160,8 +160,8 @@ def _internal_message_from_parsed(parsed: dict) -> str:
     old_name = parsed.get("old_name", "")
     new_name = parsed.get("new_name", "")
     return (
-        f"Rename the symbol '{old_name}' to '{new_name}' across the workspace. "
-        "Apply the rename to every file that references the symbol."
+        f"Rename the Python symbol '{old_name}' to '{new_name}' across the "
+        "workspace. Use the rename_in_workspace tool to apply the rename."
     )
 
 
@@ -281,7 +281,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                 deps = OrchestratorDeps(
                     language="python",
                     workspace=workspace_dir,
-                    mode="Auto",
+                    mode="Ask",
                     file_ext="*.py",
                     get_user_input=None,
                 )
@@ -364,7 +364,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             deps = OrchestratorDeps(
                 language="python",
                 workspace=workspace_dir,
-                mode="Auto",
+                mode="Ask",
                 file_ext="*.py",
                 get_user_input=None,
             )

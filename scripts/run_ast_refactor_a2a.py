@@ -23,8 +23,11 @@ import sys
 import uuid
 
 import uvicorn
+from dotenv import load_dotenv
 
-from refactor_agent.a2a.server import build_app
+load_dotenv()
+
+from refactor_agent.a2a.server import build_app  # noqa: E402, I001 — dotenv before app imports
 
 DEFAULT_PORT = 9999
 RPC_PATH = "/"

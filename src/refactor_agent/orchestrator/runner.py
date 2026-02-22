@@ -69,6 +69,7 @@ async def run_orchestrator(
         run_state is message_history to pass to the next run for resume.
     """
     history: RunState = list(message_history) if message_history else []
+    history_len = len(history)
     async with agent.iter(
         user_message,
         deps=deps,
@@ -78,7 +79,8 @@ async def run_orchestrator(
         while not isinstance(node, End):
             next_node = await run.next(node)
             if deps.get_user_input is None:
-                content = _last_tool_return_content(run.all_messages())
+                new_messages = run.all_messages()[history_len:]
+                content = _last_tool_return_content(new_messages)
                 if content and is_need_input_result(content):
                     parsed = parse_need_input_result(content)
                     if parsed is not None:

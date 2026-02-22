@@ -267,6 +267,9 @@ def _register_core_tools(agent: Agent[OrchestratorDeps, str]) -> None:
             return await engine.get_skeleton()
 
 
+_TS_ONLY = "This tool is only available for TypeScript workspaces."
+
+
 def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
     @agent.tool
     async def find_references(
@@ -274,7 +277,9 @@ def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         file_path: str,
         symbol_name: str,
     ) -> str:
-        """Find all references to a symbol across the project."""
+        """Find all references to a symbol across the project (TypeScript only)."""
+        if ctx.deps.language != "typescript":
+            return _TS_ONLY
         async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
             refs = await eng.find_references(
                 _abs(ctx.deps, file_path),
@@ -296,7 +301,9 @@ def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         ctx: RunContext[OrchestratorDeps],
         file_path: str | None = None,
     ) -> str:
-        """Show TypeScript diagnostics for a file or the project."""
+        """Show TypeScript diagnostics for a file or the project (TypeScript only)."""
+        if ctx.deps.language != "typescript":
+            return _TS_ONLY
         abs_path = _abs(ctx.deps, file_path) if file_path else None
         async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
             diags = await eng.get_diagnostics(abs_path)
@@ -311,7 +318,7 @@ def _register_analysis_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         return "\n".join(lines)
 
 
-def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:
+def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:  # noqa: C901 — language guards add branches
     @agent.tool
     async def remove_declaration(
         ctx: RunContext[OrchestratorDeps],
@@ -319,7 +326,9 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         symbol_name: str,
         kind: str | None = None,
     ) -> str:
-        """Remove a declaration from a file."""
+        """Remove a declaration from a file (TypeScript only)."""
+        if ctx.deps.language != "typescript":
+            return _TS_ONLY
         async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
             result = await eng.remove_node(
                 _abs(ctx.deps, file_path),
@@ -337,7 +346,9 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         target_file: str,
         symbol_name: str,
     ) -> str:
-        """Move a declaration from one file to another."""
+        """Move a declaration from one file to another (TypeScript only)."""
+        if ctx.deps.language != "typescript":
+            return _TS_ONLY
         async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
             result = await eng.move_symbol(
                 _abs(ctx.deps, source_file),
@@ -353,7 +364,9 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         ctx: RunContext[OrchestratorDeps],
         file_path: str,
     ) -> str:
-        """Format a TypeScript file."""
+        """Format a TypeScript file (TypeScript only)."""
+        if ctx.deps.language != "typescript":
+            return _TS_ONLY
         async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
             result = await eng.format_file(_abs(ctx.deps, file_path))
             if ctx.deps.mode != "Plan":
@@ -365,7 +378,9 @@ def _register_mutation_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         ctx: RunContext[OrchestratorDeps],
         file_path: str,
     ) -> str:
-        """Organize imports in a TypeScript file."""
+        """Organize imports in a TypeScript file (TypeScript only)."""
+        if ctx.deps.language != "typescript":
+            return _TS_ONLY
         async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
             result = await eng.organize_imports(_abs(ctx.deps, file_path))
             if ctx.deps.mode != "Plan":
