@@ -10,6 +10,9 @@ from pathlib import Path
 
 from refactor_agent.models.prompt_config import PromptConfig
 
+# Must match refactor_agent.schedule.limits.DEFAULT_PLANNER_MAX_TOKENS (avoids circular import).
+PLANNER_MAX_TOKENS = 32_768
+
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 PROMPT_CONFIGS: dict[str, PromptConfig] = {
@@ -20,7 +23,9 @@ PROMPT_CONFIGS: dict[str, PromptConfig] = {
         model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=4096
     ),
     "refactor-planner": PromptConfig(
-        model="anthropic:claude-sonnet-4-6", temperature=0, max_tokens=4096
+        model="anthropic:claude-sonnet-4-6",
+        temperature=0,
+        max_tokens=PLANNER_MAX_TOKENS,
     ),
 }
 

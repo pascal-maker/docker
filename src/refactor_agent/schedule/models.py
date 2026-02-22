@@ -82,5 +82,11 @@ RefactorOperation = Annotated[
 class RefactorSchedule(BaseModel):
     """A planned set of refactor operations with an optional execution order."""
 
-    goal: str
-    operations: list[RefactorOperation]
+    model_config = {"extra": "forbid"}
+
+    goal: str = Field(description="Short description of the refactor goal.")
+    operations: list[RefactorOperation] = Field(
+        default_factory=list,
+        description="List of refactor operations; use [] if none. Always include this key.",
+        min_length=0,
+    )

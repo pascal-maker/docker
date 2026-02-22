@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from anthropic import AsyncAnthropic
+from langfuse import propagate_attributes
 from pydantic_ai import (
     Agent,
     CallToolsNode,
@@ -23,14 +27,17 @@ from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngin
 from refactor_agent.observability.langfuse_config import (
     get_prompt,
     get_prompt_config,
+    get_prompt_name_and_version,
     langfuse_span,
 )
 from refactor_agent.orchestrator.deps import OrchestratorDeps
 from refactor_agent.schedule.codebase_structure import build_codebase_structure
 from refactor_agent.schedule.limits import (
+    DEFAULT_PLANNER_MAX_TOKENS,
     MAX_CODEBASE_STRUCTURE_CHARS,
     MAX_PLANNER_LLM_ROUNDS,
     MAX_PLANNER_TOOL_CALLS_PER_RUN,
+    PLANNER_REQUEST_TIMEOUT,
 )
 from refactor_agent.schedule.models import RefactorSchedule
 from refactor_agent.schedule.operation_descriptions import (
@@ -79,16 +86,16 @@ def _register_planner_tools(
         file_path: str,
     ) -> str:
         """Show the AST skeleton of a workspace file."""
+        full = ctx.deps.workspace / file_path
+        if not full.exists():
+            return f"File not found: {file_path}"
+
         if ctx.deps.language == "typescript":
             try:
                 async with TsMorphProjectEngine(ctx.deps.workspace) as eng:
                     return await eng.get_skeleton(_abs(ctx.deps, file_path))
             except SubprocessError as exc:
                 return f"ERROR: get_skeleton failed for {file_path}: {exc}"
-
-        full = ctx.deps.workspace / file_path
-        if not full.exists():
-            return f"File not found: {file_path}"
         source = full.read_text(encoding="utf-8")
         try:
             engine = EngineRegistry.create(ctx.deps.language, source)
@@ -124,6 +131,33 @@ def _register_planner_tools(
                 f"  {rel}:{ref.line}:{ref.column}{tag} — {ref.text}",
             )
         return "\n".join(lines)
+
+    @agent.tool
+    async def get_planning_budget(ctx: RunContext[OrchestratorDeps]) -> str:
+        """Return remaining tool-call and LLM-round budget for this planner run.
+
+        Call this to decide whether to output the RefactorSchedule soon or use
+        more tools. Prefer outputting the schedule when budget is low.
+        """
+        ref = ctx.deps.planner_budget_ref
+        if ref is None:
+            return (
+                f"Budget: at most {MAX_PLANNER_TOOL_CALLS_PER_RUN} tool calls and "
+                f"{MAX_PLANNER_LLM_ROUNDS} LLM rounds. Prefer outputting the "
+                "RefactorSchedule soon."
+            )
+        tool_remaining = max(
+            0,
+            MAX_PLANNER_TOOL_CALLS_PER_RUN - ref.get("tool_calls", 0),
+        )
+        rounds_remaining = max(
+            0,
+            MAX_PLANNER_LLM_ROUNDS - ref.get("llm_rounds", 0),
+        )
+        return (
+            f"Tool calls remaining: {tool_remaining}, LLM rounds remaining: "
+            f"{rounds_remaining}. Prefer outputting the RefactorSchedule soon."
+        )
 
 
 _PLANNER_INSTRUCTIONS = """
@@ -175,6 +209,73 @@ class PlannerLimitExceededError(Exception):
         )
 
 
+@dataclass
+class PlannerRunResult:
+    """Result of a planner run; partial=True when the run hit the budget limit."""
+
+    schedule: RefactorSchedule
+    partial: bool = False
+
+
+def _last_assistant_text(messages: list[object]) -> str | None:
+    """Return the concatenated text from the last model response message, or None."""
+    for msg in reversed(messages):
+        if type(msg).__name__ != "ModelResponse":
+            continue
+        parts = getattr(msg, "parts", [])
+        texts: list[str] = []
+        for part in parts:
+            if type(part).__name__ == "TextPart":
+                content = getattr(part, "content", None) or getattr(part, "text", None)
+                if isinstance(content, str) and content.strip():
+                    texts.append(content)
+        if texts:
+            return "\n".join(texts)
+    return None
+
+
+def _extract_json_object(text: str) -> str | None:
+    """Extract a single JSON object from text (handles markdown fences, truncation)."""
+    text = text.strip()
+    # Strip markdown code block if present.
+    fence = re.search(r"^```(?:json)?\s*\n?", text)
+    if fence:
+        text = text[fence.end() :].strip()
+    end_fence = text.rfind("```")
+    if end_fence != -1:
+        text = text[:end_fence].strip()
+    # Find first { and matching }.
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
+
+def _parse_schedule_from_text(text: str) -> RefactorSchedule | None:
+    """Try to parse a RefactorSchedule from assistant text. Returns None on failure."""
+    raw = _extract_json_object(text)
+    if raw is None:
+        return None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    try:
+        return RefactorSchedule.model_validate(data)
+    except Exception:
+        return None
+
+
 def create_planner_agent(
     model: AnthropicModel | object | None = None,
     instructions_override: str | None = None,
@@ -189,9 +290,11 @@ def create_planner_agent(
         config = get_prompt_config(_PLANNER_PROMPT_NAME)
         model_str = config.model or DEFAULT_MODEL
         model_id = model_str.split(":")[-1] if ":" in model_str else model_str
-        model_settings = ModelSettings(max_tokens=config.max_tokens or 4096)
+        model_settings = ModelSettings(
+            max_tokens=config.max_tokens or DEFAULT_PLANNER_MAX_TOKENS,
+        )
         provider = AnthropicProvider(
-            anthropic_client=AsyncAnthropic(timeout=60.0),
+            anthropic_client=AsyncAnthropic(timeout=PLANNER_REQUEST_TIMEOUT),
         )
         model = AnthropicModel(
             model_id,
@@ -224,16 +327,43 @@ def _count_tool_calls(node: object) -> int:
     return len(results) if isinstance(results, dict) else 0
 
 
+def _try_partial_on_limit(
+    run: object,
+    span: object,
+    tool_calls: int,
+    llm_rounds: int,
+) -> PlannerRunResult:
+    """Try to parse a partial schedule from the last message; return or raise."""
+    messages = run.all_messages()  # type: ignore[attr-defined]
+    last_text = _last_assistant_text(messages)
+    partial_schedule = _parse_schedule_from_text(last_text) if last_text else None
+    if partial_schedule is not None:
+        span.update(  # type: ignore[attr-defined]
+            output={
+                "goal": partial_schedule.goal,
+                "operation_count": len(partial_schedule.operations),
+                "operation_types": [op.op for op in partial_schedule.operations],
+                "partial": True,
+            },
+        )
+        return PlannerRunResult(schedule=partial_schedule, partial=True)
+    raise PlannerLimitExceededError(
+        tool_calls=tool_calls,
+        llm_rounds=llm_rounds,
+    )
+
+
 async def run_planner(
     _agent: Agent[OrchestratorDeps, RefactorSchedule],
     deps: OrchestratorDeps,
     user_message: str,
-) -> RefactorSchedule:
+) -> PlannerRunResult:
     """Run the planner agent and return the validated RefactorSchedule.
 
     Builds codebase structure, injects it via the refactor-planner prompt, and
-    runs with hard limits on tool calls and LLM rounds. Raises
-    PlannerLimitExceededError when a limit is exceeded.
+    runs with hard limits on tool calls and LLM rounds. When a limit is exceeded,
+    tries to parse a partial RefactorSchedule from the last model output and
+    returns it with partial=True; otherwise raises PlannerLimitExceededError.
     """
     codebase_structure = await build_codebase_structure(deps)
     if len(codebase_structure) > MAX_CODEBASE_STRUCTURE_CHARS:
@@ -247,46 +377,63 @@ async def run_planner(
         codebase_structure=codebase_structure,
         operation_types=operation_types,
     )
+    budget_note = (
+        f"\n\nBudget: at most {MAX_PLANNER_TOOL_CALLS_PER_RUN} tool calls and "
+        f"{MAX_PLANNER_LLM_ROUNDS} LLM rounds. Call get_planning_budget to check "
+        "remaining; prefer outputting the RefactorSchedule early."
+    )
+    instructions = instructions + budget_note
     planner_agent = create_planner_agent(instructions_override=instructions)
+    prompt_name, prompt_version = get_prompt_name_and_version(_PLANNER_PROMPT_NAME)
+    span_metadata: dict[str, object] = {
+        "prompt_name": prompt_name,
+    }
+    if prompt_version is not None:
+        span_metadata["prompt_version"] = prompt_version
+
+    budget_ref: dict[str, int] = {"tool_calls": 0, "llm_rounds": 0}
+    deps.planner_budget_ref = budget_ref
 
     with langfuse_span(
         "refactor-planner",
         as_type="agent",
         span_input=user_message,
+        metadata=span_metadata,
     ) as span:
         tool_calls = 0
         llm_rounds = 0
-        async with planner_agent.iter(user_message, deps=deps) as run:
-            node: object = run.next_node
-            while not isinstance(node, End):
-                # node is AgentNode here (End excluded by while condition)
-                next_node = await run.next(node)  # type: ignore[arg-type]
-                if isinstance(node, ModelRequestNode):
-                    llm_rounds += 1
-                elif isinstance(node, CallToolsNode):
-                    tool_calls += _count_tool_calls(node)
-                if (
-                    tool_calls > MAX_PLANNER_TOOL_CALLS_PER_RUN
-                    or llm_rounds > MAX_PLANNER_LLM_ROUNDS
-                ):
+        with propagate_attributes(metadata={"prompt_name": prompt_name}):
+            async with planner_agent.iter(user_message, deps=deps) as run:
+                node = run.next_node
+                while not isinstance(node, End):
+                    next_node = await run.next(node)
+                    if isinstance(node, ModelRequestNode):
+                        llm_rounds += 1
+                    elif isinstance(node, CallToolsNode):
+                        tool_calls += _count_tool_calls(node)
+                    budget_ref["tool_calls"] = tool_calls
+                    budget_ref["llm_rounds"] = llm_rounds
+                    if (
+                        tool_calls > MAX_PLANNER_TOOL_CALLS_PER_RUN
+                        or llm_rounds > MAX_PLANNER_LLM_ROUNDS
+                    ):
+                        return _try_partial_on_limit(
+                            run, span, tool_calls, llm_rounds
+                        )
+                    node = next_node
+
+                result = run.result
+                if result is None:
                     raise PlannerLimitExceededError(
                         tool_calls=tool_calls,
                         llm_rounds=llm_rounds,
                     )
-                node = next_node
-
-            result = run.result
-            if result is None:
-                raise PlannerLimitExceededError(
-                    tool_calls=tool_calls,
-                    llm_rounds=llm_rounds,
+                schedule = result.output
+                span.update(
+                    output={
+                        "goal": schedule.goal,
+                        "operation_count": len(schedule.operations),
+                        "operation_types": [op.op for op in schedule.operations],
+                    },
                 )
-            schedule = result.output
-            span.update(
-                output={
-                    "goal": schedule.goal,
-                    "operation_count": len(schedule.operations),
-                    "operation_types": [op.op for op in schedule.operations],
-                },
-            )
-            return schedule
+                return PlannerRunResult(schedule=schedule, partial=False)

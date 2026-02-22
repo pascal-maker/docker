@@ -10,12 +10,16 @@ from langfuse import get_client, propagate_attributes
 from pydantic_ai._agent_graph import End, ModelRequestNode
 
 from refactor_agent.observability.langfuse_config import init_langfuse
-from refactor_agent.orchestrator import NeedInput, OrchestratorDeps  # noqa: TC001
+from refactor_agent.orchestrator import (
+    NeedInput,
+    OrchestratorDeps,
+    create_orchestrator_agent,
+    get_chat_agent_instructions,
+)
 from refactor_agent.schedule import (
     RefactorSchedule,
     execute_schedule,
 )
-from refactor_agent.ui.chat_agent import create_chat_agent
 
 _TRACE_NAME = "chat-agent"
 
@@ -25,9 +29,23 @@ _TRACE_NAME = "chat-agent"
 
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[3] / "playground"
 
+# Suggested prompts shown after workspace choice (from docs/testing/README.md).
+SUGGESTED_PROMPTS: list[tuple[str, str]] = [
+    ("vertical_slice", "Refactor this codebase to a vertical slice structure."),
+    (
+        "frontend_backend",
+        "Enforce frontend/backend boundary: move backend use cases out of the frontend folder.",
+    ),
+    (
+        "reorganize",
+        "Create a plan to reorganize the project so the frontend layer does not contain domain logic.",
+    ),
+]
+
 _LANG_CONFIG: dict[str, dict[str, str]] = {
     "python": {"ext": "*.py", "subdir": "python"},
-    "typescript": {"ext": "*.ts", "subdir": "typescript"},
+    # Temporary: NestJS layered playground (revert to "typescript" for original)
+    "typescript": {"ext": "*.ts", "subdir": "nestjs-layered-architecture"},
 }
 
 
@@ -80,8 +98,6 @@ async def on_chat_start():
     init_langfuse()
     language = await _ask_language()
     cl.user_session.set("language", language)
-    agent = create_chat_agent()
-    cl.user_session.set("chat_agent", agent)
     cl.user_session.set("message_history", [])
     await _show_workspace(language)
 
@@ -98,7 +114,7 @@ async def _ask_language() -> str:
             cl.Action(
                 name="typescript",
                 payload={"lang": "typescript"},
-                label="TypeScript (playground/typescript/)",
+                label="TypeScript (playground/nestjs-layered-architecture/)",
             ),
         ],
     ).send()
@@ -119,13 +135,35 @@ async def _show_workspace(language: str) -> None:
     mode_hint = "Ask | Edit (Auto) | Plan — switch via chat profile."
     await cl.Message(
         content=(
-            f"**Workspace:** `playground/{language}/`\n\n"
+            f"**Workspace:** `playground/{_LANG_CONFIG[language]['subdir']}/`\n\n"
             f"**Files:**\n{listing}\n\n"
             f"**Mode:** **{mode}** — {mode_hint}\n\n"
             "Ask me to rename symbols, show file structure, plan a multi-step "
             "refactor, or answer questions about your code."
         ),
     ).send()
+    await _offer_suggested_prompts(language)
+
+
+async def _offer_suggested_prompts(language: str) -> None:
+    """Show suggested prompt buttons; if user picks one, run the agent with it."""
+    actions = [
+        cl.Action(
+            name=key,
+            payload={"prompt": prompt},
+            label=prompt[:48] + "…" if len(prompt) > 48 else prompt,
+        )
+        for key, prompt in SUGGESTED_PROMPTS
+    ]
+    res = await cl.AskActionMessage(
+        content="**Suggested prompts** (or type your own below):",
+        actions=actions,
+    ).send()
+    if res is None or "payload" not in res or "prompt" not in res.get("payload", {}):
+        return
+    prompt = res["payload"]["prompt"]
+    await cl.Message(content=prompt, author="User").send()
+    await _run_request(prompt, language)
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +207,8 @@ async def _handle_schedule_produced(
     schedule_json: str,
     mode: str,
     deps: OrchestratorDeps,
+    *,
+    is_partial: bool = False,
 ) -> None:
     """Display schedule and run executor (with confirmation in Plan/Ask)."""
     try:
@@ -176,6 +216,11 @@ async def _handle_schedule_produced(
     except Exception:
         return
 
+    if is_partial:
+        await cl.Message(
+            content="**Partial plan (budget limit reached).** You can still run the "
+            "listed operations or refine the goal.",
+        ).send()
     await cl.Message(content=_format_schedule(schedule)).send()
 
     if mode in ("Plan", "Ask"):
@@ -214,20 +259,8 @@ async def _handle_schedule_produced(
         ).send()
 
 
-@cl.on_message
-async def on_message(message: cl.Message) -> None:
-    language = cl.user_session.get("language")
-    if not language or language not in _LANG_CONFIG:
-        await cl.Message(
-            content="No active workspace. Restart.",
-        ).send()
-        return
-
-    agent = cl.user_session.get("chat_agent")
-    if agent is None:
-        await cl.Message(content="Agent not initialized. Restart.").send()
-        return
-
+async def _run_request(content: str, language: str) -> None:
+    """Run the orchestrator agent with the given message content."""
     history = cl.user_session.get("message_history") or []
     mode = cl.user_session.get("chat_profile") or "Ask"
 
@@ -241,6 +274,7 @@ async def on_message(message: cl.Message) -> None:
         return (res.get("output") or "").strip()
 
     schedule_output_ref: list[str] = []
+    schedule_partial_ref: list[bool] = []
     deps = OrchestratorDeps(
         language=language,
         workspace=_workspace_dir(language),
@@ -248,22 +282,25 @@ async def on_message(message: cl.Message) -> None:
         file_ext=_LANG_CONFIG[language]["ext"],
         get_user_input=get_user_input,
         schedule_output_ref=schedule_output_ref,
+        schedule_partial_ref=schedule_partial_ref,
     )
 
     langfuse = get_client()
     session_id = str(cl.user_session.get("id", ""))
 
     try:
+        instructions = await get_chat_agent_instructions(deps)
+        agent = create_orchestrator_agent(instructions_override=instructions)
         with (
             langfuse.start_as_current_observation(
                 as_type="agent",
                 name=_TRACE_NAME,
-                input=message.content,
+                input=content,
             ) as root_observation,
             propagate_attributes(session_id=session_id),
         ):
             async with agent.iter(
-                message.content,
+                content,
                 deps=deps,
                 message_history=history,
             ) as run:
@@ -282,16 +319,33 @@ async def on_message(message: cl.Message) -> None:
                 )
 
                 if schedule_output_ref:
+                    is_partial = bool(
+                        schedule_partial_ref
+                        and len(schedule_partial_ref) == len(schedule_output_ref)
+                        and schedule_partial_ref[-1]
+                    )
                     await _handle_schedule_produced(
                         schedule_output_ref[-1],
                         mode,
                         deps,
+                        is_partial=is_partial,
                     )
     except Exception as exc:
         logging.exception("Request failed")
         await cl.Message(
             content=f"Something went wrong: {exc}\n\nCheck the terminal for full traceback.",
         ).send()
+
+
+@cl.on_message
+async def on_message(message: cl.Message) -> None:
+    language = cl.user_session.get("language")
+    if not language or language not in _LANG_CONFIG:
+        await cl.Message(
+            content="No active workspace. Restart.",
+        ).send()
+        return
+    await _run_request(message.content, language)
 
 
 async def _show_tool_steps(run) -> None:

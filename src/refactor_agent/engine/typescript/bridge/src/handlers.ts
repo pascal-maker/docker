@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import {CollisionInfo, DiagnosticEntry, ReferenceEntry} from "./types.js";
 import {
     getChangedFilesList,
@@ -151,16 +152,17 @@ export function handleGetChangedFiles(): { files: string[] } {
 }
 
 export function handleRemoveNode(params: Record<string, unknown>): object {
+    const p = requireProject();
     const sf = getSourceFile(params);
     const symbolName = requireString(params, "symbol_name");
     const kind = optionalString(params, "kind");
 
     const decl = findNamedDeclaration(sf, symbolName, kind);
     if (!decl) {
-        throw new Error(
-            `Declaration '${symbolName}' not found` +
-            (kind ? ` (kind: ${kind})` : ""),
-        );
+        return {
+            summary: `Declaration '${symbolName}' not in file (already removed or not present); skipped`,
+            changed_files: getChangedFilesList(p),
+        };
     }
 
     const line = decl.getStartLineNumber();
@@ -185,7 +187,6 @@ export function handleRemoveNode(params: Record<string, unknown>): object {
         (decl as unknown as { remove(): void }).remove();
     }
 
-    const p = requireProject();
     return {
         summary: `Removed ${nodeKind} '${symbolName}' (was at line ${line})`,
         changed_files: getChangedFilesList(p),
@@ -360,7 +361,23 @@ export function handleMoveFile(params: Record<string, unknown>): object {
 
     const existingTarget = p.getSourceFile(targetPath);
     if (existingTarget) {
-        throw new Error(`Target file already exists: ${targetPath}`);
+        try {
+            const srcReal = fs.realpathSync(sf.getFilePath());
+            const tgtReal = fs.realpathSync(existingTarget.getFilePath());
+            if (srcReal === tgtReal) {
+                return {
+                    summary: `Already at target: ${targetPath}`,
+                    changed_files: getChangedFilesList(p),
+                };
+            }
+        } catch {
+            // Paths not resolvable (e.g. in-memory); treat as different files.
+        }
+        // Target exists but is a different file (e.g. re-run or already moved): no-op.
+        return {
+            summary: `Target already exists: ${targetPath}; skipping move`,
+            changed_files: getChangedFilesList(p),
+        };
     }
 
     sf.move(targetPath);

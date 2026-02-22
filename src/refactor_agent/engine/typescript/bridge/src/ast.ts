@@ -1,3 +1,5 @@
+import * as path from "node:path";
+
 import {
     type Identifier,
     Node,
@@ -6,6 +8,45 @@ import {
     StructureKind,
     ts,
 } from "ts-morph";
+
+function getFileStem(sf: SourceFile): string {
+    const base = path.basename(sf.getFilePath());
+    const ext = path.extname(base);
+    return base.slice(0, base.length - ext.length);
+}
+
+/**
+ * Return the single top-level exported declaration in the file, or null if
+ * there isn't exactly one. Used when the user refers to a file by its stem
+ * (e.g. "TypesAssociation" for TypesAssociation.ts) and the file has one export.
+ */
+function getSingleExportedDeclaration(sf: SourceFile): Node | null {
+    const nodes: Node[] = [];
+    for (const vs of sf.getVariableStatements()) {
+        if (!vs.isExported()) continue;
+        const list = vs.getDeclarationList();
+        for (const d of list.getDeclarations()) {
+            if (d) nodes.push(d);
+        }
+    }
+    for (const fn of sf.getFunctions()) {
+        if (fn.isExported()) nodes.push(fn);
+    }
+    for (const cls of sf.getClasses()) {
+        if (cls.isExported()) nodes.push(cls);
+    }
+    for (const iface of sf.getInterfaces()) {
+        if (iface.isExported()) nodes.push(iface);
+    }
+    for (const ta of sf.getTypeAliases()) {
+        if (ta.isExported()) nodes.push(ta);
+    }
+    for (const e of sf.getEnums()) {
+        if (e.isExported()) nodes.push(e);
+    }
+    const single = nodes.length === 1 ? nodes[0] : null;
+    return single ?? null;
+}
 
 export function findNamedDeclaration(
     sf: SourceFile,
@@ -35,6 +76,13 @@ export function findNamedDeclaration(
     if (!kind || kind === "variable") {
         const v = sf.getVariableDeclaration(name);
         if (v) return v;
+    }
+    // Fallback: name may be the file stem (e.g. "TypesAssociation" for
+    // TypesAssociation.ts). If there is exactly one exported declaration,
+    // treat it as the target so "remove TypesAssociation" works.
+    const stem = getFileStem(sf);
+    if (stem.toLowerCase() === name.toLowerCase()) {
+        return getSingleExportedDeclaration(sf);
     }
     return null;
 }

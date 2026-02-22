@@ -40,7 +40,10 @@ class OrchestratorDeps:
     file_ext: str
     get_user_input: Callable[[NeedInput], Awaitable[str]] | None = None
     schedule_output_ref: list[str] | None = None
+    schedule_partial_ref: list[bool] | None = None
     schedule_produced: bool = False
+    # Set by run_planner during a planner run; tools read current counts for budget.
+    planner_budget_ref: dict[str, int] | None = None
 
 
 def serialize_need_input(need: NeedInput) -> str:

@@ -10,12 +10,14 @@ from refactor_agent.schedule.models import (
 )
 from refactor_agent.schedule.planner import (
     PlannerLimitExceededError,
+    PlannerRunResult,
     create_planner_agent,
     run_planner,
 )
 
 __all__ = [
     "PlannerLimitExceededError",
+    "PlannerRunResult",
     "RefactorOperation",
     "RefactorSchedule",
     "ScheduleResult",

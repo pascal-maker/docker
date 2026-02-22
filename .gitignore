@@ -18,3 +18,6 @@ task_agent_mapping.json
 
 .chainlit
 chainlit.md
+
+# Cloned playgrounds (third-party)
+playground/nestjs-layered-architecture/

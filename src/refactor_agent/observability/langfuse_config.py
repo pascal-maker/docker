@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from langfuse import get_client
 from pydantic_ai import Agent
 
 from refactor_agent.models.prompt_config import PromptConfig
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
 
 
 def init_langfuse() -> None:
@@ -35,35 +31,86 @@ def get_prompt_config(name: str) -> PromptConfig:
     return PromptConfig.model_validate(prompt.config or {})
 
 
-@contextmanager
+def get_prompt_name_and_version(name: str) -> tuple[str, str | int | None]:
+    """Fetch prompt name and version from Langfuse for linked generation metadata.
+
+    Returns (name, version). Version may be None if not available.
+    """
+    try:
+        langfuse = get_client()
+        prompt = langfuse.get_prompt(name)
+        pname = getattr(prompt, "name", name)
+        pversion = getattr(prompt, "version", None)
+        return (str(pname), pversion)
+    except Exception:
+        return (name, None)
+
+
+class _LangfuseSpanContext:
+    """Class-based context manager so no generator is used; avoids throw() bugs."""
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        as_type: str = "span",
+        span_input: Any = None,  # noqa: ANN401
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self._name = name
+        self._as_type = as_type
+        self._span_input = span_input
+        self._metadata = metadata
+        self._inner_cm = None
+        self._handle: _SpanHandle = _SpanHandle(None)
+
+    def __enter__(self) -> _SpanHandle:
+        try:
+            client = get_client()
+            self._inner_cm = client.start_as_current_observation(
+                name=self._name,
+                as_type=self._as_type,
+                input=self._span_input,
+                metadata=self._metadata,
+            )
+            obs = self._inner_cm.__enter__()
+            self._handle = _SpanHandle(obs)
+        except Exception:
+            self._handle = _SpanHandle(None)
+        return self._handle
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
+        if self._inner_cm is not None:
+            try:
+                self._inner_cm.__exit__(exc_type, exc_val, exc_tb)
+            except Exception:
+                pass
+        return None
+
+
 def langfuse_span(
     name: str,
     *,
     as_type: str = "span",
     span_input: Any = None,  # noqa: ANN401 — Langfuse accepts arbitrary JSON
     metadata: dict[str, Any] | None = None,
-) -> Generator[_SpanHandle, None, None]:
+) -> _LangfuseSpanContext:
     """Create a Langfuse observation span; yields a no-op handle if unavailable.
 
-    Exceptions from the body are not thrown into the inner observation context
-    manager, to avoid "generator didn't stop after throw()" from Langfuse.
+    Class-based (no generator) so exceptions from the with-block are passed
+    to Langfuse's __exit__ normally, avoiding "generator didn't stop after throw()".
     """
-    inner_cm = None
-    try:
-        client = get_client()
-        inner_cm = client.start_as_current_observation(
-            name=name,
-            as_type=as_type,
-            input=span_input,
-            metadata=metadata,
-        )
-        obs = inner_cm.__enter__()
-        try:
-            yield _SpanHandle(obs)
-        finally:
-            inner_cm.__exit__(None, None, None)
-    except Exception:
-        yield _SpanHandle(None)
+    return _LangfuseSpanContext(
+        name,
+        as_type=as_type,
+        span_input=span_input,
+        metadata=metadata,
+    )
 
 
 class _SpanHandle:

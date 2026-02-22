@@ -3,7 +3,7 @@
 RUN := uv run
 TS_BRIDGE := src/refactor_agent/engine/typescript/bridge
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui ts-engine-install ts-engine-check
+.PHONY: help format format-check lint fix typecheck test check ci clean ui reset-playground ts-engine-install ts-engine-check
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -43,6 +43,9 @@ ci: ## Alias for check (CI usage)
 
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
 	CHAINLIT_APP_ROOT=src $(RUN) chainlit run src/refactor_agent/ui/app.py -w
+
+reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
+	./scripts/reset-playground.sh
 
 ts-engine-install: ## Install ts-morph bridge npm dependencies
 	cd $(TS_BRIDGE) && npm install

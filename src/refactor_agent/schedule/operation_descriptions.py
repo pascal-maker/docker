@@ -8,9 +8,14 @@ from refactor_agent.schedule.models import RefactorOperation
 
 # Optional extra guidance per op (can grow; language/engine-specific later).
 OP_HINTS: dict[str, str] = {
+    "remove_node": (
+        "symbol_name must be the exact declaration name as in source (e.g. "
+        "MyClass, myFunc), not the filename or kebab-case."
+    ),
     "move_symbol": (
         "Move one declaration between files (use when extracting a single "
-        "symbol from a multi-symbol file)."
+        "symbol). symbol_name must be the exact declaration name as in source "
+        "(e.g. MyClass, myFunc), not the filename or kebab-case."
     ),
     "move_file": (
         "Move an entire file. Updates all import paths across the project. "

@@ -30,6 +30,14 @@ def test_refactor_schedule_parses_fixture() -> None:
     assert op2.depends_on == ["op1"]
 
 
+def test_refactor_schedule_defaults_operations_when_missing() -> None:
+    """When the model omits 'operations', it defaults to empty list (LLM resilience)."""
+    data = {"goal": "Refactor to vertical slices."}
+    schedule = RefactorSchedule.model_validate(data)
+    assert schedule.goal == "Refactor to vertical slices."
+    assert schedule.operations == []
+
+
 def test_refactor_schedule_roundtrip_json() -> None:
     """RefactorSchedule round-trips through model_dump_json and model_validate_json."""
     fixture_path = (

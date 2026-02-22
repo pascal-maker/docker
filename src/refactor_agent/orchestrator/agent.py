@@ -21,7 +21,8 @@ from refactor_agent.orchestrator.deps import (
     OrchestratorDeps,
     serialize_need_input,
 )
-from refactor_agent.schedule import create_planner_agent, run_planner
+from refactor_agent.schedule.codebase_structure import build_codebase_structure
+from refactor_agent.schedule.limits import MAX_CODEBASE_STRUCTURE_CHARS
 
 _PROMPT_NAME = "chat-agent"
 
@@ -88,6 +89,28 @@ _TOOL_OPERATIONS: list[tuple[str, str]] = [
 
 def _format_available_operations() -> str:
     return "\n".join(f"- {desc} using {name}." for name, desc in _TOOL_OPERATIONS)
+
+
+async def get_chat_agent_instructions(deps: OrchestratorDeps) -> str:
+    """Build chat-agent instructions with codebase structure injected.
+
+    Use when the orchestrator has workspace/deps so the agent sees the full
+    tree and can call create_refactor_schedule without exploring first.
+    """
+    codebase_structure = await build_codebase_structure(deps)
+    if len(codebase_structure) > MAX_CODEBASE_STRUCTURE_CHARS:
+        codebase_structure = (
+            codebase_structure[:MAX_CODEBASE_STRUCTURE_CHARS]
+            + "\n\n(truncated; structure may be incomplete)"
+        )
+    return (
+        get_prompt(
+            _PROMPT_NAME,
+            available_operations=_format_available_operations(),
+            codebase_structure=codebase_structure,
+        )
+        + _SCHEDULE_GUIDANCE
+    )
 
 
 def _scan_workspace(deps: OrchestratorDeps) -> list[Path]:
@@ -477,14 +500,21 @@ def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
         Use when the user asks for a plan, schedule, or multi-step refactor. Run the
         planner to get a RefactorSchedule; it is stored for the app to execute by mode.
         """
+        # Lazy import to break cycle: schedule -> executor -> orchestrator -> agent.
+        from refactor_agent.schedule import create_planner_agent, run_planner  # noqa: I001, PLC0415
+
         planner_agent = create_planner_agent()
-        schedule = await run_planner(planner_agent, ctx.deps, goal)
+        result = await run_planner(planner_agent, ctx.deps, goal)
+        schedule = result.schedule
         if ctx.deps.schedule_output_ref is not None:
             ctx.deps.schedule_output_ref.append(schedule.model_dump_json())
+        if ctx.deps.schedule_partial_ref is not None:
+            ctx.deps.schedule_partial_ref.append(result.partial)
         ctx.deps.schedule_produced = True
         n = len(schedule.operations)
+        partial_note = " (partial; budget limit reached)" if result.partial else ""
         return (
-            f"RefactorSchedule produced ({n} operations) for: "
+            f"RefactorSchedule produced ({n} operations){partial_note} for: "
             f"{schedule.goal!r}. "
             "Execution is handled automatically by the system. "
             "Do NOT call individual mutation tools — just summarise "
@@ -494,11 +524,14 @@ def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
 
 def create_orchestrator_agent(
     model: AnthropicModel | object | None = None,
+    instructions_override: str | None = None,
 ) -> Agent[OrchestratorDeps, str]:
     """Create the shared orchestrator agent (dev UI and A2A).
 
     Args:
         model: Optional model (e.g. TestModel for tests). If None, built from config.
+        instructions_override: When set (e.g. from get_chat_agent_instructions(deps)),
+            use as agent instructions so the agent sees codebase structure.
     """
     if model is None:
         config = get_prompt_config(_PROMPT_NAME)
@@ -513,13 +546,17 @@ def create_orchestrator_agent(
             provider=provider,
             settings=model_settings,
         )
-    instructions = (
-        get_prompt(
-            _PROMPT_NAME,
-            available_operations=_format_available_operations(),
+    if instructions_override is not None:
+        instructions = instructions_override
+    else:
+        instructions = (
+            get_prompt(
+                _PROMPT_NAME,
+                available_operations=_format_available_operations(),
+                codebase_structure="(not loaded)",
+            )
+            + _SCHEDULE_GUIDANCE
         )
-        + _SCHEDULE_GUIDANCE
-    )
 
     agent: Agent[OrchestratorDeps, str] = Agent(
         model,
