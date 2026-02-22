@@ -6,18 +6,14 @@ Local dev UI for interactive refactoring. It is one of two surfaces that share t
 make ui
 ```
 
-Opens at `http://localhost:8000`. On start you pick a workspace language (Python now; TypeScript coming soon) and a mode:
+Opens at `http://localhost:8000`. On start you pick a workspace language (Python or TypeScript) and a mode. The current mode is shown in the welcome message (**Ask | Edit (Auto) | Plan**); switch via the chat profile selector.
 
 | Mode | Behaviour |
 |------|-----------|
-| **Ask** | Pauses for approval when a rename would cause a name collision |
-| **Auto** | Applies renames without confirmation |
-| **Plan** | Shows what would change without writing files |
+| **Ask** | Pauses for approval on collisions; for refactor schedules, shows schedule and asks before executing |
+| **Auto** (Edit) | Applies renames without confirmation; executes refactor schedules immediately |
+| **Plan** | Shows what would change without writing files; for schedules, displays the plan only |
 
-Type a rename command in the chat:
+**Single-step refactors:** Type a rename or similar command (e.g. `rename greet to greet_user`, `move symbol X from a.ts to b.ts`). The agent uses the orchestrator tools and applies changes according to mode.
 
-- `rename greet to greet_user`
-- `rename foo to bar in scope main`
-- `{"old_name": "greet", "new_name": "greet_user"}`
-
-The UI scans all files in the active workspace, applies the rename to every file that references the symbol, and shows a step-by-step breakdown of what changed.
+**Multi-step refactor (schedule):** Ask for a plan or schedule (e.g. “Refactor this codebase to a vertical slice structure”, “Enforce frontend/backend boundary”). The agent can call `create_refactor_schedule` to produce a `RefactorSchedule`. The UI then shows the schedule and, in **Plan** mode, stops there; in **Auto** or **Ask** (after you confirm), it runs the [schedule executor](refactor-schedule/README.md) and reports results. See [Testing](testing/README.md) for how to use the DDD playgrounds to test this flow.

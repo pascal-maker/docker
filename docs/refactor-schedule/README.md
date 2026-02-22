@@ -38,14 +38,14 @@ Agent (tools: list_files, skeleton, find_references)
 
 ## Steps to PoC (logical order)
 
-1. **Fixture** — Boundary-violation playground (backend-in-frontend, shared types misplaced).
-2. **Models** — Pydantic `RefactorSchedule` + operation variants; hand-written JSON fixture parses.
-3. **Executor** — Naive: topo sort by `dependsOn`, dispatch each op to ProjectEngine. No rollback yet.
-4. **Planner agent** — Structured output `RefactorSchedule`, read-only tools. Prompt: operation vocabulary, constraints.
-5. **Wire** — Chat agent tool calls planner, shows schedule; Plan mode = display only, Auto = executor runs.
-6. **Validate** — Pre-execution: paths/symbols resolve, valid IDs, no cycles. Fail fast.
+1. **Fixture** — Boundary-violation playground (backend-in-frontend, shared types misplaced). **Done:** `playground/python/` and `playground/typescript/` use a DDD layout with intentional violations (see playground READMEs).
+2. **Models** — Pydantic `RefactorSchedule` + operation variants; hand-written JSON fixture parses. **Done:** `src/refactor_agent/schedule/models.py`; fixture `tests/fixtures/refactor_schedule.json`.
+3. **Executor** — Naive: topo sort by `dependsOn`, dispatch each op to ProjectEngine. No rollback yet. **Done:** `src/refactor_agent/schedule/executor.py` (TypeScript only in PoC).
+4. **Planner agent** — Structured output `RefactorSchedule`, read-only tools. **Done:** `src/refactor_agent/schedule/planner.py`.
+5. **Wire** — Chat agent tool calls planner, shows schedule; Plan mode = display only, Auto = executor runs. **Done:** Orchestrator tool `create_refactor_schedule`; Dev UI applies mode (Plan / Auto / Ask) after run.
+6. **Validate** — Pre-execution: paths/symbols resolve, valid IDs, no cycles. Fail fast. **Done:** in executor.
 7. **Checkpoint** — Snapshot before run; rollback on failure or bad diagnostics.
 8. **Diagnostics** — Post-exec `get_diagnostics()`; optional repair loop (planner again with errors).
 9. **Optimization** — Enrich (spans per op), conflict graph, waves, parallel within wave.
 
-Steps 1–5 = PoC. 6–7 = safe. 8–9 = robust and fast.
+Steps 1–6 = implemented. 7–9 = future.

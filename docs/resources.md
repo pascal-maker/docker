@@ -6,9 +6,12 @@ title: Resources
 - https://www.deeplearning.ai/short-courses/a2a-the-agent2agent-protocol/
 
 # Documentation
+## This repo
+- [Testing (refactor schedule, playgrounds)](testing/README.md) — how to test the plan/execute flow with DDD playgrounds
 ## General
 - https://github.com/a2aproject/A2A
 - https://ts-morph.com
+- [Agentic patterns](agentic-patterns.md) — agent patterns overview and refs; see also [Agent Patterns (readthedocs)](https://agent-patterns.readthedocs.io/en/latest/concepts/what-are-patterns.html)
 ## Particular
 - https://docs.cloud.google.com/marketplace/docs/partners/ai-agents
 - https://langfuse.com/docs/observability/features/agent-graphs
