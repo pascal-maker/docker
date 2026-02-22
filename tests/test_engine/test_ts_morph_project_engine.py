@@ -203,6 +203,43 @@ async def test_move_symbol_to_file(workspace: Path) -> None:
         assert "saluter" in caller_src
 
 
+async def test_move_symbol_cleans_target_import(tmp_path: Path) -> None:
+    """When a symbol is moved into a file that already imports it,
+    the stale import must be removed so the file uses its local copy."""
+    lib = tmp_path / "lib.ts"
+    lib.write_text(
+        textwrap.dedent("""\
+            export function helper(): string {
+              return "ok";
+            }
+            export const VERSION = 1;
+        """),
+    )
+    consumer = tmp_path / "consumer.ts"
+    consumer.write_text(
+        textwrap.dedent("""\
+            import { helper } from "./lib.js";
+
+            export function run(): string {
+              return helper();
+            }
+        """),
+    )
+
+    lib_path = str(lib.resolve())
+    consumer_path = str(consumer.resolve())
+
+    async with TsMorphProjectEngine(tmp_path) as engine:
+        result = await engine.move_symbol(lib_path, consumer_path, "helper")
+        assert "Moved" in result
+
+        consumer_src = await engine.get_source(consumer_path)
+        assert "export function helper" in consumer_src
+        # The old `import { helper } from "./lib.js"` must be gone.
+        assert "import { helper }" not in consumer_src
+        assert "helper()" in consumer_src
+
+
 # -- get_source / get_changed_files ----------------------------------------
 
 

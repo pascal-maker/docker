@@ -476,46 +476,71 @@ function handleRemoveNode(params: Record<string, unknown>): object {
 // Handler: move_symbol_to_file
 // ---------------------------------------------------------------------------
 
+/**
+ * Strip the named import of `symbolName` from any import in `sf`
+ * that resolves to `fromSf`. Removes the entire import declaration
+ * when no specifiers remain.
+ */
+function stripNamedImport(
+  sf: SourceFile,
+  fromSf: SourceFile,
+  symbolName: string,
+): void {
+  for (const imp of sf.getImportDeclarations()) {
+    if (imp.getModuleSpecifierSourceFile() !== fromSf) continue;
+    const named = imp
+      .getNamedImports()
+      .find((ni) => ni.getName() === symbolName);
+    if (!named) continue;
+
+    named.remove();
+    if (
+      imp.getNamedImports().length === 0 &&
+      !imp.getDefaultImport()
+    ) {
+      imp.remove();
+    }
+  }
+}
+
 function updateImportsForMove(
   sourceSf: SourceFile,
   targetSf: SourceFile,
   symbolName: string,
 ): void {
   const p = requireProject();
+
+  // Target already has the declaration locally; drop its old import.
+  stripNamedImport(targetSf, sourceSf, symbolName);
+
   for (const sf of p.getSourceFiles()) {
     if (sf === sourceSf || sf === targetSf) continue;
-    for (const imp of sf.getImportDeclarations()) {
-      const resolved = imp.getModuleSpecifierSourceFile();
-      if (resolved !== sourceSf) continue;
 
-      const named = imp
-        .getNamedImports()
-        .find((ni) => ni.getName() === symbolName);
-      if (!named) continue;
+    const imp = sf
+      .getImportDeclarations()
+      .find(
+        (i) =>
+          i.getModuleSpecifierSourceFile() === sourceSf &&
+          i.getNamedImports().some((ni) => ni.getName() === symbolName),
+      );
+    if (!imp) continue;
 
-      named.remove();
-      if (
-        imp.getNamedImports().length === 0 &&
-        !imp.getDefaultImport()
-      ) {
-        imp.remove();
-      }
+    stripNamedImport(sf, sourceSf, symbolName);
 
-      const existing = sf
-        .getImportDeclarations()
-        .find(
-          (i) => i.getModuleSpecifierSourceFile() === targetSf,
-        );
-      if (existing) {
-        existing.addNamedImport(symbolName);
-      } else {
-        const specifier =
-          sf.getRelativePathAsModuleSpecifierTo(targetSf);
-        sf.addImportDeclaration({
-          namedImports: [symbolName],
-          moduleSpecifier: specifier,
-        });
-      }
+    const existing = sf
+      .getImportDeclarations()
+      .find(
+        (i) => i.getModuleSpecifierSourceFile() === targetSf,
+      );
+    if (existing) {
+      existing.addNamedImport(symbolName);
+    } else {
+      const specifier =
+        sf.getRelativePathAsModuleSpecifierTo(targetSf);
+      sf.addImportDeclaration({
+        namedImports: [symbolName],
+        moduleSpecifier: specifier,
+      });
     }
   }
 }
