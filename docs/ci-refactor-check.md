@@ -8,7 +8,7 @@ The refactor check runs refactor-agent against your repo on each PR (or push): i
    Pass `--workspace <path>` to the CLI (default: current directory). Use the root of the codebase to analyze (e.g. repo root, or a subdirectory such as a TypeScript app). Paths under `node_modules` are never scanned.
 
 2. **Config file**  
-   Add a `.refactor-agent.yaml` (or `.refactor-agent.yml`) at the repo root. See [.refactor-agent.example.yaml](../.refactor-agent.example.yaml) for the schema. Each preset has an `id` and a `goal` (the planner prompt). Optionally set `language`, `file_ext`, or `workspace_subdir` (run this preset under a subdir of the workspace, for monorepos) per preset.
+   Add a `.refactor-agent.yaml` (or `.refactor-agent.yml`) at the repo root. See [.refactor-agent.example.yaml](../../.refactor-agent.example.yaml) for the schema. Each preset has an `id` and a `goal` (the planner prompt). Optionally set `language`, `file_ext`, or `workspace_subdir` (run this preset under a subdir of the workspace, for monorepos) per preset.
 
 3. **Minimal setup without a file**  
    Set env var `REFACTOR_AGENT_GOAL` to a single goal string. The check will run that goal with preset id `env`.

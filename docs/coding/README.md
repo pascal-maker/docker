@@ -2,8 +2,8 @@
 
 This document summarizes the repo’s coding rules, where they are intentionally relaxed or violated (and why), and the standards/resources they are based on.
 
-**Canonical source:** [CLAUDE.md](../CLAUDE.md) (root). Cursor uses the same via [.cursor/rules/coding-guidelines.mdc](../.cursor/rules/coding-guidelines.mdc).  
-**Audit:** [coding-guidelines-audit.md](coding-guidelines-audit.md).
+**Canonical source:** [CLAUDE.md](../../CLAUDE.md) (root). Cursor uses the same via [.cursor/rules/coding-guidelines.mdc](../../.cursor/rules/coding-guidelines.mdc).  
+**Audit:** [audit.md](audit.md).
 
 ---
 
@@ -50,7 +50,7 @@ This document summarizes the repo’s coding rules, where they are intentionally
 - Format, lint, typecheck, and test are separate pipeline jobs. Per-file lint ignores only where framework or convention requires it; prefer fixing code.
 - **Package manager (JS/TS):** Use **pnpm only**; no npm. The repo is a **pnpm workspace**: a single root `pnpm-lock.yaml` and `pnpm-workspace.yaml` list the TS packages (dashboard-ui, bridge, vscode-extension). Run `pnpm install` at repo root (or `make ts-install`) to install all TS deps; CI uses one install and caches the lockfile.
 - **TypeScript (except playground):** All TypeScript code follows **analogous** coding guidelines and checks to Python: format (Prettier), lint (ESLint), typecheck (tsc). These run **locally** (via `make ts-format-check`, `make ts-lint`, `make ts-typecheck` or per-package `pnpm run format-check` / `lint` / `typecheck`) and **in CI** as separate jobs (`ts-format-check`, `ts-lint`, `ts-typecheck`). Packages:
-  - **dashboard-ui/** (React SPA): `format`, `format-check`, `lint`, `typecheck`. See [dashboard.md](dashboard.md).
+  - **dashboard-ui/** (React SPA): `format`, `format-check`, `lint`, `typecheck`. See [dashboard.md](../dashboard.md).
   - **src/refactor_agent/engine/typescript/bridge/** (ts-morph JSON-RPC bridge): `format`, `format-check`, `lint`, `typecheck`. From repo root: `make ts-engine-check` runs typecheck only; `make ts-format-check`, `make ts-lint`, `make ts-typecheck` run checks across all TS packages.
   - **vscode-extension/** (VS Code extension): `format`, `format-check`, `lint`, `typecheck`; `vscode:prepublish` runs `pnpm run compile`.
   Playground and other one-off or demo TS are excluded from these checks.
@@ -93,10 +93,10 @@ Ways to reduce or remove the documented relaxations, based on current tooling an
 
 ### In-repo
 
-- **[CLAUDE.md](../CLAUDE.md)** — Canonical coding guidelines (source of truth).
-- **[.cursor/rules/coding-guidelines.mdc](../.cursor/rules/coding-guidelines.mdc)** — Same content for Cursor (always apply).
-- **[coding-guidelines-audit.md](coding-guidelines-audit.md)** — Audit results and changes made to align with the guidelines.
-- **[pyproject.toml](../pyproject.toml)** — Ruff (lint/format), mypy, pytest, pydocstyle, per-file ignores, and rule references.
+- **[CLAUDE.md](../../CLAUDE.md)** — Canonical coding guidelines (source of truth).
+- **[.cursor/rules/coding-guidelines.mdc](../../.cursor/rules/coding-guidelines.mdc)** — Same content for Cursor (always apply).
+- **[audit.md](audit.md)** — Audit results and changes made to align with the guidelines.
+- **[pyproject.toml](../../pyproject.toml)** — Ruff (lint/format), mypy, pytest, pydocstyle, per-file ignores, and rule references.
 
 ### Style and formatting
 

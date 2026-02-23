@@ -51,7 +51,7 @@ This doc captures the tradeoffs and options for **beta users** (VS Code extensio
 
 | Phase | Goal | Current plan |
 |-------|-----|---------------|
-| **Dev / self-test** | Stable hosted URL for extension and CI; you control usage | **GCP Terraform** (Cloud Run A2A, free tier). See [infra-gcp.md](infra-gcp.md) and [infra/README.md](../infra/README.md). |
+| **Dev / self-test** | Stable hosted URL for extension and CI; you control usage | **GCP Terraform** (Cloud Run A2A, free tier). See [gcp.md](gcp.md) and [infra/README.md](../../../infra/README.md). |
 | **Beta users** | Let others use the product (e.g. VS Code extension) with great UX and minimal cost | Separate track; see investigation path below. |
 
 The GCP setup is **stateless**: no sync in cloud, extension uses **workspace-in-JSON** for hosted. That is fine for occasional self-testing. For beta users, sending the full repo on every conversation is bad UX. We want either **stateless + persisted memory** (if we can make it fast) or **non-stateless** (persistent workspace).
@@ -170,5 +170,5 @@ So: **no "create env" API** — with stateless + store, "onboarding" is implicit
 
 ## References
 
-- Current infra plan: [.cursor/plans/gcp_terraform_dev_infra_4e86f366.plan.md](../.cursor/plans/gcp_terraform_dev_infra_4e86f366.plan.md) (GCP Terraform dev infra).
-- Sync and workspace: [sync-service.md](sync-service.md), [a2a-server.md](a2a-server.md). Executor supports both `use_replica` (sync) and inline workspace.
+- Current infra plan: [.cursor/plans/gcp_terraform_dev_infra_4e86f366.plan.md](../../../.cursor/plans/gcp_terraform_dev_infra_4e86f366.plan.md) (GCP Terraform dev infra).
+- Sync and workspace: [sync-service.md](../sync-service.md), [a2a-server.md](../a2a-server.md). Executor supports both `use_replica` (sync) and inline workspace.

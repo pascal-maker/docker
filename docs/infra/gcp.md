@@ -4,14 +4,14 @@ Deploy the A2A refactor backend (and later the dashboard) on GCP with Terraform.
 
 ## Two entry surfaces (opaque vs transparent)
 
-The internal agent is reached through **two distinct surfaces** (see [architecture.md](architecture.md)):
+The internal agent is reached through two distinct surfaces: **A2A (opaque)** and **Dev UI (transparent)**. See [Architecture](../architecture.md) for how they share one orchestrator. For deployment, the following table and diagram show clients and endpoints.
 
 | Surface | Clients | Endpoint | Visibility |
 |---------|---------|----------|------------|
 | **A2A (opaque)** | VS Code extension, customer/beta CI, our CI usage, other authenticated A2A agents | A2A HTTP endpoint | Opaque: Agent Card exposes a single generic refactor skill; tools/engine not exposed. |
 | **Dev UI (transparent)** | Chainlit only | Separate endpoint, highly secured | Transparent: full feature visibility; same orchestrator, different outer layer. |
 
-Chainlit is intentionally **not** opaque; all other callers go through A2A. When hosted, the Chainlit Cloud Run service is the transparent surface and must be secured (IAM or IAP); do not use `allUsers` for it.
+Chainlit is intentionally **not** opaque; all other callers go through A2A. When hosted, the Chainlit Cloud Run service must be secured (IAM or IAP); do not use `allUsers` for it.
 
 ## High-level diagram (dev endpoints)
 
@@ -63,7 +63,7 @@ flowchart TB
 
 | Use case | Recommendation |
 |----------|-----------------|
-| Local dev, Cursor/MCP, quick iteration | **Local**: `docker compose up a2a-server` or run sync + A2A scripts (see [Docker deployment](docker-deployment.md)). |
+| Local dev, Cursor/MCP, quick iteration | **Local**: `docker compose up a2a-server` or run sync + A2A scripts (see [Docker deployment](../docker-deployment.md)). |
 | Testing VS Code extension against a stable URL | **GCP**: Deploy A2A to Cloud Run, set `refactorAgent.a2aBaseUrl` to the Cloud Run URL. |
 | Hosted Chainlit (transparent UI) | **GCP**: Deploy Chainlit as a second Cloud Run service; set `chainlit_image` and `chainlit_invoker_member` in tfvars. Output `chainlit_url`. |
 | CI (refactor check) | Runs in GitHub Actions; no GCP required. Optional: CI can POST results to the dashboard ingestion URL (set when dashboard is deployed). |
@@ -71,7 +71,7 @@ flowchart TB
 
 ## Deploy steps
 
-1. **Prerequisites**: gcloud, Terraform, billing-enabled GCP project. See [infra/README.md](../infra/README.md).
+1. **Prerequisites**: gcloud, Terraform, billing-enabled GCP project. See [infra/README.md](../../../infra/README.md) (repo root).
 2. **Build and push the A2A image** to Artifact Registry (europe-west1):
 
    ```bash
@@ -94,4 +94,4 @@ The sync server (WebSocket + `POST /sync/workspace`) is not deployed on Cloud Ru
 
 ## Beta users and pricing
 
-This setup is for **dev and self-testing**. For **beta users** (external testers using the extension) you want persistent workspace between conversations and minimal cost. See [infra-beta-pricing.md](infra-beta-pricing.md) for options (e.g. Fly.io machines with sleep-to-zero, Modal) and how they fit with the current GCP plan.
+This setup is for **dev and self-testing**. For **beta users** (external testers using the extension) you want persistent workspace between conversations and minimal cost. See [beta-pricing.md](beta-pricing.md) for options (e.g. Fly.io machines with sleep-to-zero, Modal) and how they fit with the current GCP plan.

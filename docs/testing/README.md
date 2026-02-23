@@ -9,7 +9,7 @@ This doc describes how to manually (and optionally automatically) verify the pla
 
 ## Playgrounds as fixtures
 
-The [Python](../playground/python/README.md) and [TypeScript](../playground/typescript/README.md) playgrounds are laid out in **Domain Driven Design** style with **intentional boundary violations** (e.g. a backend use case under `frontend/`). They are the standard target for “multi-step refactor” tests. See the playground READMEs for layout and example prompts.
+The [Python](../../playground/python/README.md) and [TypeScript](../../playground/typescript/README.md) playgrounds are laid out in **Domain Driven Design** style with **intentional boundary violations** (e.g. a backend use case under `frontend/`). They are the standard target for “multi-step refactor” tests. See the playground READMEs for layout and example prompts.
 
 ## How to test manually
 

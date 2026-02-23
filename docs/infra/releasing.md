@@ -30,7 +30,7 @@ git push origin v0.2.0
 
 ## 2. Build runs automatically
 
-The [Build and push images](.github/workflows/build-push-images.yml) workflow runs on:
+The [Build and push images](../../../.github/workflows/build-push-images.yml) workflow runs on:
 
 - **Push tag `v*`** (e.g. `v0.2.0`) → builds and pushes `a2a-server:v0.2.0` to Artifact Registry.
 - **Publish a GitHub Release** with the same tag → also triggers a build (same image; idempotent).
@@ -148,4 +148,4 @@ You still deploy the “right” way: the image tag is always passed via the wor
 
 ## Required secrets
 
-The build workflow needs **GCP_SA_KEY** and **GCP_PROJECT_ID** (or repo variable). For **automated deploy** (staging + production workflows), also add **TF_VAR_anthropic_api_key** and **TF_VAR_chainlit_auth_secret**, and configure GitHub Environments as in the optional section above. See [infra/README.md](../infra/README.md) and `make infra-gha-key`.
+The build workflow needs **GCP_SA_KEY** and **GCP_PROJECT_ID** (or repo variable). For **automated deploy** (staging + production workflows), also add **TF_VAR_anthropic_api_key** and **TF_VAR_chainlit_auth_secret**, and configure GitHub Environments as in the optional section above. See [infra/README.md](../../../infra/README.md) and `make infra-gha-key`.
