@@ -51,10 +51,6 @@ def test_a2a_message_send_requires_auth_when_required(a2a_base_url: str) -> None
         check=False,
         env={"A2A_URL": a2a_base_url, **__import__("os").environ},
     )
-    if proc.returncode == 0:
-        return
-    # Server does not yet require auth for message/send; xfail until auth is enabled
-    pytest.xfail(
-        "A2A server does not yet require auth for message/send; "
-        "add app-level auth and this test will enforce it"
+    assert proc.returncode == 0, (
+        f"check_a2a_security --require-auth-for-send failed: {proc.stderr or proc.stdout}"
     )

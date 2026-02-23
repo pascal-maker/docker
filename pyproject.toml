@@ -25,6 +25,7 @@ dependencies = [
     "pyyaml>=6.0",
     "structlog>=24.1.0",
     "sentry-sdk>=2.0.0",
+    "google-cloud-firestore>=2.19.0",
 ]
 
 [dependency-groups]
@@ -150,9 +151,9 @@ ban-relative-imports = "all"
 "tests/security/**/*.py" = ["S310", "S603"]
 # Scripts: one-off CLI/seed tools
 "scripts/**/*.py" = [
-    "T20", "INP001", "D", "PLC0415", "PLR2004",
+    "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
     "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
-    "E501", "PTH123", "UP017", "S310", "S110",
+    "E501", "E402", "PTH123", "UP017", "S310", "S110",
 ]
 "src/**/_compat.py" = ["PLC0415", "ANN", "F401"]
 "playground/**/*.py" = ["T20", "D", "TC001"]
@@ -161,6 +162,7 @@ ban-relative-imports = "all"
 "src/refactor_agent/schedule/planner.py" = ["C901", "TC002", "PLC0415", "E501"]
 "src/refactor_agent/ci/runner.py" = ["PLR0912", "PLR0915", "E501"]
 "src/refactor_agent/ci/config.py" = ["E501"]
+"src/refactor_agent/a2a/auth_middleware.py" = ["TC002", "PLR0911"]
 "src/refactor_agent/a2a/executor.py" = [
     "E501", "PLR0915",
     "TC001", "TC002",
@@ -171,9 +173,13 @@ ban-relative-imports = "all"
 "src/refactor_agent/engine/typescript/ts_morph_engine.py" = ["E501"]
 "src/refactor_agent/schedule/models.py" = ["E501"]
 "src/refactor_agent/orchestrator/agent.py" = ["E501"]
+"src/refactor_agent/auth/**/*.py" = [
+    "TC001", "TC002", "PLC0415", "S310", "PLR2004", "PLR0911", "TRY300",
+    "E501", "RUF006",
+]
 "src/refactor_agent/sync/**/*.py" = [
     "TC002", "TC003", "E501", "ASYNC240", "PLR0911", "PLR0912", "PLR0915",
-    "C901", "S104", "D301",
+    "C901", "S104", "S603", "S607", "D301", "TRY300",
 ]
 "src/refactor_agent/ui/**/*.py" = [
     "D", "ANN", "T20", "ASYNC240", "TC001", "E501", "S310", "PLR2004",
@@ -213,6 +219,11 @@ warn_required_dynamic_aliases = true
 module = ["pydantic_ai._agent_graph"]
 ignore_missing_imports = true
 disable_error_code = ["attr-defined"]
+
+[[tool.mypy.overrides]]
+# Auth: Firestore/Starlette have complex or missing stubs; google.cloud.firestore typing.
+module = ["refactor_agent.auth.*", "refactor_agent.a2a.auth_middleware"]
+disable_error_code = ["attr-defined", "no-any-return", "union-attr", "arg-type", "operator", "untyped-decorator", "unused-awaitable"]
 
 [[tool.mypy.overrides]]
 module = [

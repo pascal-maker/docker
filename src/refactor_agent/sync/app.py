@@ -13,6 +13,9 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route, WebSocketRoute
 
+from refactor_agent.a2a.auth_middleware import GitHubTokenMiddleware
+from refactor_agent.auth.github_auth import GitHubTokenValidator
+from refactor_agent.auth.user_store import UserStore
 from refactor_agent.sync.models import BootstrapMessage
 from refactor_agent.sync.server import (
     DEFAULT_REPLICA_DIR,
@@ -44,13 +47,20 @@ async def http_sync_workspace(request: Request) -> JSONResponse:
         return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
     try:
         bootstrap_msg = BootstrapMessage.model_validate(
-            {"type": "bootstrap", "files": body.get("files", [])}
+            {
+                "type": "bootstrap",
+                "files": body.get("files", []),
+                "repo_url": body.get("repo_url"),
+            }
         )
     except ValidationError as e:
         return JSONResponse(
             {"error": f"invalid bootstrap payload: {e}"}, status_code=400
         )
-    err = await _handle_bootstrap(_get_replica_root(), bootstrap_msg)
+    token = getattr(request.state, "github_token", None)
+    err = await _handle_bootstrap(
+        _get_replica_root(), bootstrap_msg, github_token=token
+    )
     if err:
         return JSONResponse({"error": err}, status_code=400)
     return JSONResponse({"ok": True})
@@ -64,12 +74,20 @@ async def websocket_sync(websocket: _StarletteWebSocket) -> None:
 
 def build_sync_app() -> Starlette:
     """Build Starlette app with WebSocket at / and POST /sync/workspace."""
-    return Starlette(
+    sync_app = Starlette(
         routes=[
             Route("/sync/workspace", http_sync_workspace, methods=["POST"]),
             WebSocketRoute("/", websocket_sync),
         ],
     )
+    sync_app.add_middleware(
+        GitHubTokenMiddleware,
+        validator=GitHubTokenValidator(),
+        user_store=UserStore(),
+        local_dev_key=os.environ.get("A2A_API_KEY"),
+        public_paths=frozenset(),
+    )
+    return sync_app
 
 
 app = build_sync_app()

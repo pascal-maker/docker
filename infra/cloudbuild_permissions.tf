@@ -6,12 +6,12 @@
 # If this bucket already exists (e.g. from a prior gcloud builds submit), import it:
 #   terraform import -var-file=dev.tfvars google_storage_bucket.cloudbuild PROJECT_ID_cloudbuild
 resource "google_storage_bucket" "cloudbuild" {
-  project                    = var.project_id
-  name                       = "${var.project_id}_cloudbuild"
-  location                   = var.region
-  force_destroy              = false
+  project                     = var.project_id
+  name                        = "${var.project_id}_cloudbuild"
+  location                    = var.region
+  force_destroy               = false
   uniform_bucket_level_access = true
-  depends_on                 = [google_project_service.storage]
+  depends_on                  = [google_project_service.storage]
 
   # If the bucket was created by GCP/Cloud Build in another region (e.g. US), importing it would
   # otherwise force replacement (location is immutable). Keep existing location.
@@ -22,8 +22,8 @@ resource "google_storage_bucket" "cloudbuild" {
 
 # Default Compute Engine SA (often used by Cloud Build to run the build).
 locals {
-  compute_sa_email     = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-  cloudbuild_sa_email  = "${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+  compute_sa_email    = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  cloudbuild_sa_email = "${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
 
 # So the build can read the uploaded tarball.

@@ -9,7 +9,14 @@ data "google_project" "project" {
 resource "google_secret_manager_secret_iam_member" "anthropic_key_cloudrun" {
   secret_id = google_secret_manager_secret.anthropic_api_key.id
   role      = "roles/secretmanager.secretAccessor"
-  member   = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Grant Cloud Run SA access to Firestore for user store, audit log, rate limits.
+resource "google_project_iam_member" "cloudrun_firestore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
 resource "google_cloud_run_v2_service" "a2a" {
@@ -33,6 +40,14 @@ resource "google_cloud_run_v2_service" "a2a" {
             version = "latest"
           }
         }
+      }
+      env {
+        name  = "ONBOARDING_MODE"
+        value = "alpha"
+      }
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
       }
       resources {
         limits = {

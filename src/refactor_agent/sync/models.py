@@ -15,10 +15,14 @@ class SyncFileEntry(BaseModel):
 
 
 class BootstrapMessage(BaseModel):
-    """Bootstrap message: wipe replica and write all files."""
+    """Bootstrap message: optionally clone repo, then write files (delta over clone)."""
 
     type: Literal["bootstrap"] = "bootstrap"
     files: list[SyncFileEntry]
+    repo_url: str | None = Field(
+        default=None,
+        description="GitHub repo URL for git clone; used with auth token to seed replica",
+    )
 
 
 class FileMessage(BaseModel):

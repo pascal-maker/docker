@@ -1,6 +1,8 @@
+import { execSync } from "child_process";
 import * as vscode from "vscode";
 
 const PENDING_STATE_KEY = "refactorAgent.pendingReply";
+const GITHUB_SCOPES = ["repo", "read:user"];
 const CONVERSATIONS_KEY = "refactorAgent.conversations";
 const CURRENT_CONVERSATION_ID_KEY = "refactorAgent.currentConversationId";
 const MAX_CONVERSATIONS = 50;
@@ -30,6 +32,40 @@ interface SyncStatusUpdater {
 }
 
 const A2A_URL_FILE = ".refactor-agent-a2a-url";
+
+/** Get GitHub OAuth token; fall back to apiKey from settings if user cancels. */
+async function getAuthToken(): Promise<string | undefined> {
+  try {
+    const session = await vscode.authentication.getSession(
+      "github",
+      GITHUB_SCOPES,
+      {
+        createIfNone: true,
+      }
+    );
+    return session?.accessToken;
+  } catch {
+    // User cancelled or GitHub auth unavailable
+  }
+  return (
+    vscode.workspace
+      .getConfiguration("refactorAgent")
+      .get<string>("apiKey", "") || undefined
+  );
+}
+
+/** Get Git remote origin URL for workspace folder, if available. */
+function getGitRepoUrl(folder: vscode.WorkspaceFolder): string | undefined {
+  try {
+    const url = execSync("git remote get-url origin", {
+      cwd: folder.uri.fsPath,
+      encoding: "utf8",
+    }).trim();
+    return url || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** A2A base URL: workspace file .refactor-agent-a2a-url (from make infra-a2a-url) overrides settings. */
 async function getA2aBaseUrl(
@@ -113,17 +149,65 @@ async function gatherWorkspaceFiles(
   return files;
 }
 
+/** Get only modified and untracked files (dirty) via git status. Falls back to all files if not a git repo. */
+async function gatherDirtyFiles(
+  workspaceFolder: vscode.WorkspaceFolder,
+  engine: Engine
+): Promise<{ path: string; content: string }[]> {
+  try {
+    const statusOut = execSync("git status --porcelain", {
+      cwd: workspaceFolder.uri.fsPath,
+      encoding: "utf8",
+    });
+    const patterns = getGlobPatterns(engine);
+    const extRe = engine === "typescript" ? /\.(ts|tsx)$/ : /\.py$/;
+    const dirtyPaths = new Set<string>();
+    for (const line of statusOut.split("\n")) {
+      if (!line.trim()) continue;
+      const path = line.slice(3).trim().replace(/\\/g, "/");
+      if (!extRe.test(path)) continue;
+      const matchesPattern = patterns.some((p) => {
+        const re = new RegExp(
+          "^" + p.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$"
+        );
+        return re.test(path);
+      });
+      if (matchesPattern) dirtyPaths.add(path);
+    }
+    const files: { path: string; content: string }[] = [];
+    for (const path of dirtyPaths) {
+      const uri = vscode.Uri.joinPath(workspaceFolder.uri, path);
+      try {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        files.push({ path, content: doc.getText() });
+      } catch {
+        // skip unreadable
+      }
+    }
+    if (files.length > 0) return files;
+  } catch {
+    // Not a git repo or git not available
+  }
+  return gatherWorkspaceFiles(workspaceFolder, engine);
+}
+
 async function pushWorkspaceViaSync(
   syncUrl: string,
-  files: { path: string; content: string }[]
+  files: { path: string; content: string }[],
+  options?: { authToken?: string; repoUrl?: string }
 ): Promise<string | null> {
   const url = syncUrl.replace(/\/$/, "") + "/sync/workspace";
-  const body = JSON.stringify({ files });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
+  const body = JSON.stringify({
+    files,
+    repo_url: options?.repoUrl ?? undefined,
   });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (options?.authToken) {
+    headers["Authorization"] = `Bearer ${options.authToken}`;
+  }
+  const res = await fetch(url, { method: "POST", headers, body });
   if (!res.ok) {
     const text = await res.text();
     return `Sync failed ${res.status}: ${text}`;
@@ -649,9 +733,15 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     const syncUrl = vscode.workspace
       .getConfiguration("refactorAgent")
       .get<string>("syncUrl", "http://localhost:8765");
-    const apiKey = vscode.workspace
-      .getConfiguration("refactorAgent")
-      .get<string>("apiKey", "");
+    const authToken = await getAuthToken();
+    if (!authToken) {
+      append(
+        "error",
+        "Sign in with GitHub required. Use the Accounts menu or set refactorAgent.apiKey for local dev."
+      );
+      post("submitDone");
+      return;
+    }
 
     try {
       if (!folder) {
@@ -664,7 +754,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         append("progress", "Sending your reply to the agent…");
         const { response, error } = await sendA2AResume(
           a2aBaseUrl,
-          apiKey || undefined,
+          authToken,
           resume.taskId,
           resume.contextId,
           resume.replyText
@@ -682,7 +772,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
           append,
           post,
           a2aBaseUrl,
-          apiKey
+          authToken
         );
         post("submitDone");
         return;
@@ -703,9 +793,15 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         .getConfiguration("refactorAgent")
         .get<Engine>("engine", "python");
 
-      append("progress", "Gathering workspace files…");
-      const files = await gatherWorkspaceFiles(folder, engine);
-      if (files.length === 0) {
+      const repoUrl = getGitRepoUrl(folder);
+      append(
+        "progress",
+        repoUrl ? "Gathering dirty files…" : "Gathering workspace files…"
+      );
+      const files = repoUrl
+        ? await gatherDirtyFiles(folder, engine)
+        : await gatherWorkspaceFiles(folder, engine);
+      if (files.length === 0 && !repoUrl) {
         const msg =
           engine === "typescript"
             ? "No TypeScript files found in the workspace."
@@ -716,7 +812,10 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
       }
 
       append("progress", "Pushing workspace to sync service…");
-      const syncErr = await pushWorkspaceViaSync(syncUrl, files);
+      const syncErr = await pushWorkspaceViaSync(syncUrl, files, {
+        authToken,
+        repoUrl,
+      });
       if (syncErr) {
         this._syncStatus.update("error", syncErr);
         append("error", `Sync failed: ${syncErr}`);
@@ -736,7 +835,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
       };
       const { response, error } = await sendA2AMessage(
         a2aBaseUrl,
-        apiKey || undefined,
+        authToken,
         payload
       );
       if (error) {
@@ -752,7 +851,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         append,
         post,
         a2aBaseUrl,
-        apiKey
+        authToken
       );
     } catch (e) {
       append("error", e instanceof Error ? e.message : String(e));

@@ -28,7 +28,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from refactor_agent.a2a.server import build_app  # noqa: E402, I001 — dotenv before app imports
+from refactor_agent.a2a.auth_middleware import GitHubTokenMiddleware
+from refactor_agent.a2a.server import build_app
+from refactor_agent.auth.github_auth import GitHubTokenValidator
+from refactor_agent.auth.user_store import UserStore
 
 DEFAULT_PORT = 9999
 RPC_PATH = "/"
@@ -222,6 +225,12 @@ def main() -> None:
     """Run the A2A server with uvicorn."""
     app_factory = build_app()
     asgi_app = app_factory.build()
+    asgi_app.add_middleware(
+        GitHubTokenMiddleware,
+        validator=GitHubTokenValidator(),
+        user_store=UserStore(),
+        local_dev_key=os.environ.get("A2A_API_KEY"),
+    )
     wrapped = wrap_with_method_logging(asgi_app)
     port_val = (
         sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PORT", str(DEFAULT_PORT))

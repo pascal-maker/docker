@@ -5,7 +5,12 @@ from __future__ import annotations
 from a2a.server.agent_execution import AgentExecutor  # noqa: TC002 — used at runtime
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+from a2a.types import (
+    AgentCapabilities,
+    AgentCard,
+    AgentSkill,
+    HTTPAuthSecurityScheme,
+)
 
 from refactor_agent.a2a.bridge import (
     BridgeCompatibleRequestHandler,
@@ -38,6 +43,8 @@ DEFAULT_AGENT_CARD = AgentCard(
     default_output_modes=["text"],
     capabilities=AgentCapabilities(streaming=True),
     skills=[REFACTOR_SKILL],
+    security_schemes={"bearer": HTTPAuthSecurityScheme(scheme="bearer")},  # type: ignore[dict-item]
+    security=[{"bearer": []}],
 )
 
 

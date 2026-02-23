@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Protocol
+from urllib.parse import urlparse
 
 import websockets
 from pydantic import ValidationError
@@ -18,6 +21,8 @@ from refactor_agent.sync.models import BootstrapMessage, FileMessage
 
 class _StarletteWebSocket(Protocol):
     """Minimal protocol for Starlette WebSocket (receive_text/send_text)."""
+
+    scope: dict[str, object]
 
     async def accept(self) -> None: ...
     async def receive_text(self) -> str: ...
@@ -39,14 +44,49 @@ def _replica_path(replica_root: Path, relative_path: str) -> Path | None:
         return resolved
 
 
-async def _handle_bootstrap(replica_root: Path, msg: BootstrapMessage) -> str | None:
-    """Process bootstrap message: wipe replica and write all files. Returns error or None."""
+def _clone_repo(replica_root: Path, repo_url: str, token: str) -> str | None:
+    """Clone repo into replica_root using token. Returns error or None."""
+    parsed = urlparse(repo_url)
+    if parsed.hostname != "github.com" or not parsed.path.strip("/"):
+        return f"unsupported repo_url: {repo_url}"
+    path = parsed.path.strip("/").removesuffix(".git")
+    clone_url = f"https://x-access-token:{token}@github.com/{path}.git"
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth", "1", clone_url, str(replica_root)],
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        return None
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or b"").decode(errors="replace")
+        return f"git clone failed: {stderr or str(e)}"
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        return f"git clone failed: {e}"
+
+
+async def _handle_bootstrap(
+    replica_root: Path,
+    msg: BootstrapMessage,
+    *,
+    github_token: str | None = None,
+) -> str | None:
+    """Process bootstrap: optionally clone repo, then write files. Returns error or None."""
     if replica_root.exists():
         try:
             shutil.rmtree(replica_root)
         except OSError as e:
             return f"failed to clear replica dir: {e}"
     replica_root.mkdir(parents=True, exist_ok=True)
+
+    if msg.repo_url and github_token:
+        err = await asyncio.to_thread(
+            _clone_repo, replica_root, msg.repo_url, github_token
+        )
+        if err:
+            return err
+
     for i, item in enumerate(msg.files):
         target = _replica_path(replica_root, item.path.strip())
         if target is None:
@@ -107,7 +147,13 @@ async def _handle_connection(
                         json.dumps({"error": f"invalid bootstrap: {e}"})
                     )
                     continue
-                err = await _handle_bootstrap(replica_root, bootstrap_msg)
+                scope = getattr(websocket, "scope", None)
+                token = (
+                    (scope.get("state") or {}).get("github_token") if scope else None
+                )
+                err = await _handle_bootstrap(
+                    replica_root, bootstrap_msg, github_token=token
+                )
                 if err:
                     await websocket.send(json.dumps({"error": err}))
                 else:
@@ -171,7 +217,11 @@ async def _handle_connection_starlette(
                         json.dumps({"error": f"invalid bootstrap: {e}"})
                     )
                     continue
-                err = await _handle_bootstrap(replica_root, bootstrap_msg)
+                state = websocket.scope.get("state")
+                token = state.get("github_token") if isinstance(state, dict) else None
+                err = await _handle_bootstrap(
+                    replica_root, bootstrap_msg, github_token=token
+                )
                 if err:
                     await websocket.send_text(json.dumps({"error": err}))
                 else:
