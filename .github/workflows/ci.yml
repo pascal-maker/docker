@@ -163,6 +163,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build @refactor-agent/ui (required by dashboard-ui)
+        run: pnpm --filter @refactor-agent/ui run build
+
       - name: Typecheck (dashboard-ui)
         run: pnpm --filter dashboard-ui run typecheck
       - name: Typecheck (bridge)

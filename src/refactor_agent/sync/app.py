@@ -16,13 +16,10 @@ from starlette.routing import Route, WebSocketRoute
 from refactor_agent.a2a.auth_middleware import GitHubTokenMiddleware
 from refactor_agent.auth.github_auth import GitHubTokenValidator
 from refactor_agent.auth.user_store import UserStore
+from refactor_agent.sync.constants import DEFAULT_REPLICA_DIR
 from refactor_agent.sync.models import BootstrapMessage
 from refactor_agent.sync.replica_ttl import update_replica_activity
-from refactor_agent.sync.server import (
-    DEFAULT_REPLICA_DIR,
-    _handle_bootstrap,
-    _handle_connection_starlette,
-)
+from refactor_agent.sync.server import _handle_bootstrap, _handle_connection_starlette
 
 if TYPE_CHECKING:
     from refactor_agent.sync.server import _StarletteWebSocket

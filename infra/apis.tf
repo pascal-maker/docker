@@ -40,3 +40,15 @@ resource "google_project_service" "cloudresourcemanager" {
   service            = "cloudresourcemanager.googleapis.com"
   disable_on_destroy = false
 }
+
+resource "google_project_service" "cloudfunctions" {
+  project            = var.project_id
+  service            = "cloudfunctions.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "eventarc" {
+  project            = var.project_id
+  service            = "eventarc.googleapis.com"
+  disable_on_destroy = false
+}

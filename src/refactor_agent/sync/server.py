@@ -15,6 +15,7 @@ import websockets
 from pydantic import ValidationError
 from websockets.legacy.server import WebSocketServerProtocol
 
+from refactor_agent.sync.constants import DEFAULT_REPLICA_DIR, DEFAULT_WS_PORT
 from refactor_agent.sync.logger import logger
 from refactor_agent.sync.models import BootstrapMessage, FileMessage
 from refactor_agent.sync.replica_ttl import update_replica_activity
@@ -30,10 +31,6 @@ class _StarletteWebSocket(Protocol):
     async def send_text(self, data: str) -> None: ...
 
 
-DEFAULT_REPLICA_DIR = "/workspace"
-DEFAULT_WS_PORT = 8765
-
-
 def _replica_path(replica_root: Path, relative_path: str) -> Path | None:
     """Resolve path under replica_root; return None if path escapes (security)."""
     try:
@@ -45,12 +42,26 @@ def _replica_path(replica_root: Path, relative_path: str) -> Path | None:
         return resolved
 
 
+def _parse_github_path(repo_url: str) -> str | None:
+    """Extract owner/repo path from GitHub URL. Supports HTTPS and SSH formats."""
+    url = repo_url.strip()
+    # SSH: git@github.com:owner/repo.git
+    if url.startswith("git@github.com:"):
+        path = url.removeprefix("git@github.com:").strip("/").removesuffix(".git")
+        return path or None
+    # HTTPS: https://github.com/owner/repo.git
+    parsed = urlparse(url)
+    if parsed.hostname == "github.com" and parsed.path.strip("/"):
+        path = parsed.path.strip("/").removesuffix(".git")
+        return path or None
+    return None
+
+
 def _clone_repo(replica_root: Path, repo_url: str, token: str) -> str | None:
     """Clone repo into replica_root using token. Returns error or None."""
-    parsed = urlparse(repo_url)
-    if parsed.hostname != "github.com" or not parsed.path.strip("/"):
+    path = _parse_github_path(repo_url)
+    if not path:
         return f"unsupported repo_url: {repo_url}"
-    path = parsed.path.strip("/").removesuffix(".git")
     clone_url = f"https://x-access-token:{token}@github.com/{path}.git"
     try:
         subprocess.run(

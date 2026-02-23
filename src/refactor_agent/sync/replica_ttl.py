@@ -8,8 +8,8 @@ import shutil
 import time
 from pathlib import Path
 
+from refactor_agent.sync.constants import DEFAULT_REPLICA_DIR
 from refactor_agent.sync.logger import logger
-from refactor_agent.sync.server import DEFAULT_REPLICA_DIR
 
 # Module-level state for TTL tracking; PLW0603 suppressed — single-process state is intended.
 _last_activity: list[float] = [0.0]

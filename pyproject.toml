@@ -149,6 +149,11 @@ ban-relative-imports = "all"
 ]
 # Security tests: HTTP requests to configured URL and subprocess run of own script
 "tests/security/**/*.py" = ["S310", "S603"]
+# Cloud Functions: Flask request, minimal deps
+"functions/**/*.py" = [
+    "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
+    "E501", "S310", "S110", "ARG001",
+]
 # Scripts: one-off CLI/seed tools
 "scripts/**/*.py" = [
     "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",

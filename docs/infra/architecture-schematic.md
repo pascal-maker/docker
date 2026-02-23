@@ -164,6 +164,49 @@ flowchart TB
 
 Sync is deployed with A2A on the same URL. `entrypoint-cloudrun.sh` runs the combined backend (`run_refactor_backend.py`): single service, single port. Extension uses one URL for both sync and A2A; hosted flow works.
 
+### Site and access request flow
+
+The site and its auth callback are **separate** from the combined ASGI app. Both write to the same Firestore `users` collection.
+
+```mermaid
+flowchart TB
+  subgraph site [Site]
+    spa[React SPA]
+    cta[Request access CTA]
+  end
+
+  subgraph auth_fx [Cloud Function - auth]
+    callback["/auth/github/callback"]
+  end
+
+  subgraph email_fx [Cloud Function - email]
+    trigger[Firestore onCreate]
+    resend[Resend API]
+  end
+
+  subgraph firestore [Firestore]
+    users[(users collection)]
+  end
+
+  subgraph cloudrun [Cloud Run - A2A + sync]
+    combined[Combined ASGI app]
+  end
+
+  spa --> cta
+  cta -->|"GitHub OAuth redirect"| callback
+  callback -->|"get_or_create_user"| users
+  users -->|"status=pending"| trigger
+  trigger --> resend
+  combined <-->|"GitHubTokenMiddleware"| users
+```
+
+- **Site**: React SPA (Firebase Hosting or static). "Request access" redirects to GitHub OAuth (web flow, `read:user user:email` scope).
+- **Auth callback**: Cloud Function (HTTP). Exchanges code for token, fetches user, writes `users/{id}` with `status="pending"`, redirects to success/error page.
+- **Email notify**: Cloud Function (Firestore trigger). On create in `users` where `status=pending`, sends email to admin via Resend.
+- **Extension auth**: VS Code built-in GitHub auth (`vscode.authentication.getSession`). Same Firestore `users` collection; admin approves via `scripts/approve_user.py` or Firestore console.
+
+See [site-deploy.md](site-deploy.md) for deployment.
+
 ---
 
 ## 6. Quick reference
@@ -177,3 +220,4 @@ Sync is deployed with A2A on the same URL. `entrypoint-cloudrun.sh` runs the com
 | Workspace-in-JSON? | Removed. Executor only supports `use_replica: true`; push workspace via sync first. |
 | Sync on Cloud Run today? | Yes. Combined ASGI app; same service and URL as A2A. |
 | What happens on reconnect? | Re-clone + re-overlay. Replica is ephemeral; no persistence across instance eviction. |
+| Site auth? | Separate Cloud Function; web OAuth writes to same Firestore `users` as extension. |

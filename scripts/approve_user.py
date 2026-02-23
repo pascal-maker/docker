@@ -13,6 +13,8 @@ import argparse
 import os
 import sys
 
+from google.cloud.firestore import FieldFilter
+
 
 def _get_firestore():
     from google.cloud import firestore
@@ -25,7 +27,11 @@ def _get_firestore():
 
 
 def list_pending(db) -> None:
-    users = db.collection("users").where("status", "==", "pending").stream()
+    users = (
+        db.collection("users")
+        .where(filter=FieldFilter("status", "==", "pending"))
+        .stream()
+    )
     rows = []
     for doc in users:
         d = doc.to_dict()
@@ -40,7 +46,7 @@ def list_pending(db) -> None:
 def approve(db, github_login: str) -> None:
     users = (
         db.collection("users")
-        .where("github_login", "==", github_login)
+        .where(filter=FieldFilter("github_login", "==", github_login))
         .limit(1)
         .stream()
     )
@@ -55,7 +61,7 @@ def approve(db, github_login: str) -> None:
 def ban(db, github_login: str) -> None:
     users = (
         db.collection("users")
-        .where("github_login", "==", github_login)
+        .where(filter=FieldFilter("github_login", "==", github_login))
         .limit(1)
         .stream()
     )

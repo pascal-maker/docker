@@ -1,9 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ChangeEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useIssuesList } from "@/api/hooks";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+} from "@refactor-agent/ui";
 
 const PAGE_SIZE = 50;
 
@@ -69,7 +74,7 @@ export function IssuesList() {
               <Input
                 placeholder="org/repo"
                 value={repoId}
-                onChange={(e) => {
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
                   setRepoId(e.target.value);
                   setOffset(0);
                 }}
@@ -80,7 +85,7 @@ export function IssuesList() {
               <Input
                 placeholder="preset id"
                 value={presetId}
-                onChange={(e) => {
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
                   setPresetId(e.target.value);
                   setOffset(0);
                 }}
@@ -91,7 +96,7 @@ export function IssuesList() {
               <Input
                 placeholder="ISO date"
                 value={since}
-                onChange={(e) => {
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
                   setSince(e.target.value);
                   setOffset(0);
                 }}
@@ -102,7 +107,7 @@ export function IssuesList() {
               <Input
                 placeholder="ISO date"
                 value={until}
-                onChange={(e) => {
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
                   setUntil(e.target.value);
                   setOffset(0);
                 }}

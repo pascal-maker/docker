@@ -78,7 +78,22 @@ def _status_event(
     )
 
 
-def _parse_rename_params(user_input: str) -> UseReplicaRenameParams | str:
+def _parse_prompt_only(data: dict[str, object]) -> tuple[str, str] | str:
+    """Parse prompt-only payload. Returns (prompt, lang) or error string."""
+    if data.get("use_replica") is not True:
+        return "ERROR: use_replica must be true. Push workspace via sync service first."
+    prompt_val = data.get("prompt") or data.get("user_message") or data.get("text")
+    if not isinstance(prompt_val, str) or not prompt_val.strip():
+        return "ERROR: missing or empty 'prompt' (required for free-form requests)"
+    lang_val = data.get("language")
+    lang: str = "python" if lang_val not in ("python", "typescript") else str(lang_val)
+    return (prompt_val.strip(), lang)
+
+
+ParseResult = UseReplicaRenameParams | tuple[str, str, str] | str
+
+
+def _parse_rename_params(user_input: str) -> ParseResult:
     """Parse JSON into validated rename params. Returns model or error string."""
     try:
         data = json.loads(user_input)
@@ -92,11 +107,15 @@ def _parse_rename_params(user_input: str) -> UseReplicaRenameParams | str:
 
     old_name = data.get("old_name")
     new_name = data.get("new_name")
+    # Prompt-only: no old_name/new_name required
+    if not isinstance(old_name, str) or not isinstance(new_name, str):
+        prompt_result = _parse_prompt_only(data)
+        if isinstance(prompt_result, str):
+            return prompt_result
+        # Return a special marker that executor handles as prompt-only
+        return ("__PROMPT_ONLY__", prompt_result[0], prompt_result[1])
+
     scope_node = data.get("scope_node")
-    if not isinstance(old_name, str):
-        return "ERROR: missing or invalid 'old_name' (must be a string)"
-    if not isinstance(new_name, str):
-        return "ERROR: missing or invalid 'new_name' (must be a string)"
     if scope_node is not None and not isinstance(scope_node, str):
         return "ERROR: 'scope_node' must be a string or null"
 
@@ -352,20 +371,33 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             )
             return
 
-        lang, file_ext = _language_and_ext(parsed)
         use_replica = True
-        deps = OrchestratorDeps(
-            language=lang,
-            workspace=workspace_dir,
-            mode="Ask",
-            file_ext=file_ext,
-            get_user_input=None,
-        )
-        raw_prompt = parsed.prompt
-        if raw_prompt is not None and raw_prompt.strip():
-            internal_message = raw_prompt.strip()
+        # Prompt-only (free-form user message)
+        if isinstance(parsed, tuple):
+            _prompt, lang = parsed[1], parsed[2]
+            file_ext = _FILE_EXT_BY_LANG.get(lang, "*.py")
+            deps = OrchestratorDeps(
+                language=lang,
+                workspace=workspace_dir,
+                mode="Ask",
+                file_ext=file_ext,
+                get_user_input=None,
+            )
+            internal_message = _prompt
         else:
-            internal_message = _internal_message_from_parsed(parsed, lang)
+            lang, file_ext = _language_and_ext(parsed)
+            deps = OrchestratorDeps(
+                language=lang,
+                workspace=workspace_dir,
+                mode="Ask",
+                file_ext=file_ext,
+                get_user_input=None,
+            )
+            raw_prompt = parsed.prompt
+            if raw_prompt is not None and raw_prompt.strip():
+                internal_message = raw_prompt.strip()
+            else:
+                internal_message = _internal_message_from_parsed(parsed, lang)
         result, run_state = await run_orchestrator(
             self._agent,
             deps,

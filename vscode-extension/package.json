@@ -66,6 +66,11 @@
           "default": "python",
           "enum": ["python", "typescript"],
           "description": "Language engine (must match opened workspace; set by try_extension.sh <playground>)."
+        },
+        "refactorAgent.accessRequestUrl": {
+          "type": "string",
+          "default": "https://refactor-agent.dev",
+          "description": "URL for requesting access when status is pending (shown in onboarding message)."
         }
       }
     }

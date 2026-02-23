@@ -23,12 +23,85 @@ interface Conversation {
   id: string;
   title: string;
   messages: ChatMessage[];
+  createdAt?: number;
 }
 
-type SyncStatus = "ok" | "error" | "unknown";
+type SyncStatus =
+  | "ok"
+  | "error"
+  | "pending"
+  | "blocked"
+  | "rate_limited"
+  | "unknown";
 
 interface SyncStatusUpdater {
   update(status: SyncStatus, message?: string): void;
+}
+
+interface StructuredError {
+  statusCode: number;
+  error?: string;
+  detail?: string;
+  raw?: string;
+}
+
+/** Parse sync/A2A error into structured form. */
+function parseStructuredError(
+  statusCode: number,
+  text: string
+): StructuredError {
+  try {
+    const data = JSON.parse(text) as { error?: string; detail?: string };
+    return {
+      statusCode,
+      error: data.error,
+      detail: data.detail,
+      raw: text,
+    };
+  } catch {
+    return { statusCode, raw: text };
+  }
+}
+
+/** Format auth/status errors into user-friendly messages. */
+function formatAuthMessage(
+  err: StructuredError,
+  accessRequestUrl: string
+): string {
+  const { statusCode, detail = "" } = err;
+  if (statusCode === 429) {
+    return "Rate limit reached. Please try again in a few minutes.";
+  }
+  if (statusCode === 503 && /auth not configured/i.test(detail)) {
+    return "Backend is still being set up. For local dev, ensure GOOGLE_CLOUD_PROJECT is set. For hosted, try again later.";
+  }
+  if (statusCode === 403) {
+    if (/access pending|apply at/i.test(detail)) {
+      const urlMatch = detail.match(/Apply at (https?:\/\/\S+)/i);
+      const url = urlMatch?.[1] ?? accessRequestUrl;
+      return `We're onboarding you! [Request access](${url}) and we'll approve shortly.`;
+    }
+    if (/access denied|blocked|restricted/i.test(detail)) {
+      return "Your access has been restricted. Contact support if you believe this is an error.";
+    }
+  }
+  return err.raw ?? `Error: ${statusCode}`;
+}
+
+/** Classify error for status bar. */
+function classifyAuthStatus(err: StructuredError): SyncStatus {
+  if (err.statusCode === 429) return "rate_limited";
+  if (err.statusCode === 403) {
+    if (/access pending|apply at/i.test(err.detail ?? "")) return "pending";
+    return "blocked";
+  }
+  return "error";
+}
+
+interface A2AResult {
+  response: unknown;
+  error?: string;
+  structuredError?: StructuredError;
 }
 
 const A2A_URL_FILE = ".refactor-agent-a2a-url";
@@ -206,7 +279,7 @@ async function pushWorkspaceViaSync(
   syncUrl: string,
   files: { path: string; content: string }[],
   options?: { authToken?: string; repoUrl?: string }
-): Promise<string | null> {
+): Promise<StructuredError | null> {
   const url = syncUrl.replace(/\/$/, "") + "/sync/workspace";
   const body = JSON.stringify({
     files,
@@ -221,7 +294,7 @@ async function pushWorkspaceViaSync(
   const res = await fetch(url, { method: "POST", headers, body });
   if (!res.ok) {
     const text = await res.text();
-    return `Sync failed ${res.status}: ${text}`;
+    return parseStructuredError(res.status, text);
   }
   return null;
 }
@@ -230,7 +303,7 @@ async function sendA2AMessage(
   baseUrl: string,
   apiKey: string | undefined,
   payload: object
-): Promise<{ response: unknown; error?: string }> {
+): Promise<A2AResult> {
   const url = baseUrl.replace(/\/$/, "");
   const messageText = JSON.stringify(payload);
   const body = {
@@ -255,7 +328,7 @@ async function sendA2AResume(
   taskId: string,
   contextId: string,
   userReplyText: string
-): Promise<{ response: unknown; error?: string }> {
+): Promise<A2AResult> {
   const url = baseUrl.replace(/\/$/, "");
   const body = {
     jsonrpc: "2.0",
@@ -279,7 +352,7 @@ async function postA2A(
   url: string,
   apiKey: string | undefined,
   body: object
-): Promise<{ response: unknown; error?: string }> {
+): Promise<A2AResult> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -292,10 +365,27 @@ async function postA2A(
       headers,
       body: JSON.stringify(body),
     });
-    const data = (await res.json()) as {
+    const text = await res.text();
+    let data: {
       result?: Record<string, unknown>;
       error?: { message?: string };
     };
+    try {
+      data = JSON.parse(text) as {
+        result?: Record<string, unknown>;
+        error?: { message?: string };
+      };
+    } catch {
+      data = {};
+    }
+    if (!res.ok) {
+      const structured = parseStructuredError(res.status, text);
+      return {
+        response: data,
+        error: structured.detail ?? structured.error ?? text,
+        structuredError: structured,
+      };
+    }
     if (data.error) {
       return {
         response: data,
@@ -395,26 +485,38 @@ function getWebviewContent(nonce: string): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:;">
   <style>
     html, body { height: 100%; min-height: 100vh; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; }
     body { font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); display: flex; flex-direction: column; padding: 8px; padding-bottom: 60px; }
-    .sync-status { margin-bottom: 8px; font-size: 12px; flex-shrink: 0; }
-    .sync-ok { color: var(--vscode-testing-iconPassed); }
-    .sync-err { color: var(--vscode-testing-iconFailed); }
-    .sync-unknown { color: var(--vscode-descriptionForeground); }
-    #messages { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; font-size: 12px; }
+    #messages { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; font-size: 13px; line-height: 1.5; display: flex; flex-direction: column; }
+    #messagesInner { flex: none; width: 100%; }
     .msg { margin: 6px 0; padding: 6px 8px; border-radius: 4px; }
     .msg.user { background: var(--vscode-input-background); margin-left: 16px; }
     .msg.agent { background: var(--vscode-editor-inactiveSelectionBackground); margin-right: 16px; }
     .msg.progress { color: var(--vscode-descriptionForeground); }
-    .msg.error { color: var(--vscode-errorForeground); }
+    .msg.error { color: var(--vscode-foreground); border-left: 3px solid var(--vscode-editorWarning-foreground); padding-left: 10px; }
     #messages pre, #messages code { font-family: var(--vscode-editor-font-family); font-size: 12px; }
     #messages code { background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; }
     #messages pre { overflow-x: auto; padding: 8px; margin: 6px 0; }
     #messages pre code { padding: 0; background: transparent; }
-    .conversation-row { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .conversation-row select { flex: 1; padding: 4px 8px; font: inherit; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; }
+    #messages a { color: var(--vscode-textLink-foreground); text-decoration: underline; }
+    #messages a:hover { color: var(--vscode-textLink-activeForeground); }
+    .conversation-row { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; }
+    .conversation-dropdown-btn { flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font: inherit; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; cursor: pointer; }
+    .conversation-dropdown-btn:hover { background: var(--vscode-input-background); border-color: var(--vscode-focusBorder); }
+    .conversation-dropdown-btn .chevron { margin-left: 4px; opacity: 0.7; }
+    .conversation-dropdown-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; max-height: 240px; overflow-y: auto; background: var(--vscode-dropdown-background); border: 1px solid var(--vscode-dropdown-border); border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; }
+    .conversation-dropdown-panel.open { display: block; }
+    .conversation-item { padding: 8px 12px; cursor: pointer; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .conversation-item:hover { background: var(--vscode-list-hoverBackground); }
+    .conversation-item.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+    .conversation-item .item-main { flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .conversation-item .time { font-size: 11px; opacity: 0.8; flex-shrink: 0; }
+    .conversation-item .delete-btn { flex-shrink: 0; width: 20px; height: 20px; padding: 0; border: none; background: transparent; cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.5; }
+    .conversation-item .delete-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
+    .conversation-new-btn { padding: 6px 10px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1; }
+    .conversation-new-btn:hover { background: var(--vscode-button-hoverBackground); }
     .chatbox { position: fixed; bottom: 0; left: 0; right: 0; border: 1px solid var(--vscode-input-border); border-radius: 8px 8px 0 0; background: var(--vscode-input-background); padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; margin: 0 8px 8px 8px; }
     .chatbox:focus-within { border-color: var(--vscode-focusBorder); outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
     #chatInput { flex: 1; padding: 8px 10px; border: none; background: transparent; color: var(--vscode-input-foreground); font: inherit; resize: none; min-height: 20px; max-height: 120px; }
@@ -423,18 +525,50 @@ function getWebviewContent(nonce: string): string {
     #sendBtn { flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; }
     #sendBtn:hover { background: var(--vscode-button-hoverBackground); }
     #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .welcome-header { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin-bottom: 12px; padding: 12px 0; flex-shrink: 0; }
+    .welcome-header img { width: 48px; height: 48px; flex-shrink: 0; margin-bottom: 8px; }
+    .welcome-header .splash { font-size: 12px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+    #statusIndicator { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 8px; flex-shrink: 0; }
+    #statusIndicator .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    #statusIndicator .status-dot.ok { background: var(--vscode-testing-iconPassed); }
+    #statusIndicator .status-dot.syncing { background: var(--vscode-editorWarning-foreground); animation: pulse 1s ease-in-out infinite; }
+    #statusIndicator .status-dot.error { background: var(--vscode-testing-iconFailed); }
+    #statusIndicator .status-dot.pending { background: var(--vscode-textLink-foreground); }
+    #statusIndicator .status-dot.unknown { background: var(--vscode-descriptionForeground); opacity: 0.6; }
+    #statusIndicator .status-text { font-size: 11px; color: var(--vscode-descriptionForeground); opacity: 0.6; animation: shimmer 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    @keyframes shimmer { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; } }
+    .welcome-messages { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    .welcome-messages.empty { justify-content: center; }
+    .welcome-messages.empty #messages { flex: 0; }
+    .welcome-messages:not(.empty) .welcome-header { display: none; }
   </style>
 </head>
 <body>
-  <div class="sync-status" id="syncStatus"><span class="sync-unknown">Sync: not checked</span></div>
   <div class="conversation-row">
-    <select id="conversationSelect" aria-label="Conversation">
-      <option value="">New chat</option>
-    </select>
+    <button type="button" class="conversation-dropdown-btn" id="conversationDropdownBtn" aria-label="Past conversations" aria-haspopup="listbox" aria-expanded="false">
+      <span id="conversationDropdownLabel">Past Conversations</span>
+      <span class="chevron">&#9660;</span>
+    </button>
+    <button type="button" class="conversation-new-btn" id="conversationNewBtn" title="New chat" aria-label="New chat">+</button>
+    <div class="conversation-dropdown-panel" id="conversationDropdownPanel" role="listbox">
+    </div>
   </div>
-  <div id="messages"></div>
+  <div class="welcome-messages empty" id="welcomeMessages">
+    <div class="welcome-header">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/%3E%3Cpath d='M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/%3E%3C/svg%3E" alt="Refactor Agent" />
+      <div class="splash">Refactor Agent — restructure code with confidence.</div>
+    </div>
+    <div id="messages">
+      <div id="messagesInner"></div>
+      <div id="statusIndicator" aria-label="Status">
+        <span class="status-dot unknown" id="statusDot"></span>
+        <span class="status-text" id="statusText"></span>
+      </div>
+    </div>
+  </div>
   <form id="chatForm" class="chatbox">
-    <textarea id="chatInput" rows="1" placeholder="e.g. rename foo to bar or paste JSON" aria-label="Refactor request"></textarea>
+    <textarea id="chatInput" rows="1" placeholder="Refactor..." aria-label="Refactor request"></textarea>
     <button type="submit" id="sendBtn" title="Send" aria-label="Send">&#8593;</button>
   </form>
   <script nonce="${nonce}">
@@ -446,8 +580,13 @@ function getWebviewContent(nonce: string): string {
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
     const messages = document.getElementById('messages');
-    const syncStatus = document.getElementById('syncStatus');
-    const conversationSelect = document.getElementById('conversationSelect');
+    const messagesInner = document.getElementById('messagesInner');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const conversationDropdownBtn = document.getElementById('conversationDropdownBtn');
+    const conversationDropdownLabel = document.getElementById('conversationDropdownLabel');
+    const conversationNewBtn = document.getElementById('conversationNewBtn');
+    const conversationDropdownPanel = document.getElementById('conversationDropdownPanel');
     log('Webview script loaded. messages=', !!messages, 'chatForm=', !!chatForm);
 
     function escapeHtml(s) {
@@ -480,14 +619,70 @@ function getWebviewContent(nonce: string): string {
         ln = ln.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
         ln = ln.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
         ln = ln.replace(/\\x60([^\\x60]+)\\x60/g, '<code>$1</code>');
+        ln = (function linkify(s) {
+          var out = '';
+          var i = 0;
+          while (i < s.length) {
+            var lb = s.indexOf('[', i);
+            if (lb < 0) { out += s.slice(i); break; }
+            var rb = s.indexOf(']', lb + 1);
+            if (rb < 0) { out += s.slice(i); break; }
+            if (s.charAt(rb + 1) !== '(') { out += s.slice(i, rb + 1); i = rb + 1; continue; }
+            var rp = s.indexOf(')', rb + 2);
+            if (rp < 0) { out += s.slice(i); break; }
+            var label = s.slice(lb + 1, rb);
+            var url = s.slice(rb + 2, rp);
+            if (url.indexOf('http://') === 0 || url.indexOf('https://') === 0) {
+              out += s.slice(i, lb) + '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+              i = rp + 1;
+            } else {
+              out += s.slice(i, rb + 1);
+              i = rb + 1;
+            }
+          }
+          return out;
+        })(ln);
         result.push(ln + '<br>');
         i++;
       }
       return result.join('\\n');
     }
 
+    function updateEmptyState() {
+      const wrapper = document.getElementById('welcomeMessages');
+      if (wrapper && messagesInner) {
+        wrapper.classList.toggle('empty', messagesInner.children.length === 0);
+      }
+    }
+
+    var currentSyncState = 'unknown';
+    var currentPhase = 'idle';
+    function setStatusDot(syncState, phase) {
+      if (syncState != null) currentSyncState = syncState;
+      if (phase != null) currentPhase = phase;
+      if (!statusDot) return;
+      statusDot.className = 'status-dot ';
+      var label = '';
+      var text = '';
+      if (currentPhase === 'syncing' || currentPhase === 'sending') {
+        statusDot.classList.add('syncing');
+        label = currentPhase === 'syncing' ? 'Syncing...' : 'Sending to agent...';
+        text = currentPhase === 'syncing' ? 'syncing' : 'agenting';
+      } else {
+        var cls = currentSyncState === 'ok' ? 'ok' : currentSyncState === 'error' || currentSyncState === 'blocked' || currentSyncState === 'rate_limited' ? 'error' : currentSyncState === 'pending' ? 'pending' : 'unknown';
+        statusDot.classList.add(cls);
+        label = currentSyncState === 'ok' ? 'Synced' : currentSyncState === 'error' ? 'Connection error' : currentSyncState === 'blocked' ? 'Access restricted' : currentSyncState === 'rate_limited' ? 'Rate limited' : currentSyncState === 'pending' ? 'Access pending' : 'Not checked';
+        text = '';
+      }
+      statusDot.title = label;
+      if (statusText) {
+        statusText.textContent = text;
+        statusText.style.animation = (currentPhase === 'syncing' || currentPhase === 'sending') ? 'shimmer 2s ease-in-out infinite' : 'none';
+      }
+    }
+
     function appendMessage(role, kind, text, useMarkdown) {
-      if (!messages) return;
+      if (!messagesInner) return;
       const el = document.createElement('div');
       el.className = 'msg ' + (role || 'agent') + (kind ? ' ' + kind : '');
       const safeText = (text != null && typeof text !== 'string') ? String(text) : (text || '');
@@ -496,8 +691,9 @@ function getWebviewContent(nonce: string): string {
       } else {
         el.textContent = safeText;
       }
-      messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
+      messagesInner.appendChild(el);
+      if (messages) messages.scrollTop = messages.scrollHeight;
+      updateEmptyState();
     }
 
     function submit() {
@@ -510,12 +706,36 @@ function getWebviewContent(nonce: string): string {
       vscode.postMessage({ type: 'submit', text: text });
     }
 
-    conversationSelect.addEventListener('change', () => {
-      const val = conversationSelect.value;
-      if (val === '') {
-        vscode.postMessage({ type: 'newChat' });
-      } else {
-        vscode.postMessage({ type: 'selectConversation', id: val });
+    function formatRelativeTime(ts) {
+      if (ts == null || typeof ts !== 'number') return '';
+      const sec = Math.floor((Date.now() - ts) / 1000);
+      if (sec < 60) return sec + 's';
+      if (sec < 3600) return Math.floor(sec / 60) + 'm';
+      if (sec < 86400) return Math.floor(sec / 3600) + 'h';
+      return Math.floor(sec / 86400) + 'd';
+    }
+
+    function closeDropdown() {
+      if (conversationDropdownPanel) conversationDropdownPanel.classList.remove('open');
+      if (conversationDropdownBtn) conversationDropdownBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    conversationDropdownBtn && conversationDropdownBtn.addEventListener('click', () => {
+      const open = conversationDropdownPanel && conversationDropdownPanel.classList.toggle('open');
+      conversationDropdownBtn && conversationDropdownBtn.setAttribute('aria-expanded', String(open));
+    });
+
+    conversationNewBtn && conversationNewBtn.addEventListener('click', () => {
+      closeDropdown();
+      vscode.postMessage({ type: 'newChat' });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (conversationDropdownPanel && conversationDropdownPanel.classList.contains('open') &&
+          conversationDropdownBtn && conversationNewBtn &&
+          !conversationDropdownBtn.contains(e.target) && !conversationNewBtn.contains(e.target) &&
+          !conversationDropdownPanel.contains(e.target)) {
+        closeDropdown();
       }
     });
 
@@ -539,16 +759,61 @@ function getWebviewContent(nonce: string): string {
         const list = Array.isArray(msg.conversations) ? msg.conversations : [];
         const currentId = msg.currentId != null ? msg.currentId : null;
         const msgs = Array.isArray(msg.messages) ? msg.messages : [];
-        if (conversationSelect) conversationSelect.innerHTML = '<option value="">New chat</option>';
-        list.forEach(function(c) {
-          if (!c || typeof c.id !== 'string') return;
-          const opt = document.createElement('option');
-          opt.value = c.id;
-          opt.textContent = (c.title != null ? String(c.title) : 'Chat') || 'Chat';
-          if (c.id === currentId) opt.selected = true;
-          conversationSelect && conversationSelect.appendChild(opt);
-        });
-        if (messages) messages.innerHTML = '';
+        if (conversationDropdownLabel) {
+          const current = list.find(function(c) { return c && c.id === currentId; });
+          conversationDropdownLabel.textContent = current ? (current.title || 'Chat') : 'Past Conversations';
+        }
+        if (conversationDropdownPanel) {
+          conversationDropdownPanel.innerHTML = '';
+          if (list.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'conversation-item';
+            empty.style.cursor = 'default';
+            empty.style.opacity = '0.7';
+            empty.textContent = 'No conversations yet';
+            conversationDropdownPanel.appendChild(empty);
+          } else {
+            list.forEach(function(c) {
+              if (!c || typeof c.id !== 'string') return;
+              const item = document.createElement('div');
+              item.className = 'conversation-item' + (c.id === currentId ? ' active' : '');
+              item.setAttribute('role', 'option');
+              item.setAttribute('data-id', c.id);
+              const main = document.createElement('span');
+              main.className = 'item-main';
+              const title = document.createElement('span');
+              title.textContent = (c.title != null ? String(c.title) : 'Chat') || 'Chat';
+              title.style.overflow = 'hidden';
+              title.style.textOverflow = 'ellipsis';
+              title.style.whiteSpace = 'nowrap';
+              const time = document.createElement('span');
+              time.className = 'time';
+              time.textContent = formatRelativeTime(c.createdAt);
+              main.appendChild(title);
+              main.appendChild(time);
+              const delBtn = document.createElement('button');
+              delBtn.className = 'delete-btn';
+              delBtn.type = 'button';
+              delBtn.title = 'Delete';
+              delBtn.setAttribute('aria-label', 'Delete conversation');
+              delBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+              delBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                vscode.postMessage({ type: 'deleteConversation', id: c.id });
+              });
+              item.appendChild(main);
+              item.appendChild(delBtn);
+              item.addEventListener('click', function(e) {
+                if (e.target !== delBtn && !delBtn.contains(e.target)) {
+                  vscode.postMessage({ type: 'selectConversation', id: c.id });
+                  closeDropdown();
+                }
+              });
+              conversationDropdownPanel.appendChild(item);
+            });
+          }
+        }
+        if (messagesInner) messagesInner.innerHTML = '';
         msgs.forEach(function(m) {
           try {
             appendMessage(m && m.role, m && m.kind, m && m.text, true);
@@ -558,29 +823,26 @@ function getWebviewContent(nonce: string): string {
           }
         });
         if (messages) messages.scrollTop = messages.scrollHeight;
+        updateEmptyState();
       } else if (msg.type === 'append') {
         try {
           appendMessage(msg.role || 'agent', msg.kind, msg.text, true);
         } catch (err) {
           logErr('append error', err, 'msg.text type=', typeof msg.text);
-          if (messages) {
+          if (messagesInner) {
             const fallback = document.createElement('div');
             fallback.className = 'msg agent error';
             fallback.textContent = typeof msg.text === 'string' ? msg.text : 'Message could not be displayed';
-            messages.appendChild(fallback);
+            messagesInner.appendChild(fallback);
+            updateEmptyState();
           }
         }
       } else if (msg.type === 'submitDone') {
         if (sendBtn) sendBtn.disabled = false;
       } else if (msg.type === 'syncStatus') {
-        if (syncStatus) {
-          const span = document.createElement('span');
-          if (msg.status === 'ok') { span.className = 'sync-ok'; span.textContent = 'Sync: OK'; }
-          else if (msg.status === 'error') { span.className = 'sync-err'; span.textContent = 'Sync: ' + (msg.message || 'Error'); }
-          else { span.className = 'sync-unknown'; span.textContent = 'Sync: not checked'; }
-          syncStatus.innerHTML = '';
-          syncStatus.appendChild(span);
-        }
+        setStatusDot(msg.status, null);
+      } else if (msg.type === 'setStatus') {
+        setStatusDot(null, msg.phase);
       }
     });
 
@@ -678,6 +940,22 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
+      if (msg.type === "deleteConversation" && typeof msg.id === "string") {
+        const conversations = getConversations().filter((c) => c.id !== msg.id);
+        const wasCurrent = getCurrentId() === msg.id;
+        const newCurrentId = wasCurrent ? undefined : getCurrentId();
+        persistConversations(conversations, newCurrentId);
+        const conv = newCurrentId
+          ? conversations.find((c) => c.id === newCurrentId)
+          : undefined;
+        post("restore", {
+          conversations,
+          currentId: newCurrentId ?? null,
+          messages: conv?.messages ?? [],
+        });
+        return;
+      }
+
       if (msg.type === "submit" && typeof msg.text === "string") {
         const conversations = getConversations();
         let currentId = getCurrentId();
@@ -691,6 +969,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
             id: currentId,
             title: title || "New chat",
             messages: [],
+            createdAt: Date.now(),
           };
           conversations.push(current);
           persistConversations(conversations, currentId);
@@ -759,9 +1038,15 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
+      const accessRequestUrl =
+        vscode.workspace
+          .getConfiguration("refactorAgent")
+          .get<string>("accessRequestUrl", "https://refactor-agent.dev") ??
+        "https://refactor-agent.dev";
+
       if (resume) {
-        append("progress", "Sending your reply to the agent…");
-        const { response, error } = await sendA2AResume(
+        post("setStatus", { phase: "sending", label: "Sending to agent..." });
+        const resumeResult = await sendA2AResume(
           a2aBaseUrl,
           authToken,
           resume.taskId,
@@ -769,11 +1054,27 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
           resume.replyText
         );
         globalState.update(PENDING_STATE_KEY, undefined);
-        if (error) {
-          append("error", `Error: ${error}`);
+        if (resumeResult.error) {
+          post("setStatus", { phase: "idle" });
+          const friendlyMsg =
+            resumeResult.structuredError != null
+              ? formatAuthMessage(
+                  resumeResult.structuredError,
+                  accessRequestUrl
+                )
+              : `Error: ${resumeResult.error}`;
+          const status =
+            resumeResult.structuredError != null
+              ? classifyAuthStatus(resumeResult.structuredError)
+              : "error";
+          this._syncStatus.update(status, friendlyMsg);
+          post("syncStatus", { status, message: friendlyMsg });
+          append("error", friendlyMsg);
           post("submitDone");
           return;
         }
+        const { response } = resumeResult;
+        post("setStatus", { phase: "idle" });
         await this.handleResponse(
           response as Record<string, unknown>,
           folder,
@@ -783,17 +1084,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
           a2aBaseUrl,
           authToken
         );
-        post("submitDone");
-        return;
-      }
-
-      const intent =
-        promptText != null ? parseRenameIntentFromPrompt(promptText) : null;
-      if (!intent) {
-        append(
-          "message",
-          'Say something like: rename foo to bar, or paste JSON: {"old_name": "foo", "new_name": "bar"}'
-        );
+        post("setStatus", { phase: "idle" });
         post("submitDone");
         return;
       }
@@ -802,15 +1093,16 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         .getConfiguration("refactorAgent")
         .get<Engine>("engine", "python");
 
+      const intent =
+        promptText != null ? parseRenameIntentFromPrompt(promptText) : null;
+
       const repoUrl = getGitRepoUrl(folder);
-      append(
-        "progress",
-        repoUrl ? "Gathering dirty files…" : "Gathering workspace files…"
-      );
+      post("setStatus", { phase: "syncing" });
       const files = repoUrl
         ? await gatherDirtyFiles(folder, engine)
         : await gatherWorkspaceFiles(folder, engine);
       if (files.length === 0 && !repoUrl) {
+        post("setStatus", { phase: "idle" });
         const msg =
           engine === "typescript"
             ? "No TypeScript files found in the workspace."
@@ -820,39 +1112,56 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      append("progress", "Pushing workspace to sync service…");
       const syncErr = await pushWorkspaceViaSync(syncUrl, files, {
         authToken,
         repoUrl,
       });
       if (syncErr) {
-        this._syncStatus.update("error", syncErr);
-        append("error", `Sync failed: ${syncErr}`);
+        post("setStatus", { phase: "idle" });
+        const status = classifyAuthStatus(syncErr);
+        const friendlyMsg = formatAuthMessage(syncErr, accessRequestUrl);
+        this._syncStatus.update(status, friendlyMsg);
+        post("syncStatus", { status, message: friendlyMsg });
+        append("error", friendlyMsg);
         post("submitDone");
         return;
       }
       this._syncStatus.update("ok");
       post("syncStatus", { status: "ok" });
 
-      append("progress", "Sending refactor request to A2A…");
-      const payload = {
-        old_name: intent.old_name,
-        new_name: intent.new_name,
-        use_replica: true,
-        language: engine,
-        prompt: promptText,
-      };
-      const { response, error } = await sendA2AMessage(
-        a2aBaseUrl,
-        authToken,
-        payload
-      );
-      if (error) {
-        append("error", `A2A error: ${error}`);
+      post("setStatus", { phase: "sending", label: "Sending to agent..." });
+      const payload = intent
+        ? {
+            old_name: intent.old_name,
+            new_name: intent.new_name,
+            use_replica: true,
+            language: engine,
+            prompt: promptText,
+          }
+        : {
+            prompt: promptText ?? "",
+            use_replica: true,
+            language: engine,
+          };
+      const a2aResult = await sendA2AMessage(a2aBaseUrl, authToken, payload);
+      if (a2aResult.error) {
+        post("setStatus", { phase: "idle" });
+        const structured = a2aResult.structuredError;
+        const friendlyMsg =
+          structured != null
+            ? formatAuthMessage(structured, accessRequestUrl)
+            : `A2A error: ${a2aResult.error}`;
+        const status =
+          structured != null ? classifyAuthStatus(structured) : "error";
+        this._syncStatus.update(status, friendlyMsg);
+        post("syncStatus", { status, message: friendlyMsg });
+        append("error", friendlyMsg);
         post("submitDone");
         return;
       }
+      const { response } = a2aResult;
 
+      post("setStatus", { phase: "idle" });
       await this.handleResponse(
         response as Record<string, unknown>,
         folder,
@@ -863,6 +1172,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         authToken
       );
     } catch (e) {
+      post("setStatus", { phase: "idle" });
       append("error", e instanceof Error ? e.message : String(e));
     }
     post("submitDone");
@@ -955,6 +1265,24 @@ function createSyncStatusBarItem(): SyncStatusUpdater & {
         item.text = "$(check) Refactor Agent: Sync OK";
         item.tooltip = "Sync service reachable";
         item.backgroundColor = undefined;
+      } else if (status === "pending") {
+        item.text = "$(info) Refactor Agent: Access pending";
+        item.tooltip = message ?? "Request access to get started";
+        item.backgroundColor = new vscode.ThemeColor(
+          "statusBarItem.prominentBackground"
+        );
+      } else if (status === "blocked") {
+        item.text = "$(warning) Refactor Agent: Access restricted";
+        item.tooltip = message ?? "Your access has been restricted";
+        item.backgroundColor = new vscode.ThemeColor(
+          "statusBarItem.warningBackground"
+        );
+      } else if (status === "rate_limited") {
+        item.text = "$(watch) Refactor Agent: Rate limited";
+        item.tooltip = message ?? "Please try again in a few minutes";
+        item.backgroundColor = new vscode.ThemeColor(
+          "statusBarItem.warningBackground"
+        );
       } else if (status === "error") {
         item.text = "$(close) Refactor Agent: Sync error";
         item.tooltip = message ?? "Sync failed";

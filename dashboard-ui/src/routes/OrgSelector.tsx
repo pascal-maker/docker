@@ -1,8 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+} from "@refactor-agent/ui";
 
 export function OrgSelector() {
   const [orgId, setOrgId] = useState("");
@@ -35,7 +40,7 @@ export function OrgSelector() {
               type="text"
               placeholder="e.g. my-org"
               value={orgId}
-              onChange={(e) => {
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
                 setOrgId(e.target.value);
               }}
               required
