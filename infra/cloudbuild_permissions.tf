@@ -47,10 +47,11 @@ resource "google_storage_bucket_iam_member" "cloudbuild_bucket_github_actions" {
 }
 
 # Allow GitHub Actions SA to read/write Terraform state when running deploy in CI (optional; set terraform_state_bucket in tfvars).
+# Uses storage.admin (not objectAdmin) so Terraform can get/set IAM policy on the bucket (storage.buckets.getIamPolicy).
 resource "google_storage_bucket_iam_member" "terraform_state_github_actions" {
   count  = length(var.terraform_state_bucket) > 0 ? 1 : 0
   bucket = var.terraform_state_bucket
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
