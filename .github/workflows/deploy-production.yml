@@ -1,0 +1,59 @@
+# Deploy a built image to production (manual trigger, requires approval).
+# Use after staging has been validated. Same tag as used for staging.
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (e.g. v0.2.0)"
+        required: true
+        type: string
+
+jobs:
+  deploy-production:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION || 'europe-west1' }}
+          STATE_BUCKET: ${{ vars.TERRAFORM_STATE_BUCKET || format('{0}-terraform-state', secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID) }}
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="prefix=refactor-agent-infra"
+
+      - name: Terraform apply (production)
+        working-directory: infra
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION || 'europe-west1' }}
+          TAG: ${{ inputs.tag }}
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}
+          TF_VAR_region: ${{ vars.GCP_REGION || 'europe-west1' }}
+          TF_VAR_a2a_min_instance_count: 0
+          TF_VAR_anthropic_api_key: ${{ secrets.TF_VAR_anthropic_api_key }}
+          TF_VAR_chainlit_auth_secret: ${{ secrets.TF_VAR_chainlit_auth_secret }}
+        run: |
+          export TF_VAR_a2a_image="${REGION}-docker.pkg.dev/${PROJECT_ID}/refactor-agent/a2a-server:${TAG}"
+          terraform apply -auto-approve -input=false

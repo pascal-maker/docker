@@ -39,6 +39,21 @@ resource "google_storage_bucket_iam_member" "cloudbuild_bucket_cloudbuild_sa" {
   member = "serviceAccount:${local.cloudbuild_sa_email}"
 }
 
+# GitHub Actions SA must be able to upload source to this bucket when running gcloud builds submit.
+resource "google_storage_bucket_iam_member" "cloudbuild_bucket_github_actions" {
+  bucket = google_storage_bucket.cloudbuild.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+# Allow GitHub Actions SA to read/write Terraform state when running deploy in CI (optional; set terraform_state_bucket in tfvars).
+resource "google_storage_bucket_iam_member" "terraform_state_github_actions" {
+  count  = length(var.terraform_state_bucket) > 0 ? 1 : 0
+  bucket = var.terraform_state_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # So the build can push the image to Artifact Registry.
 resource "google_artifact_registry_repository_iam_member" "cloudbuild_compute_sa" {
   project    = var.project_id

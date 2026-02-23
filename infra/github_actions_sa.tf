@@ -14,6 +14,32 @@ resource "google_project_iam_member" "github_actions_cloudbuild" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+# Required for gcloud builds submit: use Cloud Build and related services (avoids "forbidden from accessing the bucket" / serviceusage.services.use).
+resource "google_project_iam_member" "github_actions_service_usage" {
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+# For CI: Terraform apply (deploy-staging / deploy-production workflows) needs these roles.
+resource "google_project_iam_member" "github_actions_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_secretmanager_admin" {
+  project = var.project_id
+  role    = "roles/secretmanager.admin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_artifactregistry_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 output "github_actions_sa_email" {
   description = "Service account email for GitHub Actions; use with gcloud iam service-accounts keys create to create a key, then add the JSON to repo secret GCP_SA_KEY."
   value       = google_service_account.github_actions.email
