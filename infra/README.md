@@ -76,7 +76,7 @@ Infrastructure as code for the refactor-agent A2A backend and (later) dashboard.
 
 ## Probing and security check
 
-From the repo root you can probe what is reachable with or without auth, and run a programmatic security check (e.g. in CI):
+From the repo root you can probe what is reachable with or without auth, and run a programmatic security check (e.g. in CI). The same checks run automatically in CI after deploy to staging; see `tests/security/` and the [Build and push images](../.github/workflows/build-push-images.yml) workflow.
 
 - **Probe** (reports GET agent-card, GET `/`, POST message/send with/without auth):
   ```bash
