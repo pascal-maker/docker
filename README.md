@@ -24,9 +24,10 @@ sync/          WebSocket file sync (for Docker deployment)
 
 ## Docs
 
+- [Documentation](docs/README.md) — full docs index (getting started, architecture, infra, contributing).
 - [Chat UI](docs/chat-ui.md) — interactive dev interface (Chainlit)
 - [A2A server](docs/a2a-server.md) — agent-to-agent protocol, request formats, collision testing
 - [MCP server](docs/mcp-server.md) — MCP tool integration for Claude Code / Cursor
 - [Cursor bridge](docs/cursor-bridge.md) — using the agent from Cursor via A2A–MCP bridge
 - [Docker deployment](docs/docker-deployment.md) — containerized setup with file sync
-- [Ideas](docs/ideas.md) — design notes, DSL concepts, future directions
+- [Ideas and roadmap](docs/ideas/README.md) — design notes, DSL concepts, future directions

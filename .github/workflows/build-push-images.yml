@@ -101,3 +101,26 @@ jobs:
         run: |
           export TF_VAR_a2a_image="${REGION}-docker.pkg.dev/${PROJECT_ID}/refactor-agent/a2a-server:${TAG}"
           terraform apply -auto-approve -input=false
+
+      - name: Get A2A URL
+        id: a2a_url
+        working-directory: infra
+        run: echo "url=$(terraform output -raw a2a_url)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run security tests
+        env:
+          A2A_URL: ${{ steps.a2a_url.outputs.url }}
+        run: uv run pytest tests/security/ -v

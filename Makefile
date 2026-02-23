@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -117,3 +117,11 @@ infra-a2a-url: ## Write A2A Cloud Run URL to .refactor-agent-a2a-url (extension 
 		echo -n "$$url" > .refactor-agent-a2a-url && \
 		echo "$$url" && \
 		echo "(written to .refactor-agent-a2a-url; extension will use it in this workspace)"
+
+# A2A staging/prod probe and security check (override A2A_URL or use .refactor-agent-a2a-url)
+A2A_URL ?= $(shell test -f .refactor-agent-a2a-url && cat .refactor-agent-a2a-url || echo "http://localhost:9999")
+probe-a2a: ## Probe A2A endpoint: what is reachable with/without auth
+	$(RUN) python scripts/probe_a2a.py "$(A2A_URL)"
+
+check-a2a-security: ## Programmatic A2A security check; REQUIRE_AUTH_FOR_SEND=1 to fail if POST without auth succeeds
+	$(RUN) python scripts/check_a2a_security.py --base-url "$(A2A_URL)" $(if $(REQUIRE_AUTH_FOR_SEND),--require-auth-for-send,)

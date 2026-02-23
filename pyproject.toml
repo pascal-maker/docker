@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "pydantic-ai>=1.59.0",
+    "pydantic-settings>=2.0.0",
     "anthropic>=0.78.0,<0.80.0",  # >=0.78 needed for Claude 4.6; <0.80 avoids UserLocation import break in pydantic-ai (PR #4345 pending)
     "langfuse",
     "python-dotenv",
@@ -145,6 +146,8 @@ ban-relative-imports = "all"
     "PLR2004", "ARG", "D", "ANN", "SLF001", "FBT", "PT006",
     "PLC0415", "E501", "TC003", "PTH123", "SIM117", "INP001",
 ]
+# Security tests: HTTP requests to configured URL and subprocess run of own script
+"tests/security/**/*.py" = ["S310", "S603"]
 # Scripts: one-off CLI/seed tools
 "scripts/**/*.py" = [
     "T20", "INP001", "D", "PLC0415", "PLR2004",
