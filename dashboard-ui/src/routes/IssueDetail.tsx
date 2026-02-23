@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function IssueDetail() {
   const { orgId, runId } = useParams<{ orgId: string; runId: string }>();
-  const { data: detail, isLoading, error } = useIssueDetail(orgId ?? "", runId ?? "");
+  const {
+    data: detail,
+    isLoading,
+    error,
+  } = useIssueDetail(orgId ?? "", runId ?? "");
 
   if (orgId === undefined || runId === undefined) {
     return (
@@ -20,7 +24,10 @@ export function IssueDetail() {
         <p className="text-red-600">
           {error instanceof Error ? error.message : "Failed to load"}
         </p>
-        <Link to={`/orgs/${encodeURIComponent(orgId)}/issues`} className="text-sm text-slate-600 mt-2 inline-block">
+        <Link
+          to={`/orgs/${encodeURIComponent(orgId)}/issues`}
+          className="text-sm text-slate-600 mt-2 inline-block"
+        >
           ← Back to issues
         </Link>
       </div>
@@ -62,7 +69,8 @@ export function IssueDetail() {
           </p>
           <p className="text-sm text-slate-600">
             <strong>Preset</strong> {detail.preset_id} · <strong>Status</strong>{" "}
-            {detail.status} · <strong>Date</strong> {formatDate(detail.created_at)}
+            {detail.status} · <strong>Date</strong>{" "}
+            {formatDate(detail.created_at)}
           </p>
         </CardContent>
       </Card>
@@ -84,10 +92,14 @@ export function IssueDetail() {
                 >
                   <p className="font-medium text-slate-900">{op.file_path}</p>
                   <p className="text-sm text-slate-600">
-                    <code className="bg-slate-100 px-1 rounded">{op.op_type}</code>
+                    <code className="bg-slate-100 px-1 rounded">
+                      {op.op_type}
+                    </code>
                   </p>
                   {op.rationale != null && op.rationale !== "" && (
-                    <p className="text-sm text-slate-500 mt-1">{op.rationale}</p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {op.rationale}
+                    </p>
                   )}
                 </li>
               ))}

@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
-logger = logging.getLogger(__name__)
+from pydantic import BaseModel, ConfigDict
+
+from refactor_agent.engine.logger import logger
+
+
+class JsonRpcParams(BaseModel):
+    """JSON-RPC params payload (method-specific; extra keys allowed)."""
+
+    model_config = ConfigDict(extra="allow")
 
 
 class SubprocessError(Exception):
@@ -41,7 +47,7 @@ class SubprocessEngine(ABC):
         """Start the bridge child process."""
         cmd = self._command()
         cwd = self._cwd()
-        logger.debug("Starting subprocess: %s (cwd=%s)", cmd, cwd)
+        logger.debug("Starting subprocess", cmd=cmd, cwd=cwd)
         self._process = await asyncio.create_subprocess_exec(
             *cmd,
             stdin=asyncio.subprocess.PIPE,
@@ -71,7 +77,7 @@ class SubprocessEngine(ABC):
         finally:
             self._process = None
 
-    async def _call(self, method: str, params: dict[str, Any]) -> Any:  # noqa: ANN401 — JSON-RPC result type varies per method
+    async def _call(self, method: str, params: JsonRpcParams) -> object:
         """Send a JSON-RPC request and return the result.
 
         Raises:
@@ -88,7 +94,11 @@ class SubprocessEngine(ABC):
             request_id = self._request_id
 
             payload = json.dumps(
-                {"id": request_id, "method": method, "params": params},
+                {
+                    "id": request_id,
+                    "method": method,
+                    "params": params.model_dump(),
+                },
             )
             proc.stdin.write(payload.encode() + b"\n")
             await proc.stdin.drain()
@@ -118,10 +128,10 @@ class SubprocessEngine(ABC):
             if "error" in response:
                 msg = f"Bridge error: {response['error']}"
                 logger.error(
-                    "Bridge error: method=%s params=%s error=%s",
-                    method,
-                    params,
-                    response["error"],
+                    "Bridge error",
+                    method=method,
+                    params=params.model_dump(),
+                    error=response["error"],
                 )
                 raise SubprocessError(msg)
 

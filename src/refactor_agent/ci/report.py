@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import assert_never
+
 from pydantic import BaseModel, Field
 
 from refactor_agent.schedule.models import (  # noqa: TC001 — used at runtime for isinstance
@@ -33,8 +35,7 @@ def _op_file_path(op: RefactorOperation) -> str:
         return f"{op.source_file} → {op.target_file}"
     if isinstance(op, MoveFileOp):
         return f"{op.source_path} → {op.target_path}"
-    # Exhaustiveness fallback (all current RefactorOperation variants covered above).
-    return getattr(op, "file_path", "")  # type: ignore[unreachable]
+    assert_never(op)
 
 
 def operation_to_summary(op: RefactorOperation) -> OperationSummary:

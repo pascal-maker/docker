@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from a2a.server.agent_execution import AgentExecutor  # noqa: TC002
+from a2a.server.agent_execution import AgentExecutor  # noqa: TC002 — used at runtime
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill

@@ -57,7 +57,7 @@ def _add_line_items_table(pdf: FPDF) -> None:
     )
 
 
-def main(output_path: Path) -> None:  # noqa: PLR0915
+def main(output_path: Path) -> None:
     """Generate a two-page invoice test PDF."""
     from fpdf import FPDF
 

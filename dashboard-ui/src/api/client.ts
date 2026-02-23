@@ -9,7 +9,11 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-import type { IssuesListParams, IssuesListResponse, IssueDetail } from "@/types/api";
+import type {
+  IssuesListParams,
+  IssuesListResponse,
+  IssueDetail,
+} from "@/types/api";
 
 export async function fetchIssuesList(
   orgId: string,

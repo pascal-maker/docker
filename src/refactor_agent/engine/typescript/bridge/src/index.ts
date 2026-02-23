@@ -1,23 +1,23 @@
-import {createInterface} from "readline";
-import {Request} from "./types.js";
+import { createInterface } from "readline";
+import { Request } from "./types.js";
 import {
-    handleCheckNameCollisions,
-    handleCreateFile,
-    handleExtractFunction,
-    handleFindReferences,
-    handleFormatFile,
-    handleGetChangedFiles,
-    handleGetDiagnostics,
-    handleGetSkeleton,
-    handleGetSource,
-    handleInit,
-    handleInitProject,
-    handleMoveFile,
-    handleMoveSymbolToFile,
-    handleOrganizeImports,
-    handleRemoveNode,
-    handleRenameSymbol,
-    handleToSource
+  handleCheckNameCollisions,
+  handleCreateFile,
+  handleExtractFunction,
+  handleFindReferences,
+  handleFormatFile,
+  handleGetChangedFiles,
+  handleGetDiagnostics,
+  handleGetSkeleton,
+  handleGetSource,
+  handleInit,
+  handleInitProject,
+  handleMoveFile,
+  handleMoveSymbolToFile,
+  handleOrganizeImports,
+  handleRemoveNode,
+  handleRenameSymbol,
+  handleToSource,
 } from "./handlers.js";
 
 type HandlerResult = unknown;
@@ -45,9 +45,11 @@ const handlers: Record<
   extract_function: handleExtractFunction,
 };
 
-function dispatch(
-  request: Request,
-): { id: number; result?: unknown; error?: string } {
+function dispatch(request: Request): {
+  id: number;
+  result?: unknown;
+  error?: string;
+} {
   const handler = handlers[request.method];
   if (!handler) {
     return { id: request.id, error: `Unknown method: ${request.method}` };

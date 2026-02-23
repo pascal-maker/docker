@@ -18,7 +18,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           variant === "outline" &&
             "border border-slate-200 bg-white hover:bg-slate-100",
           variant === "ghost" && "hover:bg-slate-100",
-          variant === "link" && "text-slate-900 underline-offset-4 hover:underline",
+          variant === "link" &&
+            "text-slate-900 underline-offset-4 hover:underline",
           size === "default" && "h-10 px-4 py-2",
           size === "sm" && "h-8 px-3 text-xs",
           className

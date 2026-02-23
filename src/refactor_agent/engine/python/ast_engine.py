@@ -277,8 +277,8 @@ def _rename_in_scope(
 
 
 def _stmt_end_line(node: ast.stmt) -> int:
-    """Last line of a statement node (1-based)."""
-    return getattr(node, "end_lineno", None) or node.lineno
+    """Last line of a statement node (1-based). Python 3.8+ provides end_lineno."""
+    return node.end_lineno if node.end_lineno is not None else node.lineno
 
 
 def _stmt_overlaps_range(node: ast.stmt, start_line: int, end_line: int) -> bool:
@@ -316,7 +316,7 @@ def _body_statement_slice(
 def _names_used_in_block(block: list[ast.stmt]) -> set[str]:
     """All names that are loaded (read) in the block."""
     used: set[str] = set()
-    for node in ast.walk(ast.Module(body=block)):
+    for node in ast.walk(ast.Module(body=block, type_ignores=[])):
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
             used.add(node.id)
     return used
@@ -325,7 +325,7 @@ def _names_used_in_block(block: list[ast.stmt]) -> set[str]:
 def _names_defined_in_block(block: list[ast.stmt]) -> set[str]:
     """Names defined (assigned or param) in the block."""
     defined: set[str] = set()
-    for node in ast.walk(ast.Module(body=block)):
+    for node in ast.walk(ast.Module(body=block, type_ignores=[])):
         if isinstance(node, ast.Assign):
             for t in node.targets:
                 defined.update(_assign_target_names(t))
@@ -361,7 +361,7 @@ def _param_order_from_block(block: list[ast.stmt], params: set[str]) -> list[str
     """Order of first use of each param name in the block."""
     order: list[str] = []
     seen: set[str] = set()
-    for node in ast.walk(ast.Module(body=block)):
+    for node in ast.walk(ast.Module(body=block, type_ignores=[])):
         if isinstance(node, ast.Name) and node.id in params and node.id not in seen:
             seen.add(node.id)
             order.append(node.id)
@@ -376,14 +376,10 @@ def _extract_function_impl(
     new_function_name: str,
 ) -> str:
     """Implement extract_function; mutates tree."""
-    if not isinstance(tree, ast.Module):
-        return "ERROR: expected module"
     found = _find_scope_and_parent(tree, scope_function)
     if found is None:
         return f"ERROR: function {scope_function!r} not found"
     scope_node, parent_body, scope_index = found
-    if not isinstance(scope_node, ast.FunctionDef):
-        return "ERROR: extract_function only supports functions (not classes)"
     body = scope_node.body
     slice_result = _body_statement_slice(body, start_line, end_line)
     if slice_result is None:
@@ -410,11 +406,12 @@ def _extract_function_impl(
         body=extracted,
         decorator_list=[],
         returns=None,
+        type_params=[],
     )
     new_func.lineno = scope_node.lineno
     new_func.end_lineno = (
         scope_node.end_lineno
-        if getattr(scope_node, "end_lineno", None) is not None
+        if scope_node.end_lineno is not None
         else scope_node.lineno
     )
     call = ast.Expr(

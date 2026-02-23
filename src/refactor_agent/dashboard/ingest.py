@@ -8,7 +8,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, status
 
 from refactor_agent.dashboard.auth import _get_ingest_api_key
-from refactor_agent.dashboard.models import IngestCheckResultBody
+from refactor_agent.dashboard.models import (
+    IngestCheckResultBody,
+    IngestCheckResultResponse,
+)
 from refactor_agent.dashboard.storage import insert_check_result
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
@@ -22,11 +25,11 @@ router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 def ingest_check_result(
     request: Request,
     body: IngestCheckResultBody,
-) -> dict[str, str]:
+) -> IngestCheckResultResponse:
     """Accept a CI check result and persist it.
 
     Requires X-API-Key or Authorization: Bearer when ingest API key is configured.
     """
     db_path: Path = request.app.state.db_path
     run_id: UUID = insert_check_result(db_path, body)
-    return {"id": str(run_id), "status": "created"}
+    return IngestCheckResultResponse(id=str(run_id), status="created")

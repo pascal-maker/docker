@@ -154,7 +154,10 @@ export function IssuesList() {
                               : "—"}
                           </td>
                           <td className="p-3">{item.preset_id}</td>
-                          <td className="p-3 max-w-xs truncate" title={item.goal}>
+                          <td
+                            className="p-3 max-w-xs truncate"
+                            title={item.goal}
+                          >
                             {item.goal}
                           </td>
                           <td className="p-3">{item.operation_count}</td>

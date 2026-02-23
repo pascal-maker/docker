@@ -9,9 +9,9 @@ import pytest
 from refactor_agent.orchestrator.deps import OrchestratorDeps
 from refactor_agent.schedule.executor import execute_schedule
 from refactor_agent.schedule.models import (
-    RefactorSchedule,
-    OrganizeImportsOp,
     MoveSymbolOp,
+    OrganizeImportsOp,
+    RefactorSchedule,
 )
 
 

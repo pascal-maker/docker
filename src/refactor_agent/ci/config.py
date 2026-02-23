@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path  # noqa: TC003 — Path used at runtime for path ops
+from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
@@ -29,6 +29,10 @@ class RefactorAgentPreset(BaseModel):
             "Paths are relative to the workspace root; node_modules is always excluded from scans."
         ),
     )
+
+
+class CiConfigError(Exception):
+    """Raised when CI is run with presets but required config (e.g. LLM API key) is missing."""
 
 
 class RefactorAgentConfig(BaseModel):

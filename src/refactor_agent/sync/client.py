@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from pathlib import Path
+from typing import Protocol
 
 import websockets
 
-logger = logging.getLogger(__name__)
+from refactor_agent.sync.logger import logger
+
+
+class _WebSocketClient(Protocol):
+    """Minimal protocol for websockets client (send/recv)."""
+
+    async def send(self, data: str | bytes) -> None: ...
+    async def recv(self) -> str | bytes: ...
 
 
 def _collect_py_files(root: Path) -> list[tuple[Path, str]]:
@@ -28,7 +35,7 @@ def _collect_py_files(root: Path) -> list[tuple[Path, str]]:
     return out
 
 
-async def _send_bootstrap(ws: websockets.WebSocketClientProtocol, root: Path) -> bool:
+async def _send_bootstrap(ws: _WebSocketClient, root: Path) -> bool:
     """Send bootstrap as chunked messages (bootstrap_start + one file per message).
 
     Keeps each message under the default 1 MiB limit so no max_size increase needed.
@@ -40,10 +47,10 @@ async def _send_bootstrap(ws: websockets.WebSocketClientProtocol, root: Path) ->
     try:
         data = json.loads(reply)
         if "error" in data:
-            logger.error("Bootstrap start error: %s", data["error"])
+            logger.error("Bootstrap start error", error=data["error"])
             return False
     except json.JSONDecodeError:
-        logger.error("Bootstrap start reply not JSON: %s", reply[:200])
+        logger.exception("Bootstrap start reply not JSON", reply_preview=reply[:200])
         return False
     for rel, content in files_list:
         path_str = str(rel).replace("\\", "/")
@@ -53,16 +60,16 @@ async def _send_bootstrap(ws: websockets.WebSocketClientProtocol, root: Path) ->
         try:
             data = json.loads(reply)
             if "error" in data:
-                logger.error("Bootstrap file %s error: %s", path_str, data["error"])
+                logger.error("Bootstrap file error", path=path_str, error=data["error"])
                 return False
         except json.JSONDecodeError:
-            logger.error("Bootstrap file reply not JSON: %s", reply[:200])
+            logger.exception("Bootstrap file reply not JSON", reply_preview=reply[:200])
             return False
     return True
 
 
 async def _send_file(
-    ws: websockets.WebSocketClientProtocol,
+    ws: _WebSocketClient,
     root: Path,
     path: Path,
 ) -> bool:
@@ -72,7 +79,7 @@ async def _send_file(
         rel = full.resolve().relative_to(root.resolve()) if full.is_absolute() else path
         content = full.read_text(encoding="utf-8")
     except (OSError, ValueError) as e:
-        logger.warning("Cannot read %s: %s", path, e)
+        logger.warning("Cannot read file", path=str(path), error=str(e))
         return False
     msg = {"type": "file", "path": str(rel).replace("\\", "/"), "content": content}
     await ws.send(json.dumps(msg))
@@ -80,12 +87,13 @@ async def _send_file(
     try:
         data = json.loads(reply)
         if "error" in data:
-            logger.error("File sync error: %s", data["error"])
+            logger.error("File sync error", error=data["error"])
             return False
-        return True
     except json.JSONDecodeError:
-        logger.error("File reply not JSON: %s", reply[:200])
+        logger.exception("File reply not JSON", reply_preview=reply[:200])
         return False
+    else:
+        return True
 
 
 # Single-file messages can be large; allow up to 16 MiB per message
@@ -103,7 +111,7 @@ async def run_sync_client_with_queue(
         ok = await _send_bootstrap(ws, root)
         if not ok:
             raise RuntimeError("Bootstrap failed")
-        logger.info("Bootstrap sent for %s", root)
+        logger.info("Bootstrap sent", root=str(root))
         while True:
             path = await path_queue.get()
             if path is None:

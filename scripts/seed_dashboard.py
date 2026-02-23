@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from refactor_agent.dashboard.models import IngestCheckResultBody, IngestOperation
@@ -47,7 +47,7 @@ def main() -> None:
     db = _db_path()
     init_db(db)
 
-    base = datetime.now(timezone.utc)
+    base = datetime.now(UTC)
     runs = [
         _make_run(
             org_id="demo",

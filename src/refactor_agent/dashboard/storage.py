@@ -7,10 +7,10 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
 from uuid import UUID, uuid4
 
 from refactor_agent.dashboard.models import (
+    CheckRunRow,
     IngestCheckResultBody,
     IssueDetail,
     IssueSummary,
@@ -141,26 +141,9 @@ def insert_check_result(db_path: Path, body: IngestCheckResultBody) -> UUID:
     return run_id
 
 
-def _row_to_summary(row: dict[str, object]) -> IssueSummary:
-    """Build IssueSummary from a check_runs row (dict)."""
-    created_at_val = row["created_at"]
-    created_at = (
-        datetime.fromisoformat(str(created_at_val))
-        if isinstance(created_at_val, str)
-        else created_at_val
-    )
-    return IssueSummary(
-        id=UUID(str(row["id"])),
-        org_id=str(row["org_id"]),
-        repo_id=str(row["repo_id"]),
-        branch=str(row["branch"]),
-        pr_number=cast(int | None, row["pr_number"]),
-        preset_id=str(row["preset_id"]),
-        goal=str(row["goal"]),
-        status=str(row["status"]),
-        operation_count=cast(int, row["operation_count"]),
-        created_at=cast(datetime, created_at),
-    )
+def _row_to_summary(row: CheckRunRow) -> IssueSummary:
+    """Build IssueSummary from a check_runs row."""
+    return IssueSummary.model_validate(row.model_dump())
 
 
 def list_issues(
@@ -208,7 +191,12 @@ def list_issues(
         rows = cur.fetchall()
         col_names = [c[0] for c in cur.description]
 
-    items = [_row_to_summary(dict(zip(col_names, row, strict=True))) for row in rows]
+    items = [
+        _row_to_summary(
+            CheckRunRow.model_validate(dict(zip(col_names, row, strict=True)))
+        )
+        for row in rows
+    ]
     return items, total
 
 

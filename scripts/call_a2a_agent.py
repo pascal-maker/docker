@@ -24,7 +24,7 @@ import httpx
 DEFAULT_BASE = "http://localhost:9999"
 
 
-def main() -> None:  # noqa: PLR0915
+def main() -> None:
     base = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_BASE).rstrip("/")
     task_id = str(uuid.uuid4())
 

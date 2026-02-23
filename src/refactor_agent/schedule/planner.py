@@ -12,25 +12,26 @@ from pydantic_ai import (
     Agent,
     CallToolsNode,
     ModelRequestNode,
-    ModelSettings,
     RunContext,
 )
-from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_graph import End
 
 from refactor_agent.config import DEFAULT_MODEL
-from refactor_agent.llm_client import get_anthropic_client
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
+from refactor_agent.llm_client import get_anthropic_client
 from refactor_agent.observability.langfuse_config import (
+    LangfuseMetadata,
     get_prompt,
     get_prompt_config,
     get_prompt_name_and_version,
     langfuse_span,
 )
-from refactor_agent.orchestrator.deps import OrchestratorDeps
+from refactor_agent.orchestrator.deps import OrchestratorDeps, PlannerBudgetRef
 from refactor_agent.schedule.codebase_structure import build_codebase_structure
 from refactor_agent.schedule.limits import (
     DEFAULT_PLANNER_MAX_TOKENS,
@@ -149,11 +150,11 @@ def _register_planner_tools(
             )
         tool_remaining = max(
             0,
-            MAX_PLANNER_TOOL_CALLS_PER_RUN - ref.get("tool_calls", 0),
+            MAX_PLANNER_TOOL_CALLS_PER_RUN - ref.tool_calls,
         )
         rounds_remaining = max(
             0,
-            MAX_PLANNER_LLM_ROUNDS - ref.get("llm_rounds", 0),
+            MAX_PLANNER_LLM_ROUNDS - ref.llm_rounds,
         )
         return (
             f"Tool calls remaining: {tool_remaining}, LLM rounds remaining: "
@@ -220,6 +221,7 @@ class PlannerRunResult:
 
 def _last_assistant_text(messages: list[object]) -> str | None:
     """Return the concatenated text from the last model response message, or None."""
+    # PydanticAI message/part types (untyped in our deps).
     for msg in reversed(messages):
         if type(msg).__name__ != "ModelResponse":
             continue
@@ -278,7 +280,7 @@ def _parse_schedule_from_text(text: str) -> RefactorSchedule | None:
 
 
 def create_planner_agent(
-    model: AnthropicModel | object | None = None,
+    model: Model | None = None,
     instructions_override: str | None = None,
 ) -> Agent[OrchestratorDeps, RefactorSchedule]:
     """Create planner agent (structured output RefactorSchedule, read-only tools).
@@ -291,12 +293,11 @@ def create_planner_agent(
         config = get_prompt_config(_PLANNER_PROMPT_NAME)
         model_str = config.model or DEFAULT_MODEL
         model_id = model_str.split(":")[-1] if ":" in model_str else model_str
-        # AnthropicModel merges AnthropicModelSettings at runtime; base ModelSettings TypedDict lacks anthropic_* keys.
-        model_settings = ModelSettings(  # type: ignore[typeddict-unknown-key]
-            max_tokens=config.max_tokens or DEFAULT_PLANNER_MAX_TOKENS,
-            anthropic_cache_instructions=True,
-            anthropic_cache_tool_definitions=True,
-        )
+        model_settings: AnthropicModelSettings = {
+            "max_tokens": config.max_tokens or DEFAULT_PLANNER_MAX_TOKENS,
+            "anthropic_cache_instructions": True,
+            "anthropic_cache_tool_definitions": True,
+        }
         provider = AnthropicProvider(
             anthropic_client=get_anthropic_client(timeout=PLANNER_REQUEST_TIMEOUT),
         )
@@ -311,9 +312,8 @@ def create_planner_agent(
         if instructions_override is not None
         else _PLANNER_INSTRUCTIONS
     )
-    # model may be TestModel (object) in tests; pydantic-ai Agent accepts it at runtime
     agent: Agent[OrchestratorDeps, RefactorSchedule] = Agent(
-        model,  # type: ignore[call-overload]
+        model,
         deps_type=OrchestratorDeps,
         output_type=RefactorSchedule,
         instructions=instructions,
@@ -325,6 +325,7 @@ def create_planner_agent(
 
 def _count_tool_calls(node: object) -> int:
     """Return the number of tool invocations in a CallToolsNode."""
+    # PydanticAI graph node (untyped).
     results = getattr(node, "tool_call_results", None)
     if results is None:
         return 0
@@ -338,18 +339,22 @@ def _try_partial_on_limit(
     llm_rounds: int,
 ) -> PlannerRunResult:
     """Try to parse a partial schedule from the last message; return or raise."""
-    messages = run.all_messages()  # type: ignore[attr-defined]
+    # PydanticAI run and Langfuse span (untyped).
+    all_messages = getattr(run, "all_messages", None)
+    messages = (all_messages() if callable(all_messages) else []) or []
     last_text = _last_assistant_text(messages)
     partial_schedule = _parse_schedule_from_text(last_text) if last_text else None
     if partial_schedule is not None:
-        span.update(  # type: ignore[attr-defined]
-            output={
-                "goal": partial_schedule.goal,
-                "operation_count": len(partial_schedule.operations),
-                "operation_types": [op.op for op in partial_schedule.operations],
-                "partial": True,
-            },
-        )
+        update_fn = getattr(span, "update", None)  # Langfuse span (untyped)
+        if callable(update_fn):
+            update_fn(
+                output={
+                    "goal": partial_schedule.goal,
+                    "operation_count": len(partial_schedule.operations),
+                    "operation_types": [op.op for op in partial_schedule.operations],
+                    "partial": True,
+                },
+            )
         return PlannerRunResult(schedule=partial_schedule, partial=True)
     raise PlannerLimitExceededError(
         tool_calls=tool_calls,
@@ -389,13 +394,14 @@ async def run_planner(
     instructions = instructions + budget_note
     planner_agent = create_planner_agent(instructions_override=instructions)
     prompt_name, prompt_version = get_prompt_name_and_version(_PLANNER_PROMPT_NAME)
-    span_metadata: dict[str, object] = {
+    span_metadata_dict: dict[str, object] = {
         "prompt_name": prompt_name,
     }
     if prompt_version is not None:
-        span_metadata["prompt_version"] = prompt_version
+        span_metadata_dict["prompt_version"] = prompt_version
+    span_metadata = LangfuseMetadata.model_validate(span_metadata_dict)
 
-    budget_ref: dict[str, int] = {"tool_calls": 0, "llm_rounds": 0}
+    budget_ref = PlannerBudgetRef()
     deps.planner_budget_ref = budget_ref
 
     with langfuse_span(
@@ -415,8 +421,8 @@ async def run_planner(
                         llm_rounds += 1
                     elif isinstance(node, CallToolsNode):
                         tool_calls += _count_tool_calls(node)
-                    budget_ref["tool_calls"] = tool_calls
-                    budget_ref["llm_rounds"] = llm_rounds
+                    budget_ref.tool_calls = tool_calls
+                    budget_ref.llm_rounds = llm_rounds
                     if (
                         tool_calls > MAX_PLANNER_TOOL_CALLS_PER_RUN
                         or llm_rounds > MAX_PLANNER_LLM_ROUNDS

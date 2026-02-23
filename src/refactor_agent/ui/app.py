@@ -4,19 +4,20 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
-from typing import Any, cast
 
 import chainlit as cl
 from chainlit.data import get_data_layer
 from langfuse import get_client, propagate_attributes
-from pydantic_ai._agent_graph import End, ModelRequestNode
+from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic_ai._agent_graph import End, ModelRequestNode  # type: ignore[attr-defined]
 
+from refactor_agent._log_config import configure_logging
+from refactor_agent.a2a.models import WorkspaceFile
 from refactor_agent.observability.langfuse_config import init_langfuse
 from refactor_agent.orchestrator import (
     NeedInput,
@@ -28,6 +29,22 @@ from refactor_agent.schedule import (
     RefactorSchedule,
     execute_schedule,
 )
+from refactor_agent.ui.logger import logger
+
+
+class JsonRpcBody(RootModel[dict[str, object]]):
+    """JSON-RPC request or response body (no dict in signatures)."""
+
+
+class ToolCallArgs(BaseModel):
+    """Tool call arguments for step label formatting (extra keys allowed)."""
+
+    model_config = ConfigDict(extra="allow")
+
+
+class GetTaskResult(RootModel[dict[str, object]]):
+    """Result of tasks/get (task payload; no dict in signatures)."""
+
 
 _TRACE_NAME = "chat-agent"
 
@@ -56,6 +73,7 @@ _LANG_CONFIG: dict[str, dict[str, str]] = {
     "typescript": {"ext": "*.ts", "subdir": "nestjs-layered-architecture"},
 }
 
+configure_logging()
 
 # ---------------------------------------------------------------------------
 # Workspace helpers
@@ -72,23 +90,26 @@ def _scan_files(workspace: Path, ext: str) -> list[Path]:
     return sorted(workspace.rglob(ext))
 
 
-def _workspace_payload(language: str) -> list[dict[str, str]]:
-    """Build workspace list of {path, source} for A2A remote mode."""
+def _workspace_payload(language: str) -> list[WorkspaceFile]:
+    """Build workspace list of path/source for A2A remote mode."""
     ws = _workspace_dir(language)
     ext = _LANG_CONFIG[language]["ext"]
     files = _scan_files(ws, ext)
     return [
-        {"path": str(p.relative_to(ws)), "source": p.read_text(encoding="utf-8")}
+        WorkspaceFile(
+            path=str(p.relative_to(ws)),
+            source=p.read_text(encoding="utf-8"),
+        )
         for p in files
     ]
 
 
-def _a2a_post_sync(base_url: str, body: dict[str, Any]) -> dict[str, Any]:
+def _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcBody:
     """POST JSON-RPC to A2A server (run in thread to avoid blocking)."""
     url = base_url.rstrip("/")
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-    data = json.dumps(body).encode("utf-8")
+    data = json.dumps(body.model_dump()).encode("utf-8")
     req = urllib.request.Request(
         url,
         data=data,
@@ -96,7 +117,8 @@ def _a2a_post_sync(base_url: str, body: dict[str, Any]) -> dict[str, Any]:
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=300) as resp:
-        return cast(dict[str, Any], json.loads(resp.read().decode()))
+        out: object = json.loads(resp.read().decode())
+        return JsonRpcBody.model_validate(out if isinstance(out, dict) else {})
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +175,7 @@ async def _on_share_thread(action: cl.Action) -> None:
         ).send()
         return
     session = cl.context.session
+    # Chainlit session (untyped).
     thread_id = getattr(session, "thread_id", None)
     if not thread_id:
         await cl.Message(
@@ -329,10 +352,10 @@ _TOOL_LABELS: dict[str, str] = {
 }
 
 
-def _step_label(tool_name: str, args: dict) -> str:  # type: ignore[type-arg]
+def _step_label(tool_name: str, args: ToolCallArgs) -> str:
     template = _TOOL_LABELS.get(tool_name, tool_name)
     try:
-        return template.format_map(args)
+        return template.format_map(args.model_dump())
     except KeyError:
         return tool_name
 
@@ -341,7 +364,7 @@ def _format_schedule(schedule: RefactorSchedule) -> str:
     """Format a RefactorSchedule for display."""
     lines = [f"**Goal:** {schedule.goal}", "", "**Operations:**"]
     for i, op in enumerate(schedule.operations):
-        dep = getattr(op, "depends_on", None)
+        dep = op.depends_on
         dep_str = f" (depends on {dep})" if dep else ""
         lines.append(f"{i + 1}. `{op.op}`{dep_str}")
     return "\n".join(lines)
@@ -390,10 +413,10 @@ async def _handle_schedule_produced(
         ).send()
     else:
         if result.error_traceback:
-            logging.error(
-                "Schedule execution failed: %s\n%s",
-                result.error,
-                result.error_traceback,
+            logger.error(
+                "Schedule execution failed",
+                error=result.error,
+                error_traceback=result.error_traceback,
             )
         await cl.Message(
             content=(
@@ -410,13 +433,16 @@ async def _run_request_remote(content: str, language: str, base_url: str) -> Non
     workspace_list = _workspace_payload(language)
     if not workspace_list:
         workspace_list = [
-            {"path": ".keep", "source": "# No workspace files; placeholder for A2A."},
+            WorkspaceFile(
+                path=".keep",
+                source="# No workspace files; placeholder for A2A.",
+            ),
         ]
     payload = {
         "old_name": "",
         "new_name": "",
         "prompt": content,
-        "workspace": workspace_list,
+        "workspace": [w.model_dump() for w in workspace_list],
         "language": language,
     }
     message_body = {
@@ -427,38 +453,52 @@ async def _run_request_remote(content: str, language: str, base_url: str) -> Non
         "context_id": context_id,
         "parts": [{"kind": "text", "text": json.dumps(payload)}],
     }
-    body: dict[str, Any] = {
-        "jsonrpc": "2.0",
-        "id": uuid.uuid4().hex,
-        "method": "message/send",
-        "params": {"message": message_body},
-    }
-
-    def _get_task() -> dict[str, Any]:
-        get_body = {
+    body = JsonRpcBody.model_validate(
+        {
             "jsonrpc": "2.0",
             "id": uuid.uuid4().hex,
-            "method": "tasks/get",
-            "params": {"id": task_id},
+            "method": "message/send",
+            "params": {"message": message_body},
         }
+    )
+
+    def _get_task() -> GetTaskResult:
+        get_body = JsonRpcBody.model_validate(
+            {
+                "jsonrpc": "2.0",
+                "id": uuid.uuid4().hex,
+                "method": "tasks/get",
+                "params": {"id": task_id},
+            }
+        )
         resp = _a2a_post_sync(base_url, get_body)
-        if "result" in resp:
-            return cast(dict[str, Any], resp["result"])
-        return {}
+        if "result" in resp.root:
+            result = resp.root["result"]
+            return GetTaskResult.model_validate(
+                result if isinstance(result, dict) else {}
+            )
+        return GetTaskResult.model_validate({})
 
     try:
         while True:
             resp = await asyncio.to_thread(_a2a_post_sync, base_url, body)
-            if "error" in resp:
-                err = resp["error"]
-                msg = err.get("message", json.dumps(err))
+            if "error" in resp.root:
+                err = resp.root["error"]
+                msg = (
+                    err.get("message", json.dumps(err))
+                    if isinstance(err, dict)
+                    else str(err)
+                )
                 await cl.Message(content=f"A2A error: {msg}").send()
                 return
             await asyncio.sleep(1.0)
             task = await asyncio.to_thread(_get_task)
-            status = task.get("status") or {}
+            status_raw = task.root.get("status")
+            status = status_raw if isinstance(status_raw, dict) else {}
             state = status.get("state")
-            msg_parts = status.get("message", {}).get("parts") or []
+            message_obj = status.get("message")
+            message = message_obj if isinstance(message_obj, dict) else {}
+            msg_parts = message.get("parts") or []
             msg_text = ""
             for p in msg_parts:
                 if isinstance(p, dict) and "text" in p:
@@ -488,21 +528,23 @@ async def _run_request_remote(content: str, language: str, base_url: str) -> Non
                     "context_id": context_id,
                     "parts": [{"kind": "text", "text": reply}],
                 }
-                body = {
-                    "jsonrpc": "2.0",
-                    "id": uuid.uuid4().hex,
-                    "method": "message/send",
-                    "params": {"message": message_body},
-                }
+                body = JsonRpcBody.model_validate(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": uuid.uuid4().hex,
+                        "method": "message/send",
+                        "params": {"message": message_body},
+                    }
+                )
                 continue
             await asyncio.sleep(1.5)
     except urllib.error.URLError as e:
-        logging.exception("A2A request failed")
+        logger.exception("A2A request failed")
         await cl.Message(
             content=f"Could not reach A2A server: {e}\n\nCheck REFACTOR_AGENT_A2A_URL.",
         ).send()
     except Exception as exc:
-        logging.exception("Remote request failed")
+        logger.exception("Remote request failed")
         await cl.Message(
             content=f"Something went wrong: {exc}\n\nCheck the terminal for traceback.",
         ).send()
@@ -586,7 +628,7 @@ async def _run_request(content: str, language: str) -> None:
                         is_partial=is_partial,
                     )
     except Exception as exc:
-        logging.exception("Request failed")
+        logger.exception("Request failed")
         await cl.Message(
             content=f"Something went wrong: {exc}\n\nCheck the terminal for full traceback.",
         ).send()
@@ -603,14 +645,17 @@ async def on_message(message: cl.Message) -> None:
     await _run_request(message.content, language)
 
 
-async def _show_tool_steps(run: Any) -> None:
-    msgs = run.all_messages()
+async def _show_tool_steps(run: object) -> None:
+    # PydanticAI run and message parts (untyped).
+    all_messages = getattr(run, "all_messages", None)
+    msgs = (all_messages() if callable(all_messages) else []) or []
     if not msgs:
         return
     last = msgs[-1]
     for part in getattr(last, "parts", []):
         if type(part).__name__ == "ToolCallPart":
-            args = part.args if isinstance(part.args, dict) else {}
+            raw = part.args if isinstance(part.args, dict) else {}
+            args = ToolCallArgs.model_validate(raw)
             label = _step_label(part.tool_name, args)
             async with cl.Step(name=label) as step:
                 step.output = ""

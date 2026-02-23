@@ -1,0 +1,4 @@
+packages:
+  - "dashboard-ui"
+  - "src/refactor_agent/engine/typescript/bridge"
+  - "vscode-extension"

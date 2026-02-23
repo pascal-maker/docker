@@ -1,15 +1,11 @@
 {
   "name": "refactor-agent",
   "displayName": "Refactor Agent",
-  "description": "Refactor Agent \u2013 rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
+  "description": "Refactor Agent – rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
   "version": "0.1.0",
   "publisher": "refactor-agent",
-  "engines": {
-    "vscode": "^1.90.0"
-  },
-  "categories": [
-    "Other"
-  ],
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
   "activationEvents": [
     "onView:refactorAgent-refactorView",
     "onCommand:refactorAgent.focusView",
@@ -68,22 +64,28 @@
         "refactorAgent.engine": {
           "type": "string",
           "default": "python",
-          "enum": [
-            "python",
-            "typescript"
-          ],
+          "enum": ["python", "typescript"],
           "description": "Language engine (must match opened workspace; set by try_extension.sh <playground>)."
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "pnpm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format-check": "prettier --check \"src/**/*.ts\"",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^22.14.0",
     "@types/vscode": "^1.90.0",
-    "typescript": "~5.7.0"
+    "eslint": "^9.15.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.7.0",
+    "typescript-eslint": "^8.15.0"
   }
 }

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from pydantic_ai._agent_graph import End
+from pydantic_ai import ModelMessage
+from pydantic_ai._agent_graph import End  # type: ignore[attr-defined]
 
 from refactor_agent.orchestrator.deps import (  # noqa: TC001 — NeedInput at runtime
     NeedInput,
@@ -34,13 +35,14 @@ class NeedInputResult:
     run_state: RunState
 
 
-RunState = list[Any]  # message_history for resume; list[ModelMessage]
+RunState = list[ModelMessage]
 
 OrchestratorResult = FinalOutput | NeedInputResult
 
 
-def _last_tool_return_content(messages: list[Any]) -> str | None:
+def _last_tool_return_content(messages: RunState) -> str | None:
     """Extract the content of the most recent tool return from message history."""
+    # PydanticAI message/part types (untyped).
     for msg in reversed(messages):
         parts = getattr(msg, "parts", [])
         for part in reversed(parts):

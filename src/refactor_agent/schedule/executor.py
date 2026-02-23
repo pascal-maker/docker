@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import traceback
 from collections import deque
 from dataclasses import dataclass
@@ -12,6 +11,7 @@ from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
 from refactor_agent.observability.langfuse_config import langfuse_span
 from refactor_agent.orchestrator.deps import OrchestratorDeps
+from refactor_agent.schedule.logger import logger
 from refactor_agent.schedule.models import (
     CreateFileOp,
     MoveFileOp,
@@ -22,8 +22,6 @@ from refactor_agent.schedule.models import (
     RemoveNodeOp,
     RenameOp,
 )
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -198,7 +196,7 @@ async def _run_one(
                     success=True,
                 )
         except SubprocessError as exc:
-            logger.warning("organize_imports non-fatal: %s", exc)
+            logger.warning("organize_imports non-fatal", error=str(exc))
             return OpResult(
                 op_id,
                 "organize_imports",
@@ -268,9 +266,9 @@ async def _execute_inner(
         except Exception as e:
             tb = traceback.format_exc()
             logger.exception(
-                "Schedule op failed: op_id=%r op_type=%s",
-                op_id,
-                getattr(op, "op", type(op).__name__),
+                "Schedule op failed",
+                op_id=op_id,
+                op_type=op.op,
             )
             return ScheduleResult(
                 success=False,
@@ -288,7 +286,7 @@ async def _run_one_traced(
     workspace: Path,
 ) -> OpResult:
     """Run a single operation wrapped in a Langfuse span."""
-    op_type = getattr(op, "op", type(op).__name__)
+    op_type = op.op
     with langfuse_span(
         f"op:{op_type}:{op_id}",
         as_type="tool",

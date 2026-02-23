@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from typing import Any
 
 from anthropic import AsyncAnthropic, omit
 
@@ -21,13 +20,20 @@ def get_anthropic_client(*, timeout: float = 60.0) -> AsyncAnthropic:
     api_key_val = (
         os.getenv("LITELLM_MASTER_KEY") or os.getenv("ANTHROPIC_API_KEY")
     ) or None
-    kwargs: dict[str, Any] = {"timeout": timeout}
-    if base_url is not None:
-        kwargs["base_url"] = base_url
+    if base_url is not None and not api_key_val:
+        # anthropic.omit sentinel: SDK omits key; stubs expect str | None.
+        return AsyncAnthropic(
+            timeout=timeout,
+            base_url=base_url,
+            api_key=omit,  # type: ignore[arg-type]
+            auth_token=omit,  # type: ignore[arg-type]
+        )
+    if base_url is not None and api_key_val:
+        return AsyncAnthropic(
+            timeout=timeout,
+            base_url=base_url,
+            api_key=api_key_val,
+        )
     if api_key_val:
-        kwargs["api_key"] = api_key_val
-    elif base_url is not None:
-        # Proxy has its own key; omit both auth headers so the SDK does not send any.
-        kwargs["api_key"] = omit
-        kwargs["auth_token"] = omit
-    return AsyncAnthropic(**kwargs)
+        return AsyncAnthropic(timeout=timeout, api_key=api_key_val)
+    return AsyncAnthropic(timeout=timeout)

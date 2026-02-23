@@ -12,7 +12,7 @@ from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 mcp = FastMCP("ast-refactor")
 
 
-async def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for clarity
+async def _rename_symbol_in_file(
     file_path: Path,
     old_name: str,
     new_name: str,
@@ -22,29 +22,32 @@ async def _rename_symbol_in_file(  # noqa: PLR0911 — six exit paths kept for c
 
     Returns summary or error string.
     """
+    out: str = ""
     try:
-        source = file_path.read_text(encoding="utf-8")  # noqa: ASYNC240 — sync file I/O is fine for MCP tool
+        source = file_path.read_text(encoding="utf-8")  # noqa: ASYNC240 — sync I/O in MCP handler
     except FileNotFoundError:
-        return f"ERROR: file not found: {file_path}"
+        out = f"ERROR: file not found: {file_path}"
     except OSError as e:
-        return f"ERROR: could not read file: {e}"
-
-    try:
-        engine = LibCSTEngine(source)
-    except cst.ParserSyntaxError as e:
-        return f"ERROR: invalid Python syntax: {e}"
-
-    result = await engine.rename_symbol(old_name, new_name, scope_node)
-    if result.startswith("ERROR:"):
-        return result
-
-    try:
-        new_source = await engine.to_source()
-        file_path.write_text(new_source, encoding="utf-8")  # noqa: ASYNC240 — sync file I/O is fine for MCP tool
-    except OSError as e:
-        return f"ERROR: could not write file: {e}"
-
-    return result
+        out = f"ERROR: could not read file: {e}"
+    else:
+        try:
+            engine = LibCSTEngine(source)
+        except cst.ParserSyntaxError as e:
+            out = f"ERROR: invalid Python syntax: {e}"
+        else:
+            result = await engine.rename_symbol(old_name, new_name, scope_node)
+            if result.startswith("ERROR:"):
+                out = result
+            else:
+                try:
+                    new_source = await engine.to_source()
+                    file_path.write_text(  # noqa: ASYNC240 — sync I/O in MCP handler
+                        new_source, encoding="utf-8"
+                    )
+                    out = result
+                except OSError as e:
+                    out = f"ERROR: could not write file: {e}"
+    return out
 
 
 @mcp.tool()

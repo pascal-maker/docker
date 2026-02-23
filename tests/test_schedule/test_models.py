@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from refactor_agent.schedule.models import (
     RefactorSchedule,
 )
@@ -17,7 +15,7 @@ def test_refactor_schedule_parses_fixture() -> None:
     fixture_path = (
         Path(__file__).resolve().parents[1] / "fixtures" / "refactor_schedule.json"
     )
-    with open(fixture_path) as f:
+    with fixture_path.open(encoding="utf-8") as f:
         data = json.load(f)
     schedule = RefactorSchedule.model_validate(data)
     assert schedule.goal
@@ -43,7 +41,7 @@ def test_refactor_schedule_roundtrip_json() -> None:
     fixture_path = (
         Path(__file__).resolve().parents[1] / "fixtures" / "refactor_schedule.json"
     )
-    with open(fixture_path) as f:
+    with fixture_path.open(encoding="utf-8") as f:
         raw = f.read()
     schedule = RefactorSchedule.model_validate_json(raw)
     out = schedule.model_dump_json()

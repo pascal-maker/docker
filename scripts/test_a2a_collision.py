@@ -16,14 +16,20 @@ restart the A2A server so it loads the executor with collision detection.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 import uuid
+from typing import TYPE_CHECKING
 
-try:
+if TYPE_CHECKING:
+    import types
+
+_urllib_request: types.ModuleType | None = None
+with contextlib.suppress(ImportError):
     import urllib.request
-except ImportError:
-    urllib.request = None  # type: ignore[assignment]
+
+    _urllib_request = urllib.request
 
 
 def send_message(
@@ -34,7 +40,7 @@ def send_message(
     task_id: str | None = None,
 ) -> dict:
     """POST message/send and return the parsed JSON response."""
-    if urllib.request is None:
+    if _urllib_request is None:
         sys.exit("Need urllib (standard library)")
     message: dict = {
         "kind": "message",
@@ -53,13 +59,13 @@ def send_message(
         "params": {"message": message},
     }
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(  # noqa: S310
+    req = _urllib_request.Request(
         base_url,
         data=data,
         method="POST",
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+    with _urllib_request.urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode())
 
 

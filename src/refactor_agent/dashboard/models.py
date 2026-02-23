@@ -22,6 +22,13 @@ class IngestOperation(BaseModel):
     )
 
 
+class IngestCheckResultResponse(BaseModel):
+    """Response body for POST /api/ingest/check-result."""
+
+    id: str = Field(description="Created check run UUID as string.")
+    status: str = Field(description="Status of the ingestion, e.g. created.")
+
+
 class IngestCheckResultBody(BaseModel):
     """Request body for POST /api/ingest/check-result."""
 
@@ -53,6 +60,21 @@ class OperationOut(BaseModel):
     op_type: str
     rationale: str | None = None
     sort_order: int = 0
+
+
+class CheckRunRow(BaseModel):
+    """One check_runs row from the DB (for type-safe row handling)."""
+
+    id: UUID
+    org_id: str
+    repo_id: str
+    branch: str
+    pr_number: int | None
+    preset_id: str
+    goal: str
+    status: str
+    operation_count: int
+    created_at: datetime
 
 
 class IssueSummary(BaseModel):

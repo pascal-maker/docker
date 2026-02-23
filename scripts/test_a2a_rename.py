@@ -28,11 +28,11 @@ def main() -> None:
         sys.exit("Need urllib (standard library)")
 
     # 1. GET agent card (base_url from argv; only http(s) in normal use)
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         f"{base_url}/.well-known/agent-card.json",
         headers={"Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=5) as resp:
         card = json.loads(resp.read().decode())
     print("Agent card:")
     print(f"  name: {card.get('name')}")
@@ -59,13 +59,13 @@ def main() -> None:
         },
     }
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         base_url,
         data=data,
         method="POST",
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=10) as resp:
         result = json.loads(resp.read().decode())
 
     print("\nmessage/send response:")

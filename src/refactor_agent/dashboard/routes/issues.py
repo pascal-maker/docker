@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from refactor_agent.dashboard.models import IssuesListResponse
+from refactor_agent.dashboard.models import IssueDetail, IssuesListResponse
 from refactor_agent.dashboard.storage import get_issue_detail, list_issues
 
 router = APIRouter(prefix="/api/orgs", tags=["issues"])
@@ -43,12 +43,12 @@ def list_org_issues(
     )
 
 
-@router.get("/{org_id}/issues/{run_id}")
+@router.get("/{org_id}/issues/{run_id}", response_model=IssueDetail)
 def get_org_issue_detail(
     request: Request,
     org_id: str,
     run_id: UUID,
-) -> dict[str, object]:
+) -> IssueDetail:
     """Return full check run with operations, or 404."""
     db_path = request.app.state.db_path
     detail = get_issue_detail(db_path, org_id, run_id)
@@ -57,4 +57,4 @@ def get_org_issue_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Issue not found",
         )
-    return detail.model_dump(mode="json")
+    return detail

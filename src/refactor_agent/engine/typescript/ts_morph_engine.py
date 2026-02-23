@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from refactor_agent.engine.base import (
     CollisionInfo,
     DiagnosticInfo,
     ReferenceLocation,
 )
-from refactor_agent.engine.subprocess_engine import SubprocessEngine
-
-if TYPE_CHECKING:
-    from typing import Any
-
-logger = logging.getLogger(__name__)
+from refactor_agent.engine.logger import logger
+from refactor_agent.engine.subprocess_engine import (
+    JsonRpcParams,
+    SubprocessEngine,
+)
 
 _BRIDGE_DIR = Path(__file__).resolve().parent / "bridge"
 _BRIDGE_ENTRY = _BRIDGE_DIR / "src" / "index.ts"
@@ -57,12 +54,15 @@ class TsMorphEngine(SubprocessEngine):
     async def __aenter__(self) -> TsMorphEngine:
         """Start the bridge and initialize it with the source."""
         await super().__aenter__()
-        await self._call("init", {"source": self._source})
+        await self._call(
+            "init",
+            JsonRpcParams.model_validate({"source": self._source}),
+        )
         return self
 
     async def get_skeleton(self) -> str:
         """Return a text skeleton of the TypeScript source."""
-        result = await self._call("get_skeleton", {})
+        result = await self._call("get_skeleton", JsonRpcParams())
         return str(result)
 
     async def rename_symbol(
@@ -78,13 +78,16 @@ class TsMorphEngine(SubprocessEngine):
             new_name: Desired new name.
             scope_node: Optional function/class to restrict scope.
         """
-        params: dict[str, Any] = {
+        params_dict: dict[str, object] = {
             "old_name": old_name,
             "new_name": new_name,
         }
         if scope_node is not None:
-            params["scope_node"] = scope_node
-        result = await self._call("rename_symbol", params)
+            params_dict["scope_node"] = scope_node
+        result = await self._call(
+            "rename_symbol",
+            JsonRpcParams.model_validate(params_dict),
+        )
         if isinstance(result, dict):
             return str(result.get("summary", result))
         return str(result)
@@ -108,10 +111,13 @@ class TsMorphEngine(SubprocessEngine):
         scope_node: str | None = None,
     ) -> list[CollisionInfo]:
         """Check for existing definitions that would conflict with new_name."""
-        params: dict[str, Any] = {"new_name": new_name}
+        params_dict: dict[str, object] = {"new_name": new_name}
         if scope_node is not None:
-            params["scope_node"] = scope_node
-        result = await self._call("check_name_collisions", params)
+            params_dict["scope_node"] = scope_node
+        result = await self._call(
+            "check_name_collisions",
+            JsonRpcParams.model_validate(params_dict),
+        )
         if not isinstance(result, list):
             return []
         return [
@@ -125,7 +131,7 @@ class TsMorphEngine(SubprocessEngine):
 
     async def to_source(self) -> str:
         """Return the current TypeScript source text."""
-        result = await self._call("to_source", {})
+        result = await self._call("to_source", JsonRpcParams())
         return str(result)
 
 
@@ -181,12 +187,15 @@ class TsMorphProjectEngine(SubprocessEngine):
     async def __aenter__(self) -> TsMorphProjectEngine:
         """Start the bridge and load the project."""
         await super().__aenter__()
-        params: dict[str, Any] = {"root_dir": str(self._workspace)}
+        params_dict: dict[str, object] = {"root_dir": str(self._workspace)}
         if self._tsconfig is not None:
-            params["tsconfig_path"] = str(self._tsconfig)
-        result = await self._call("init_project", params)
+            params_dict["tsconfig_path"] = str(self._tsconfig)
+        result = await self._call(
+            "init_project",
+            JsonRpcParams.model_validate(params_dict),
+        )
         files = result.get("files", []) if isinstance(result, dict) else []
-        logger.debug("Loaded %d files from %s", len(files), self._workspace)
+        logger.debug("Loaded files", count=len(files), workspace=str(self._workspace))
         return self
 
     # -- Analysis ----------------------------------------------------------
@@ -195,7 +204,7 @@ class TsMorphProjectEngine(SubprocessEngine):
         """Return a text skeleton of the given project file."""
         result = await self._call(
             "get_skeleton",
-            {"file_path": file_path},
+            JsonRpcParams.model_validate({"file_path": file_path}),
         )
         return str(result)
 
@@ -207,7 +216,12 @@ class TsMorphProjectEngine(SubprocessEngine):
         """Find all references to a symbol across the project."""
         result = await self._call(
             "find_references",
-            {"file_path": file_path, "symbol_name": symbol_name},
+            JsonRpcParams.model_validate(
+                {
+                    "file_path": file_path,
+                    "symbol_name": symbol_name,
+                }
+            ),
         )
         if not isinstance(result, list):
             return []
@@ -228,10 +242,13 @@ class TsMorphProjectEngine(SubprocessEngine):
         file_path: str | None = None,
     ) -> list[DiagnosticInfo]:
         """Return TypeScript diagnostics for a file or whole project."""
-        params: dict[str, Any] = {}
+        params_dict: dict[str, object] = {}
         if file_path is not None:
-            params["file_path"] = file_path
-        result = await self._call("get_diagnostics", params)
+            params_dict["file_path"] = file_path
+        result = await self._call(
+            "get_diagnostics",
+            JsonRpcParams.model_validate(params_dict),
+        )
         if not isinstance(result, list):
             return []
         return [
@@ -264,14 +281,17 @@ class TsMorphProjectEngine(SubprocessEngine):
             new_name: Desired new name.
             scope_node: Optional function/class to restrict scope.
         """
-        params: dict[str, Any] = {
+        params_dict = {
             "file_path": file_path,
             "old_name": old_name,
             "new_name": new_name,
         }
         if scope_node is not None:
-            params["scope_node"] = scope_node
-        result = await self._call("rename_symbol", params)
+            params_dict["scope_node"] = scope_node
+        result = await self._call(
+            "rename_symbol",
+            JsonRpcParams.model_validate(params_dict),
+        )
         return _extract_summary(result)
 
     async def remove_node(
@@ -287,13 +307,16 @@ class TsMorphProjectEngine(SubprocessEngine):
             symbol_name: Name of the declaration to remove.
             kind: Optional kind filter (function, class, interface, etc.).
         """
-        params: dict[str, Any] = {
+        params_dict = {
             "file_path": file_path,
             "symbol_name": symbol_name,
         }
         if kind is not None:
-            params["kind"] = kind
-        result = await self._call("remove_node", params)
+            params_dict["kind"] = kind
+        result = await self._call(
+            "remove_node",
+            JsonRpcParams.model_validate(params_dict),
+        )
         return _extract_summary(result)
 
     async def move_symbol(
@@ -311,11 +334,13 @@ class TsMorphProjectEngine(SubprocessEngine):
         """
         result = await self._call(
             "move_symbol_to_file",
-            {
-                "source_file": source_file,
-                "target_file": target_file,
-                "symbol_name": symbol_name,
-            },
+            JsonRpcParams.model_validate(
+                {
+                    "source_file": source_file,
+                    "target_file": target_file,
+                    "symbol_name": symbol_name,
+                }
+            ),
         )
         return _extract_summary(result)
 
@@ -328,7 +353,12 @@ class TsMorphProjectEngine(SubprocessEngine):
         """
         result = await self._call(
             "create_file",
-            {"file_path": file_path, "content": content},
+            JsonRpcParams.model_validate(
+                {
+                    "file_path": file_path,
+                    "content": content,
+                }
+            ),
         )
         return _extract_summary(result)
 
@@ -341,7 +371,12 @@ class TsMorphProjectEngine(SubprocessEngine):
         """
         result = await self._call(
             "move_file",
-            {"source_path": source_path, "target_path": target_path},
+            JsonRpcParams.model_validate(
+                {
+                    "source_path": source_path,
+                    "target_path": target_path,
+                }
+            ),
         )
         return _extract_summary(result)
 
@@ -349,7 +384,7 @@ class TsMorphProjectEngine(SubprocessEngine):
         """Format a project file using the TypeScript formatter."""
         result = await self._call(
             "format_file",
-            {"file_path": file_path},
+            JsonRpcParams.model_validate({"file_path": file_path}),
         )
         return _extract_summary(result)
 
@@ -357,7 +392,7 @@ class TsMorphProjectEngine(SubprocessEngine):
         """Organize imports in a project file (sort, remove unused)."""
         result = await self._call(
             "organize_imports",
-            {"file_path": file_path},
+            JsonRpcParams.model_validate({"file_path": file_path}),
         )
         return _extract_summary(result)
 
@@ -367,13 +402,13 @@ class TsMorphProjectEngine(SubprocessEngine):
         """Return the current source text of a project file."""
         result = await self._call(
             "get_source",
-            {"file_path": file_path},
+            JsonRpcParams.model_validate({"file_path": file_path}),
         )
         return str(result)
 
     async def get_changed_files(self) -> list[str]:
         """Return paths of files modified since project load."""
-        result = await self._call("get_changed_files", {})
+        result = await self._call("get_changed_files", JsonRpcParams())
         if isinstance(result, dict):
             files = result.get("files", [])
             if isinstance(files, list):

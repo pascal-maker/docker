@@ -25,18 +25,23 @@ def workspace_with_config(tmp_path: Path) -> Path:
 
 async def test_run_ci_no_presets_returns_empty_report(tmp_path: Path) -> None:
     """With no config and no REFACTOR_AGENT_GOAL, run_ci returns empty report and not failed."""
-    report = await run_ci(workspace=tmp_path)
+    with patch("refactor_agent.ci.runner.resolve_presets", return_value=[]):
+        report = await run_ci(workspace=tmp_path)
     assert report.failed is False
     assert report.preset_results == []
 
 
 async def test_run_ci_no_api_key_raises(workspace_with_config: Path) -> None:
     """With presets but no API key, run_ci raises CiConfigError."""
-    with patch.dict(
-        "os.environ", {"ANTHROPIC_API_KEY": "", "LITELLM_MASTER_KEY": ""}, clear=False
+    with (
+        patch.dict(
+            "os.environ",
+            {"ANTHROPIC_API_KEY": "", "LITELLM_MASTER_KEY": ""},
+            clear=False,
+        ),
+        pytest.raises(CiConfigError, match="LLM API key"),
     ):
-        with pytest.raises(CiConfigError, match="LLM API key"):
-            await run_ci(workspace=workspace_with_config)
+        await run_ci(workspace=workspace_with_config)
 
 
 async def test_run_ci_mocked_planner_empty_schedule_succeeds(

@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-import logging
+import os
 from pathlib import Path  # noqa: TC003 — Path used at runtime
 
-from refactor_agent.ci.config import get_language_and_ext, resolve_presets
+from refactor_agent.ci.config import (
+    CiConfigError,
+    get_language_and_ext,
+    resolve_presets,
+)
+from refactor_agent.ci.logger import logger
 from refactor_agent.ci.report import (
     CiReport,
     PresetResult,
@@ -13,8 +18,6 @@ from refactor_agent.ci.report import (
 )
 from refactor_agent.orchestrator.deps import OrchestratorDeps
 from refactor_agent.schedule import create_planner_agent, execute_schedule, run_planner
-
-logger = logging.getLogger(__name__)
 
 
 async def run_ci(
@@ -32,6 +35,13 @@ async def run_ci(
     presets = resolve_presets(workspace, config_path)
     if not presets:
         return CiReport(preset_results=[], failed=False)
+
+    if not (
+        os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("LITELLM_MASTER_KEY")
+    ):
+        raise CiConfigError(
+            "LLM API key (ANTHROPIC_API_KEY or LITELLM_MASTER_KEY) required"
+        )
 
     preset_results: list[PresetResult] = []
     any_failed = False
@@ -70,7 +80,7 @@ async def run_ci(
         try:
             planner_result = await run_planner(agent, deps, preset.goal)
         except Exception as e:
-            logger.exception("Planner failed for preset %s", preset.id)
+            logger.exception("Planner failed for preset", preset_id=preset.id)
             preset_results.append(
                 PresetResult(
                     preset_id=preset.id,

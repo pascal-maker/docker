@@ -129,12 +129,10 @@ def _rewrite_bridge_methods(payload: dict) -> dict:
     return payload
 
 
-def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
+def wrap_with_method_logging(app: object) -> object:
     """Log JSON-RPC method and rewrite bridge method names for A2A compat."""
 
-    async def middleware(  # noqa: C901, PLR0915
-        scope: dict, receive: object, send: object
-    ) -> None:
+    async def middleware(scope: dict, receive: object, send: object) -> None:
         if scope.get("type") != "http" or scope.get("method") != "POST":
             await app(scope, receive, send)
             return

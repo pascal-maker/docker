@@ -15,9 +15,16 @@ try:
     from watchdog.events import FileModifiedEvent, FileSystemEventHandler
     from watchdog.observers import Observer
 except ImportError:
-    Observer = None  # type: ignore[misc, assignment]
-    FileSystemEventHandler = object  # type: ignore[misc, assignment]
-    FileModifiedEvent = object  # type: ignore[misc, assignment]
+    # Stubs when watchdog is not installed (script exits early in main() if Observer is None).
+    class _StubEventHandler:
+        def on_modified(self, event: object) -> None: ...
+
+    class _StubFileEvent:
+        src_path: str = ""
+
+    Observer = None
+    FileSystemEventHandler = _StubEventHandler
+    FileModifiedEvent = _StubFileEvent
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,7 +73,8 @@ def main() -> None:
     root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
     ws_url = os.environ.get("POC_SYNC_WS_URL", DEFAULT_WS_URL)
 
-    if Observer is None:
+    obs_cls = Observer
+    if obs_cls is None:
         logger.error("watchdog not installed; run: uv add watchdog")
         sys.exit(1)
 
@@ -84,7 +92,7 @@ def main() -> None:
         pass
 
     handler = PyFileHandler(root, path_queue, loop)
-    observer = Observer()
+    observer = obs_cls()
     observer.schedule(handler, str(root), recursive=True)
     observer.start()
 

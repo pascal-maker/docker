@@ -10,11 +10,13 @@ from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
+from refactor_agent._log_config import configure_logging
 from refactor_agent.ci.runner import run_ci
 from refactor_agent.observability.langfuse_config import init_langfuse
 
 # Load .env from cwd so local runs pick up ANTHROPIC_API_KEY etc. without exporting.
 load_dotenv()
+configure_logging()
 # Initialize Langfuse so PydanticAI agent runs (planner) send traces.
 init_langfuse()
 

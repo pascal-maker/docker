@@ -2,12 +2,15 @@
 
 RUN := uv run
 TS_BRIDGE := src/refactor_agent/engine/typescript/bridge
+TS_PACKAGES := dashboard-ui $(TS_BRIDGE) vscode-extension
+# Workspace package names (for pnpm --filter)
+TS_FILTERS := dashboard-ui ts-morph-bridge refactor-agent
 
 INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-engine-install ts-engine-check infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -25,8 +28,8 @@ lint: ## Run ruff linter
 fix: ## Auto-fix lint violations
 	$(RUN) ruff check --fix src tests scripts
 
-typecheck: ## Run mypy strict type checking
-	$(RUN) mypy src scripts
+typecheck: ## Run mypy strict type checking (src only; scripts are one-off tools)
+	$(RUN) mypy src
 
 test: ## Run pytest
 	$(RUN) pytest
@@ -60,11 +63,23 @@ dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
 reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
 	./scripts/reset-playground.sh
 
-ts-engine-install: ## Install ts-morph bridge pnpm dependencies
-	cd $(TS_BRIDGE) && pnpm install
+ts-engine-install: ## Install TS workspace deps (bridge + dashboard-ui + vscode-extension). Use from repo root.
+	pnpm install
+
+ts-install: ## Install all TS workspace dependencies (single lockfile at root)
+	pnpm install
 
 ts-engine-check: ## Typecheck the ts-morph bridge
 	cd $(TS_BRIDGE) && pnpm exec tsc --noEmit
+
+ts-format-check: ## TypeScript format check (all TS packages except playground)
+	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run format-check; done
+
+ts-lint: ## TypeScript lint (all TS packages except playground)
+	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run lint; done
+
+ts-typecheck: ## TypeScript typecheck (all TS packages except playground)
+	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run typecheck; done
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info

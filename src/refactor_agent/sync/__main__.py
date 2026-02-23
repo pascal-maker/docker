@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import os
 
 import uvicorn
 
+from refactor_agent._log_config import configure_logging
 from refactor_agent.sync.app import app
 
-logging.basicConfig(level=logging.INFO)
+configure_logging()
 SYNC_PORT = int(os.environ.get("POC_SYNC_PORT", "8765"))
 
 

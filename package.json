@@ -1,0 +1,5 @@
+{
+  "name": "refactor-agent-infra",
+  "private": true,
+  "description": "Refactor Agent monorepo (Python backend + TS packages)"
+}

@@ -6,6 +6,7 @@ import libcst as cst
 from libcst.metadata import MetadataWrapper, PositionProvider, ScopeProvider
 
 from refactor_agent.engine.base import CollisionInfo
+from refactor_agent.engine.logger import logger
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -32,6 +33,7 @@ class _RenameTransformer(cst.CSTTransformer):
             return True
         try:
             scope = self.get_metadata(ScopeProvider, node, None)
+            # LibCST scope chain (metadata API returns generic scope object).
             current: object = scope
             seen: set[object] = set()
             while current is not None and id(current) not in seen:
@@ -42,8 +44,8 @@ class _RenameTransformer(cst.CSTTransformer):
                 if parent is current:
                     break
                 current = parent
-        except Exception:  # noqa: S110 — scope/parent metadata can be missing
-            pass
+        except Exception as e:
+            logger.debug("Scope metadata missing for node", node=type(e).__name__)
         return False
 
     def leave_Name(  # noqa: N802 — LibCST callback name
@@ -57,36 +59,40 @@ class _RenameTransformer(cst.CSTTransformer):
             pos = self.get_metadata(PositionProvider, original_node, None)
             if pos is not None:
                 self.renamed_lines.append(pos.start.line)
-        except Exception:  # noqa: S110 — position metadata can be missing
-            pass
+        except Exception as e:
+            logger.debug("Position metadata missing for Name", error=type(e).__name__)
         return updated_node.with_changes(value=self._new_name)
 
-    def leave_FunctionDef(  # noqa: N802 — LibCST callback name
+    def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
-    ) -> cst.CSTNode:
+    ) -> cst.BaseStatement | cst.CSTNode:
         if updated_node.name.value != self._old_name:
             return updated_node
         try:
             pos = self.get_metadata(PositionProvider, original_node, None)
             if pos is not None:
                 self.renamed_lines.append(pos.start.line)
-        except Exception:  # noqa: S110 — position metadata can be missing
-            pass
+        except Exception as e:
+            logger.debug(
+                "Position metadata missing for FunctionDef", error=type(e).__name__
+            )
         return updated_node.with_changes(
             name=updated_node.name.with_changes(value=self._new_name)
         )
 
-    def leave_ClassDef(  # noqa: N802 — LibCST callback name
+    def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
-    ) -> cst.CSTNode:
+    ) -> cst.BaseStatement | cst.CSTNode:
         if updated_node.name.value != self._old_name:
             return updated_node
         try:
             pos = self.get_metadata(PositionProvider, original_node, None)
             if pos is not None:
                 self.renamed_lines.append(pos.start.line)
-        except Exception:  # noqa: S110 — position metadata can be missing
-            pass
+        except Exception as e:
+            logger.debug(
+                "Position metadata missing for ClassDef", error=type(e).__name__
+            )
         return updated_node.with_changes(
             name=updated_node.name.with_changes(value=self._new_name)
         )
@@ -103,6 +109,7 @@ def _cst_node_in_scope(
     try:
         wrapper = MetadataWrapper(module)
         scope = wrapper.resolve(ScopeProvider).get(node)
+        # LibCST scope chain (metadata API returns generic scope object).
         current: object = scope
         seen: set[int] = set()
         while current is not None and id(current) not in seen:
@@ -116,8 +123,10 @@ def _cst_node_in_scope(
             if parent is current:
                 break
             current = parent
-    except Exception:  # noqa: S110 — scope/parent metadata can be missing
-        pass
+    except Exception as e:
+        logger.debug(
+            "Scope metadata missing in _cst_node_in_scope", error=type(e).__name__
+        )
     return False
 
 

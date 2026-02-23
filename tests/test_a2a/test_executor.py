@@ -17,8 +17,9 @@ from a2a.types import (
 )
 
 from refactor_agent.a2a.executor import ASTRefactorAgentExecutor
+from refactor_agent.a2a.models import OrchestratorStateEntry, StateStore
 from refactor_agent.orchestrator import FinalOutput, NeedInputResult
-from refactor_agent.orchestrator.deps import NeedInput
+from refactor_agent.orchestrator.deps import NeedInput, NeedInputPayload
 
 
 async def test_executor_enqueues_artifact_and_status() -> None:
@@ -42,7 +43,7 @@ async def test_executor_enqueues_artifact_and_status() -> None:
                 "new_name": "new_name",
             }
         )
-        events: list = []  # type: ignore[type-arg]
+        events: list[object] = []
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -93,7 +94,7 @@ async def test_executor_multi_file_rename_enqueues_one_artifact_per_file() -> No
                 ],
             }
         )
-        events: list = []  # type: ignore[type-arg]
+        events: list[object] = []
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -124,7 +125,7 @@ async def test_executor_empty_input_returns_error() -> None:
     context.context_id = "ctx-1"
     context.current_task = None
     context.get_user_input.return_value = "   "
-    events: list = []  # type: ignore[type-arg]
+    events: list[object] = []
     queue = AsyncMock()
     queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -145,7 +146,9 @@ async def test_executor_collision_enqueues_artifact_and_input_required() -> None
     need = NeedInput(
         type="rename_collision",
         message="Name collision for 'main'. Reply with: yes to force, no to cancel.",
-        payload={"old_name": "greet", "new_name": "main"},
+        payload=NeedInputPayload.model_validate(
+            {"old_name": "greet", "new_name": "main"}
+        ),
     )
     with patch(
         "refactor_agent.a2a.executor.run_orchestrator",
@@ -165,7 +168,7 @@ async def test_executor_collision_enqueues_artifact_and_input_required() -> None
                 "new_name": "main",
             }
         )
-        events: list = []  # type: ignore[type-arg]
+        events: list[object] = []
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -174,6 +177,7 @@ async def test_executor_collision_enqueues_artifact_and_input_required() -> None
 
         assert len(events) == 2
         artifact_ev = events[0]
+        # A2A SDK event (untyped).
         assert getattr(artifact_ev, "artifact", None) is not None
         assert artifact_ev.artifact.name == "refactor-input-required"
         status_ev = events[1]
@@ -185,12 +189,14 @@ async def test_executor_resumption_yes_proceeds_with_rename() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         workspace_dir = Path(tmp)
         (workspace_dir / "file.py").write_text("def old_name(): pass\n")
-        state_store: dict[str, dict] = {
-            "t1": {
-                "message_history": [],
-                "workspace_dir": str(workspace_dir),
-            },
-        }
+        state_store = StateStore(
+            {
+                "t1": OrchestratorStateEntry(
+                    message_history=[],
+                    workspace_dir=str(workspace_dir),
+                ),
+            }
+        )
         task = MagicMock()
         task.status = TaskStatus(state=TaskState.input_required)
         task.artifacts = []
@@ -201,7 +207,7 @@ async def test_executor_resumption_yes_proceeds_with_rename() -> None:
         context.current_task = task
         context.get_user_input.return_value = "yes"
 
-        events: list = []  # type: ignore[type-arg]
+        events: list[object] = []
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -231,9 +237,14 @@ async def test_executor_resumption_no_cancels() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         workspace_dir = Path(tmp)
         (workspace_dir / "f.py").write_text("def f(): pass\n")
-        state_store = {
-            "t1": {"message_history": [], "workspace_dir": str(workspace_dir)},
-        }
+        state_store = StateStore(
+            {
+                "t1": OrchestratorStateEntry(
+                    message_history=[],
+                    workspace_dir=str(workspace_dir),
+                ),
+            }
+        )
         task = MagicMock()
         task.status = TaskStatus(state=TaskState.input_required)
         task.artifacts = []
@@ -244,7 +255,7 @@ async def test_executor_resumption_no_cancels() -> None:
         context.current_task = task
         context.get_user_input.return_value = "no"
 
-        events: list = []  # type: ignore[type-arg]
+        events: list[object] = []
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
@@ -291,7 +302,7 @@ async def test_executor_use_replica_uses_replica_dir() -> None:
             context.get_user_input.return_value = json.dumps(
                 {"old_name": "foo", "new_name": "bar", "use_replica": True}
             )
-            events: list = []  # type: ignore[type-arg]
+            events: list[object] = []
             queue = AsyncMock()
             queue.enqueue_event = AsyncMock(side_effect=events.append)
 

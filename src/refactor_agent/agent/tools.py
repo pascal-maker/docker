@@ -53,7 +53,7 @@ def _register_tools(agent: Agent[ASTDeps, None]) -> None:
 
     @agent.tool
     async def finish(
-        ctx: RunContext[ASTDeps],  # noqa: ARG001 — injected by framework
+        ctx: RunContext[ASTDeps],  # injected by framework
         summary: str,
     ) -> str:
         """Signal that refactoring is complete.

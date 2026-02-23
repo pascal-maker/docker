@@ -56,7 +56,10 @@ function parseRenameIntentFromPrompt(
 ): { old_name: string; new_name: string } | null {
   const trimmed = prompt.trim();
   try {
-    const data = JSON.parse(trimmed) as { old_name?: string; new_name?: string };
+    const data = JSON.parse(trimmed) as {
+      old_name?: string;
+      new_name?: string;
+    };
     if (
       typeof data?.old_name === "string" &&
       typeof data?.new_name === "string"
@@ -244,7 +247,9 @@ function extractRenameArtifacts(result: {
         typeof part === "object" &&
         ("data" in part || "kind" in part)
       ) {
-        const p = part as { data?: { path?: string; modified_source?: string } };
+        const p = part as {
+          data?: { path?: string; modified_source?: string };
+        };
         const data = p.data;
         if (data?.path != null && data?.modified_source != null) {
           out.push({
@@ -532,7 +537,10 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
         ws.get<Conversation[]>(CONVERSATIONS_KEY) ?? [];
       const getCurrentId = (): string | undefined =>
         ws.get<string>(CURRENT_CONVERSATION_ID_KEY);
-      const persistConversations = (list: Conversation[], currentId?: string) => {
+      const persistConversations = (
+        list: Conversation[],
+        currentId?: string
+      ) => {
         const trimmed =
           list.length > MAX_CONVERSATIONS
             ? list.slice(-MAX_CONVERSATIONS)
@@ -610,15 +618,20 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
           folder &&
           pending.workspaceUri === folder.uri.toString()
         ) {
+          await this.runRefactor(globalState, folder, post, append, {
+            taskId: pending.taskId,
+            contextId: pending.contextId,
+            replyText: msg.text,
+          });
+        } else {
           await this.runRefactor(
             globalState,
             folder,
             post,
             append,
-            { taskId: pending.taskId, contextId: pending.contextId, replyText: msg.text }
+            null,
+            msg.text
           );
-        } else {
-          await this.runRefactor(globalState, folder, post, append, null, msg.text);
         }
       }
     });
@@ -676,13 +689,11 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
       }
 
       const intent =
-        promptText != null
-          ? parseRenameIntentFromPrompt(promptText)
-          : null;
+        promptText != null ? parseRenameIntentFromPrompt(promptText) : null;
       if (!intent) {
         append(
           "message",
-          "Say something like: rename foo to bar, or paste JSON: {\"old_name\": \"foo\", \"new_name\": \"bar\"}"
+          'Say something like: rename foo to bar, or paste JSON: {"old_name": "foo", "new_name": "bar"}'
         );
         post("submitDone");
         return;
@@ -754,11 +765,13 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     folder: vscode.WorkspaceFolder,
     globalState: vscode.Memento,
     append: (kind: string, text: string) => void,
-    post: (type: string, payload?: Record<string, unknown>) => void,
+    _post: (type: string, payload?: Record<string, unknown>) => void,
     _a2aBaseUrl: string,
     _apiKey: string
   ): Promise<void> {
-    const status = res?.status as { state?: string; message?: { parts?: unknown[] } } | undefined;
+    const status = res?.status as
+      | { state?: string; message?: { parts?: unknown[] } }
+      | undefined;
     const rawState = status?.state ?? (res?.state as string | undefined);
     const state = normalizeState(rawState);
     const statusMsg = status?.message ?? status;
@@ -775,8 +788,18 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
           "Agent needs your input. Reply above (e.g. yes, no, or a new name)."
       );
       globalState.update(PENDING_STATE_KEY, {
-        taskId: String(res?.id ?? ""),
-        contextId: String(res?.contextId ?? ""),
+        taskId:
+          typeof res?.id === "string"
+            ? res.id
+            : typeof res?.id === "number"
+              ? String(res.id)
+              : "",
+        contextId:
+          typeof res?.contextId === "string"
+            ? res.contextId
+            : typeof res?.contextId === "number"
+              ? String(res.contextId)
+              : "",
         workspaceUri: folder.uri.toString(),
       });
       return;
@@ -787,7 +810,10 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
       if (artifacts.length > 0) {
         try {
           await applyArtifacts(folder, artifacts);
-          append("message", `Applied changes to ${artifacts.length} file(s).\n\n${messageText || ""}`);
+          append(
+            "message",
+            `Applied changes to ${artifacts.length} file(s).\n\n${messageText || ""}`
+          );
         } catch (e) {
           append("error", String(e));
         }
@@ -806,7 +832,9 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
-function createSyncStatusBarItem(): SyncStatusUpdater & { item: vscode.StatusBarItem } {
+function createSyncStatusBarItem(): SyncStatusUpdater & {
+  item: vscode.StatusBarItem;
+} {
   const item = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     100
@@ -822,7 +850,9 @@ function createSyncStatusBarItem(): SyncStatusUpdater & { item: vscode.StatusBar
       } else if (status === "error") {
         item.text = "$(close) Refactor Agent: Sync error";
         item.tooltip = message ?? "Sync failed";
-        item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+        item.backgroundColor = new vscode.ThemeColor(
+          "statusBarItem.errorBackground"
+        );
       } else {
         item.text = "$(circle-large-outline) Refactor Agent: Sync";
         item.tooltip = "Sync not checked yet";

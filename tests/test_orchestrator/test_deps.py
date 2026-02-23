@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from refactor_agent.orchestrator.deps import (
     NeedInput,
+    NeedInputPayload,
     is_need_input_result,
     parse_need_input_result,
     serialize_need_input,
@@ -12,10 +13,11 @@ from refactor_agent.orchestrator.deps import (
 
 def test_serialize_and_parse_need_input() -> None:
     """Round-trip NeedInput serialization."""
+    payload = NeedInputPayload.model_validate({"old_name": "foo", "new_name": "bar"})
     need = NeedInput(
         type="rename_collision",
         message="Name collision. Reply yes or no.",
-        payload={"old_name": "foo", "new_name": "bar"},
+        payload=payload,
     )
     s = serialize_need_input(need)
     assert is_need_input_result(s)
@@ -23,7 +25,7 @@ def test_serialize_and_parse_need_input() -> None:
     assert parsed is not None
     assert parsed.type == need.type
     assert parsed.message == need.message
-    assert parsed.payload == need.payload
+    assert parsed.payload.model_dump() == need.payload.model_dump()
 
 
 def test_is_need_input_result_false_for_plain_string() -> None:

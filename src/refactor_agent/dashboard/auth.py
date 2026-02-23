@@ -17,6 +17,7 @@ def _get_ingest_api_key(
     Reads expected key from request.app.state.ingest_api_key.
     Raises 401 if expected key is set and the request does not match.
     """
+    # Starlette Request.app.state is untyped; we attach ingest_api_key in main.
     expected_key: str | None = getattr(request.app.state, "ingest_api_key", None)
     if not expected_key:
         return

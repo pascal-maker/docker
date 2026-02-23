@@ -1,5 +1,5 @@
-"""Module-level logger configuration for refactor-agent."""
+"""Root package logger. Prefer per-package loggers (e.g. refactor_agent.agent)."""
 
-import logging
+from refactor_agent._log_config import get_logger
 
-logger = logging.getLogger("refactor_agent")
+logger = get_logger("refactor_agent")

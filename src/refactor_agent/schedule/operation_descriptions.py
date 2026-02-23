@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import get_args
 
+from pydantic import BaseModel  # noqa: TC002 — used at runtime for model_fields
+
 from refactor_agent.schedule.models import RefactorOperation
 
 # Optional extra guidance per op (can grow; language/engine-specific later).
@@ -31,35 +33,31 @@ OP_HINTS: dict[str, str] = {
 }
 
 
-def _op_name_from_model(model: type) -> str | None:
+def _op_name_from_model(model: type[BaseModel]) -> str | None:
     """Return the discriminator value (op name) for a RefactorOperation model."""
-    fields = getattr(model, "model_fields", {})
+    fields = model.model_fields
     op_field = fields.get("op")
     if op_field is None:
         return None
-    default = getattr(op_field, "default", None)
-    return str(default) if default is not None else None
+    default = op_field.default
+    return str(default) if isinstance(default, str) else None
 
 
-def _field_doc_name(name: str, model: type) -> str:
+def _field_doc_name(name: str, model: type[BaseModel]) -> str:
     """Return the serialization name (alias) or field name for a field."""
-    fields = getattr(model, "model_fields", {})
+    fields = model.model_fields
     finfo = fields.get(name)
-    if (
-        finfo is not None
-        and hasattr(finfo, "serialization_alias")
-        and finfo.serialization_alias
-    ):
+    if finfo is not None and finfo.serialization_alias:
         return str(finfo.serialization_alias)
     return name
 
 
-def _format_op_spec(model: type) -> str:
+def _format_op_spec(model: type[BaseModel]) -> str:
     """Format one operation type: op name, fields, optional hint."""
     op_name = _op_name_from_model(model)
     if op_name is None:
         return ""
-    fields = getattr(model, "model_fields", {})
+    fields = model.model_fields
     # Exclude "op" (discriminator); list required then optional
     required: list[str] = []
     optional: list[str] = []

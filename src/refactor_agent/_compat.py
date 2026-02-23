@@ -23,6 +23,7 @@ def patch_anthropic_user_location() -> None:
         import anthropic.types.beta.beta_web_search_tool_20250305_param as mod
         from anthropic.types.beta.beta_user_location_param import BetaUserLocationParam
 
+        # Compatibility shim: anthropic renamed UserLocation → BetaUserLocationParam.
         mod.UserLocation = BetaUserLocationParam  # type: ignore[misc]
 
 
@@ -40,7 +41,9 @@ def patch_check_object_json_schema() -> None:
 
     _original = utils.check_object_json_schema
 
-    def _patched(schema):  # type: ignore[no-untyped-def]
+    # Exception: pydantic_ai calls this with dict and expects dict; we cannot use
+    # a Pydantic model in the signature without breaking the monkey-patch contract.
+    def _patched(schema: dict[str, object]) -> dict[str, object]:
         result = _original(schema)
         # If the result still has a bare $ref at the root (no "type"), inline it.
         if result.get("type") != "object" and (ref := result.get("$ref")):

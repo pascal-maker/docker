@@ -5,8 +5,12 @@
 
 from pathlib import Path
 
-from pydantic_ai import Agent, ModelSettings, RunContext
-from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import (
+    AnthropicModel,
+    AnthropicModelSettings,  # noqa: TC002 — used at runtime for TypedDict (no from __future__ annotations)
+)
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.tools import ToolDefinition
 
@@ -22,9 +26,11 @@ from refactor_agent.llm_client import get_anthropic_client
 from refactor_agent.observability.langfuse_config import get_prompt, get_prompt_config
 from refactor_agent.orchestrator.deps import (
     NeedInput,
+    NeedInputPayload,
     OrchestratorDeps,
     serialize_need_input,
 )
+from refactor_agent.orchestrator.logger import logger
 from refactor_agent.schedule.codebase_structure import build_codebase_structure
 from refactor_agent.schedule.limits import MAX_CODEBASE_STRUCTURE_CHARS
 
@@ -146,7 +152,8 @@ async def _check_all_collisions(
         source = fp.read_text(encoding="utf-8")
         try:
             engine = EngineRegistry.create(deps.language, source)
-        except Exception:  # noqa: S112
+        except Exception as e:
+            logger.debug("Skip file", path=str(fp), error=str(e))
             continue
         async with engine:
             collisions = await engine.check_name_collisions(
@@ -172,7 +179,8 @@ async def _apply_renames_per_file(
         source = fp.read_text(encoding="utf-8")
         try:
             engine = EngineRegistry.create(deps.language, source)
-        except Exception:  # noqa: S112
+        except Exception as e:
+            logger.debug("Skip file", path=str(fp), error=str(e))
             continue
         async with engine:
             result = await engine.rename_symbol(
@@ -200,12 +208,12 @@ def _is_reply_no(reply: str) -> bool:
     return reply.strip().lower() in ("no", "n", "cancel")
 
 
-async def _rename_python(  # noqa: PLR0911
+async def _rename_python(  # noqa: PLR0911 — scope and file-handling branches
     deps: OrchestratorDeps,
     old_name: str,
     new_name: str,
     scope_node: str | None,
-    force: bool,  # noqa: FBT001
+    force: bool,  # noqa: FBT001 — boolean flag for force rename (tool API)
 ) -> str:
     files = _scan_workspace(deps)
     if not files:
@@ -224,12 +232,14 @@ async def _rename_python(  # noqa: PLR0911
                 "no to cancel, or a new name to use instead.\n\n"
                 + "\n".join(collision_reports)
             )
-            payload: dict[str, object] = {
-                "old_name": old_name,
-                "new_name": new_name,
-                "collision_reports": collision_reports,
-                "hint": "alternative_name",
-            }
+            payload = NeedInputPayload.model_validate(
+                {
+                    "old_name": old_name,
+                    "new_name": new_name,
+                    "collision_reports": collision_reports,
+                    "hint": "alternative_name",
+                }
+            )
             need = NeedInput(type="rename_collision", message=message, payload=payload)
             if deps.get_user_input is not None:
                 reply = await deps.get_user_input(need)
@@ -296,7 +306,7 @@ def _register_core_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         old_name: str,
         new_name: str,
         scope_node: str | None = None,
-        force: bool = False,  # noqa: FBT001, FBT002
+        force: bool = False,  # noqa: FBT001, FBT002 — boolean flag for force rename (tool API)
     ) -> str:
         """Rename a symbol across all workspace files."""
         if ctx.deps.language == "typescript":
@@ -506,7 +516,7 @@ def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
         planner to get a RefactorSchedule; it is stored for the app to execute by mode.
         """
         # Lazy import to break cycle: schedule -> executor -> orchestrator -> agent.
-        from refactor_agent.schedule import create_planner_agent, run_planner  # noqa: I001, PLC0415
+        from refactor_agent.schedule import create_planner_agent, run_planner  # noqa: I001, PLC0415 — lazy import to avoid circular deps
 
         planner_agent = create_planner_agent()
         result = await run_planner(planner_agent, ctx.deps, goal)
@@ -528,7 +538,7 @@ def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
 
 
 def create_orchestrator_agent(
-    model: AnthropicModel | object | None = None,
+    model: Model | None = None,
     instructions_override: str | None = None,
 ) -> Agent[OrchestratorDeps, str]:
     """Create the shared orchestrator agent (dev UI and A2A).
@@ -542,13 +552,12 @@ def create_orchestrator_agent(
         config = get_prompt_config(_PROMPT_NAME)
         model_str = config.model or DEFAULT_MODEL
         model_id = model_str.split(":")[-1] if ":" in model_str else model_str
-        # AnthropicModel merges AnthropicModelSettings at runtime; base ModelSettings TypedDict lacks anthropic_* keys.
-        model_settings = ModelSettings(  # type: ignore[typeddict-unknown-key]
-            max_tokens=config.max_tokens or DEFAULT_AGENT_MAX_TOKENS,
-            anthropic_cache_instructions=True,
-            anthropic_cache_tool_definitions=True,
-            anthropic_cache_messages=True,
-        )
+        model_settings: AnthropicModelSettings = {
+            "max_tokens": config.max_tokens or DEFAULT_AGENT_MAX_TOKENS,
+            "anthropic_cache_instructions": True,
+            "anthropic_cache_tool_definitions": True,
+            "anthropic_cache_messages": True,
+        }
         provider = AnthropicProvider(
             anthropic_client=get_anthropic_client(timeout=AGENT_REQUEST_TIMEOUT),
         )
@@ -570,7 +579,7 @@ def create_orchestrator_agent(
         )
 
     agent: Agent[OrchestratorDeps, str] = Agent(
-        model,  # type: ignore[call-overload]
+        model,
         deps_type=OrchestratorDeps,
         output_type=str,
         instructions=instructions,

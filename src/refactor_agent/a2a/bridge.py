@@ -9,14 +9,18 @@ This subclass allows that case and creates the task under the client's id.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from a2a.server.context import ServerCallContext  # noqa: TC002
+from a2a.server.context import ServerCallContext  # noqa: TC002 — used at runtime
 from a2a.server.request_handlers.default_request_handler import (
     DefaultRequestHandler,
 )
 from a2a.server.tasks import ResultAggregator, TaskManager
-from a2a.types import InvalidParamsError, MessageSendParams, TaskState  # noqa: TC002
+from a2a.types import (  # noqa: TC002 — used at runtime
+    InvalidParamsError,
+    MessageSendParams,
+    TaskState,
+)
 from a2a.utils.errors import ServerError
 
 if TYPE_CHECKING:
@@ -37,7 +41,7 @@ class BridgeCompatibleRequestHandler(DefaultRequestHandler):
         self,
         params: MessageSendParams,
         context: ServerCallContext | None = None,
-    ) -> tuple[TaskManager, str, EventQueue, ResultAggregator, asyncio.Task]:
+    ) -> tuple[TaskManager, str, EventQueue, ResultAggregator, asyncio.Task[object]]:
         """Like default but do not raise when task_id is set and task is new."""
         task_manager = TaskManager(
             task_id=params.message.task_id,
@@ -70,7 +74,10 @@ class BridgeCompatibleRequestHandler(DefaultRequestHandler):
             context=context,
         )
 
-        task_id = cast("str", request_context.task_id)
+        task_id_val = request_context.task_id
+        if task_id_val is None:
+            raise RuntimeError("task_id missing after request context build")
+        task_id = task_id_val
 
         if (
             self._push_config_store

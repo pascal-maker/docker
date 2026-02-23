@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 from pathlib import Path
-from typing import Any
 
 from langfuse import get_client
+from pydantic import BaseModel, ConfigDict
 from pydantic_ai import Agent
 
 from refactor_agent.models.prompt_config import PromptConfig
+
+
+class LangfuseMetadata(BaseModel):
+    """Arbitrary metadata for Langfuse spans (extra keys allowed)."""
+
+    model_config = ConfigDict(extra="allow")
 
 
 def _is_langfuse_available() -> bool:
@@ -33,8 +40,7 @@ def _load_fallback_prompt(name: str, **variables: str) -> str:
     for key, value in variables.items():
         text = text.replace("{{" + key + "}}", value)
     # Replace any remaining {{...}} with empty string
-    text = re.sub(r"\{\{\w+\}\}", "", text)
-    return text
+    return re.sub(r"\{\{\w+\}\}", "", text)
 
 
 def init_langfuse() -> None:
@@ -82,6 +88,7 @@ def get_prompt_name_and_version(name: str) -> tuple[str, str | int | None]:
     try:
         langfuse = get_client()
         prompt = langfuse.get_prompt(name)
+        # Langfuse SDK prompt object (untyped).
         pname = getattr(prompt, "name", name)
         pversion = getattr(prompt, "version", None)
         return (str(pname), pversion)
@@ -97,8 +104,8 @@ class _LangfuseSpanContext:
         name: str,
         *,
         as_type: str = "span",
-        span_input: Any = None,  # noqa: ANN401
-        metadata: dict[str, Any] | None = None,
+        span_input: object = None,
+        metadata: LangfuseMetadata | None = None,
     ) -> None:
         self._name = name
         self._as_type = as_type
@@ -110,13 +117,16 @@ class _LangfuseSpanContext:
     def __enter__(self) -> _SpanHandle:
         try:
             client = get_client()
-            self._inner_cm = client.start_as_current_observation(
+            meta = self._metadata.model_dump() if self._metadata else None
+            # Langfuse SDK expects Any for metadata; we pass dict.
+            self._inner_cm = client.start_as_current_observation(  # type: ignore[call-overload]
                 name=self._name,
                 as_type=self._as_type,
                 input=self._span_input,
-                metadata=self._metadata,
+                metadata=meta,
             )
-            obs = self._inner_cm.__enter__()
+            cm = self._inner_cm
+            obs = cm.__enter__() if cm is not None else None
             self._handle = _SpanHandle(obs)
         except Exception:
             self._handle = _SpanHandle(None)
@@ -128,20 +138,18 @@ class _LangfuseSpanContext:
         exc_val: BaseException | None,
         exc_tb: object | None,
     ) -> None:
+        # Langfuse SDK can return non-None cm; mypy infers None from stub
         if self._inner_cm is not None:
-            try:
+            with contextlib.suppress(Exception):  # type: ignore[unreachable]
                 self._inner_cm.__exit__(exc_type, exc_val, exc_tb)
-            except Exception:
-                pass
-        return None
 
 
 def langfuse_span(
     name: str,
     *,
     as_type: str = "span",
-    span_input: Any = None,  # noqa: ANN401 — Langfuse accepts arbitrary JSON
-    metadata: dict[str, Any] | None = None,
+    span_input: object = None,
+    metadata: LangfuseMetadata | None = None,
 ) -> _LangfuseSpanContext:
     """Create a Langfuse observation span; yields a no-op handle if unavailable.
 
@@ -162,7 +170,9 @@ class _SpanHandle:
     def __init__(self, obs: object | None) -> None:
         self._obs = obs
 
-    def update(self, **kwargs: Any) -> None:  # noqa: ANN401 — Langfuse accepts arbitrary JSON
+    def update(self, **kwargs: object) -> None:
         """Forward keyword arguments to the underlying observation."""
-        if self._obs is not None and hasattr(self._obs, "update"):
-            self._obs.update(**kwargs)  # type: ignore[union-attr]
+        # Langfuse observation may be span or trace (untyped).
+        update_fn = getattr(self._obs, "update", None)
+        if callable(update_fn):
+            update_fn(**kwargs)
