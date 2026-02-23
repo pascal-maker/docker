@@ -74,6 +74,24 @@ Infrastructure as code for the refactor-agent A2A backend and (later) dashboard.
 
    Use this URL in the VS Code extension (`refactorAgent.a2aBaseUrl`) or for local testing. Sync is not deployed; use workspace-in-JSON for hosted usage.
 
+## Probing and security check
+
+From the repo root you can probe what is reachable with or without auth, and run a programmatic security check (e.g. in CI):
+
+- **Probe** (reports GET agent-card, GET `/`, POST message/send with/without auth):
+  ```bash
+  make probe-a2a A2A_URL=https://your-a2a-url.run.app
+  ```
+  Or pass the URL as the first argument: `uv run python scripts/probe_a2a.py https://...`
+
+- **Security check** (exit 0/1 for CI; use `REQUIRE_AUTH_FOR_SEND=1` once you enforce auth so that POST without auth must return 401/403):
+  ```bash
+  make check-a2a-security A2A_URL=https://your-a2a-url.run.app
+  REQUIRE_AUTH_FOR_SEND=1 make check-a2a-security A2A_URL=https://...
+  ```
+
+Today the A2A Cloud Run service allows unauthenticated invocations (`allUsers`). If you want only the agent card public and message/send behind auth, add application-level auth (e.g. require `Authorization: Bearer` for POST) and run the check with `REQUIRE_AUTH_FOR_SEND=1` so CI fails until the policy is satisfied.
+
 ## Dev endpoints (staging / production)
 
 Environments are **image tags** in Artifact Registry (no separate API). Use **one version tag** for both: build once (e.g. `a2a-server:v0.2.0`), deploy to staging, then promote the same tag to production.
