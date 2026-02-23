@@ -1,5 +1,7 @@
 # MCP server (stdio)
 
+See [MCP integration](../mcp/README.md) for status and future plans.
+
 Start the MCP server so Claude Code or Cursor can call the `rename_symbol` tool:
 
 ```bash

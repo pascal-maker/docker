@@ -49,6 +49,14 @@ resource "google_cloud_run_v2_service" "a2a" {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }
+      env {
+        name  = "REPLICA_DIR"
+        value = "/tmp/replica"
+      }
+      env {
+        name  = "REPLICA_TTL_MINUTES"
+        value = "30"
+      }
       resources {
         limits = {
           cpu    = "1"

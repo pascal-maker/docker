@@ -24,31 +24,37 @@ from refactor_agent.orchestrator.deps import NeedInput, NeedInputPayload
 
 async def test_executor_enqueues_artifact_and_status() -> None:
     """Executor enqueues rename-result artifact then completed status."""
-    with patch(
-        "refactor_agent.a2a.executor.run_orchestrator",
-        new_callable=AsyncMock,
-        return_value=(
-            FinalOutput(output="Rename complete (1 file(s)):\n- file.py"),
-            [],
-        ),
-    ):
-        context = MagicMock()
-        context.task_id = "task-1"
-        context.context_id = "ctx-1"
-        context.current_task = None
-        context.get_user_input.return_value = json.dumps(
-            {
-                "source": "def old_name(): pass\n",
-                "old_name": "old_name",
-                "new_name": "new_name",
-            }
-        )
-        events: list[object] = []
-        queue = AsyncMock()
-        queue.enqueue_event = AsyncMock(side_effect=events.append)
+    with tempfile.TemporaryDirectory() as tmp:
+        replica = Path(tmp)
+        (replica / "file.py").write_text("def old_name(): pass\n")
+        with (
+            patch(
+                "refactor_agent.a2a.executor.run_orchestrator",
+                new_callable=AsyncMock,
+                return_value=(
+                    FinalOutput(output="Rename complete (1 file(s)):\n- file.py"),
+                    [],
+                ),
+            ),
+            patch.dict("os.environ", {"REPLICA_DIR": str(replica)}, clear=False),
+        ):
+            context = MagicMock()
+            context.task_id = "task-1"
+            context.context_id = "ctx-1"
+            context.current_task = None
+            context.get_user_input.return_value = json.dumps(
+                {
+                    "old_name": "old_name",
+                    "new_name": "new_name",
+                    "use_replica": True,
+                }
+            )
+            events: list[object] = []
+            queue = AsyncMock()
+            queue.enqueue_event = AsyncMock(side_effect=events.append)
 
-        executor = ASTRefactorAgentExecutor(agent=MagicMock())
-        await executor.execute(context, queue)
+            executor = ASTRefactorAgentExecutor(agent=MagicMock())
+            await executor.execute(context, queue)
 
         assert len(events) >= 2
         art_ev = events[0]
@@ -66,40 +72,41 @@ async def test_executor_enqueues_artifact_and_status() -> None:
 
 async def test_executor_multi_file_rename_enqueues_one_artifact_per_file() -> None:
     """Multi-file request: one rename-result artifact per file, then status."""
-    with patch(
-        "refactor_agent.a2a.executor.run_orchestrator",
-        new_callable=AsyncMock,
-        return_value=(
-            FinalOutput(output="Rename complete (2 file(s))"),
-            [],
-        ),
-    ):
-        context = MagicMock()
-        context.task_id = "task-1"
-        context.context_id = "ctx-1"
-        context.current_task = None
-        context.get_user_input.return_value = json.dumps(
-            {
-                "old_name": "greet",
-                "new_name": "greet_by_name",
-                "files": [
-                    {
-                        "path": "python/greeter.py",
-                        "source": "def greet(x):\n    return x\n",
-                    },
-                    {
-                        "path": "python/caller.py",
-                        "source": "from greeter import greet\n\nprint(greet(1))\n",
-                    },
-                ],
-            }
+    with tempfile.TemporaryDirectory() as tmp:
+        replica = Path(tmp)
+        (replica / "python").mkdir()
+        (replica / "python" / "greeter.py").write_text("def greet(x):\n    return x\n")
+        (replica / "python" / "caller.py").write_text(
+            "from greeter import greet\n\nprint(greet(1))\n"
         )
-        events: list[object] = []
-        queue = AsyncMock()
-        queue.enqueue_event = AsyncMock(side_effect=events.append)
+        with (
+            patch(
+                "refactor_agent.a2a.executor.run_orchestrator",
+                new_callable=AsyncMock,
+                return_value=(
+                    FinalOutput(output="Rename complete (2 file(s))"),
+                    [],
+                ),
+            ),
+            patch.dict("os.environ", {"REPLICA_DIR": str(replica)}, clear=False),
+        ):
+            context = MagicMock()
+            context.task_id = "task-1"
+            context.context_id = "ctx-1"
+            context.current_task = None
+            context.get_user_input.return_value = json.dumps(
+                {
+                    "old_name": "greet",
+                    "new_name": "greet_by_name",
+                    "use_replica": True,
+                }
+            )
+            events: list[object] = []
+            queue = AsyncMock()
+            queue.enqueue_event = AsyncMock(side_effect=events.append)
 
-        executor = ASTRefactorAgentExecutor(agent=MagicMock())
-        await executor.execute(context, queue)
+            executor = ASTRefactorAgentExecutor(agent=MagicMock())
+            await executor.execute(context, queue)
 
         assert len(events) == 3
         art1, art2, status_ev = events[0], events[1], events[2]
@@ -150,30 +157,36 @@ async def test_executor_collision_enqueues_artifact_and_input_required() -> None
             {"old_name": "greet", "new_name": "main"}
         ),
     )
-    with patch(
-        "refactor_agent.a2a.executor.run_orchestrator",
-        new_callable=AsyncMock,
-        return_value=(NeedInputResult(need_input=need, run_state=[]), []),
-    ):
-        context = MagicMock()
-        context.task_id = "task-1"
-        context.context_id = "ctx-1"
-        context.current_task = None
-        context.get_user_input.return_value = json.dumps(
-            {
-                "source": (
-                    "def main() -> None:\n    pass\n\ndef greet(n):\n    return n\n"
-                ),
-                "old_name": "greet",
-                "new_name": "main",
-            }
+    with tempfile.TemporaryDirectory() as tmp:
+        replica = Path(tmp)
+        (replica / "file.py").write_text(
+            "def main() -> None:\n    pass\n\ndef greet(n):\n    return n\n"
         )
-        events: list[object] = []
-        queue = AsyncMock()
-        queue.enqueue_event = AsyncMock(side_effect=events.append)
+        with (
+            patch(
+                "refactor_agent.a2a.executor.run_orchestrator",
+                new_callable=AsyncMock,
+                return_value=(NeedInputResult(need_input=need, run_state=[]), []),
+            ),
+            patch.dict("os.environ", {"REPLICA_DIR": str(replica)}, clear=False),
+        ):
+            context = MagicMock()
+            context.task_id = "task-1"
+            context.context_id = "ctx-1"
+            context.current_task = None
+            context.get_user_input.return_value = json.dumps(
+                {
+                    "old_name": "greet",
+                    "new_name": "main",
+                    "use_replica": True,
+                }
+            )
+            events: list[object] = []
+            queue = AsyncMock()
+            queue.enqueue_event = AsyncMock(side_effect=events.append)
 
-        executor = ASTRefactorAgentExecutor(agent=MagicMock())
-        await executor.execute(context, queue)
+            executor = ASTRefactorAgentExecutor(agent=MagicMock())
+            await executor.execute(context, queue)
 
         assert len(events) == 2
         artifact_ev = events[0]
@@ -194,6 +207,7 @@ async def test_executor_resumption_yes_proceeds_with_rename() -> None:
                 "t1": OrchestratorStateEntry(
                     message_history=[],
                     workspace_dir=str(workspace_dir),
+                    use_replica=True,
                 ),
             }
         )
@@ -211,12 +225,15 @@ async def test_executor_resumption_yes_proceeds_with_rename() -> None:
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
-        with patch(
-            "refactor_agent.a2a.executor.run_orchestrator",
-            new_callable=AsyncMock,
-            return_value=(
-                FinalOutput(output="Rename complete (1 file(s)):\n- file.py"),
-                [],
+        with (
+            patch.dict("os.environ", {"REPLICA_DIR": str(workspace_dir)}, clear=False),
+            patch(
+                "refactor_agent.a2a.executor.run_orchestrator",
+                new_callable=AsyncMock,
+                return_value=(
+                    FinalOutput(output="Rename complete (1 file(s)):\n- file.py"),
+                    [],
+                ),
             ),
         ):
             executor = ASTRefactorAgentExecutor(
@@ -242,6 +259,7 @@ async def test_executor_resumption_no_cancels() -> None:
                 "t1": OrchestratorStateEntry(
                     message_history=[],
                     workspace_dir=str(workspace_dir),
+                    use_replica=True,
                 ),
             }
         )
@@ -259,12 +277,15 @@ async def test_executor_resumption_no_cancels() -> None:
         queue = AsyncMock()
         queue.enqueue_event = AsyncMock(side_effect=events.append)
 
-        with patch(
-            "refactor_agent.a2a.executor.run_orchestrator",
-            new_callable=AsyncMock,
-            return_value=(
-                FinalOutput(output="Rename canceled."),
-                [],
+        with (
+            patch.dict("os.environ", {"REPLICA_DIR": str(workspace_dir)}, clear=False),
+            patch(
+                "refactor_agent.a2a.executor.run_orchestrator",
+                new_callable=AsyncMock,
+                return_value=(
+                    FinalOutput(output="Rename canceled."),
+                    [],
+                ),
             ),
         ):
             executor = ASTRefactorAgentExecutor(
@@ -277,6 +298,30 @@ async def test_executor_resumption_no_cancels() -> None:
         ev = events[-1]
         assert ev.status.state == TaskState.completed
         assert "cancel" in ev.status.message.parts[0].root.text.lower()
+
+
+async def test_executor_rejects_without_use_replica() -> None:
+    """Executor rejects request without use_replica with failed status."""
+    context = MagicMock()
+    context.task_id = "task-1"
+    context.context_id = "ctx-1"
+    context.current_task = None
+    context.get_user_input.return_value = json.dumps(
+        {"old_name": "foo", "new_name": "bar"}
+    )
+    events: list[object] = []
+    queue = AsyncMock()
+    queue.enqueue_event = AsyncMock(side_effect=events.append)
+
+    executor = ASTRefactorAgentExecutor(agent=MagicMock())
+    await executor.execute(context, queue)
+
+    assert len(events) == 1
+    ev = events[0]
+    assert isinstance(ev, TaskStatusUpdateEvent)
+    assert ev.status.state == TaskState.failed
+    part_text = ev.status.message.parts[0].root.text
+    assert "use_replica" in part_text.lower()
 
 
 async def test_executor_use_replica_uses_replica_dir() -> None:

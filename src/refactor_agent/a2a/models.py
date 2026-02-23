@@ -10,7 +10,7 @@ from refactor_agent.orchestrator.runner import RunState
 
 
 class WorkspaceFile(BaseModel):
-    """Single file in a workspace: path and content."""
+    """Single file in a workspace: path and content. Used by UI for sync payload."""
 
     path: str = Field(..., min_length=1)
     source: str = ""
@@ -27,28 +27,7 @@ class UseReplicaRenameParams(BaseModel):
     prompt: str | None = None
 
 
-class WorkspaceRenameParams(BaseModel):
-    """Rename params with explicit workspace (list of path/source)."""
-
-    old_name: str
-    new_name: str
-    scope_node: str | None = None
-    workspace: list[WorkspaceFile]
-    prompt: str | None = None
-
-
-class SingleFileRenameParams(BaseModel):
-    """Rename params for a single file (source + optional path)."""
-
-    old_name: str
-    new_name: str
-    scope_node: str | None = None
-    source: str
-    path: str | None = None
-    prompt: str | None = None
-
-
-RenameParams = UseReplicaRenameParams | WorkspaceRenameParams | SingleFileRenameParams
+RenameParams = UseReplicaRenameParams
 
 
 class OrchestratorStateEntry(BaseModel):

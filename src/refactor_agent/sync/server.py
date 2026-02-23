@@ -17,6 +17,7 @@ from websockets.legacy.server import WebSocketServerProtocol
 
 from refactor_agent.sync.logger import logger
 from refactor_agent.sync.models import BootstrapMessage, FileMessage
+from refactor_agent.sync.replica_ttl import update_replica_activity
 
 
 class _StarletteWebSocket(Protocol):
@@ -197,6 +198,7 @@ async def _handle_connection_starlette(
     logger.info("Sync client connected", peer=str(peer))
     try:
         while True:
+            update_replica_activity()
             raw = await websocket.receive_text()
             try:
                 msg = json.loads(raw)

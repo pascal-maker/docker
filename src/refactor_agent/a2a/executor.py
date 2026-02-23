@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import tempfile
 import uuid
 from pathlib import Path
 
@@ -28,12 +27,8 @@ from pydantic_ai import Agent
 
 from refactor_agent.a2a.models import (
     OrchestratorStateEntry,
-    RenameParams,
-    SingleFileRenameParams,
     StateStore,
     UseReplicaRenameParams,
-    WorkspaceFile,
-    WorkspaceRenameParams,
 )
 from refactor_agent.orchestrator import (
     NeedInputResult,
@@ -45,34 +40,12 @@ from refactor_agent.orchestrator import (
 REPLICA_DIR_ENV = "REPLICA_DIR"
 ORCHESTRATOR_STATE_KEY = "orchestrator_state"
 
-_SUPPORTED_LANGUAGES = ("python", "typescript")
 _FILE_EXT_BY_LANG = {"python": "*.py", "typescript": "*.ts"}
 
 
-def _detect_language_from_workspace(workspace_dir: Path) -> str:
-    """Infer language from workspace contents: TypeScript if any .ts/.tsx exist, else Python."""
-    if not workspace_dir.exists():
-        return "python"
-    try:
-        for ext in ("*.ts", "*.tsx"):
-            if next(workspace_dir.rglob(ext), None) is not None:
-                return "typescript"
-    except OSError:
-        pass
-    return "python"
-
-
-def _language_and_ext(
-    parsed: RenameParams, workspace_dir: Path | None = None
-) -> tuple[str, str]:
-    """Return (language, file_ext) from parsed params; infer from workspace if missing."""
-    if isinstance(parsed, UseReplicaRenameParams):
-        return parsed.language, _FILE_EXT_BY_LANG[parsed.language]
-    if workspace_dir is not None:
-        lang = _detect_language_from_workspace(workspace_dir)
-    else:
-        lang = "python"
-    return lang, _FILE_EXT_BY_LANG[lang]
+def _language_and_ext(parsed: UseReplicaRenameParams) -> tuple[str, str]:
+    """Return (language, file_ext) from parsed params."""
+    return parsed.language, _FILE_EXT_BY_LANG[parsed.language]
 
 
 # task_id -> state for pause/resume
@@ -105,9 +78,7 @@ def _status_event(
     )
 
 
-def _parse_rename_params(  # noqa: C901, PLR0911, PLR0912 — dispatch + validation branches
-    user_input: str,
-) -> RenameParams | str:
+def _parse_rename_params(user_input: str) -> UseReplicaRenameParams | str:
     """Parse JSON into validated rename params. Returns model or error string."""
     try:
         data = json.loads(user_input)
@@ -115,6 +86,9 @@ def _parse_rename_params(  # noqa: C901, PLR0911, PLR0912 — dispatch + validat
         return f"ERROR: invalid JSON: {e}"
     if not isinstance(data, dict):
         return "ERROR: root must be a JSON object"
+
+    if data.get("use_replica") is not True:
+        return "ERROR: use_replica must be true. Push workspace via sync service first."
 
     old_name = data.get("old_name")
     new_name = data.get("new_name")
@@ -126,120 +100,26 @@ def _parse_rename_params(  # noqa: C901, PLR0911, PLR0912 — dispatch + validat
     if scope_node is not None and not isinstance(scope_node, str):
         return "ERROR: 'scope_node' must be a string or null"
 
-    use_replica = data.get("use_replica") is True
-    if use_replica:
-        lang = data.get("language")
-        if lang not in ("python", "typescript"):
-            lang = "python"
-        payload: dict[str, str | None | bool] = {
-            "old_name": old_name,
-            "new_name": new_name,
-            "scope_node": scope_node,
-            "use_replica": True,
-            "language": lang,
-        }
-        prompt_val = data.get("prompt") or data.get("user_message")
-        if isinstance(prompt_val, str):
-            payload["prompt"] = prompt_val
-        try:
-            return UseReplicaRenameParams.model_validate(payload)
-        except ValidationError as e:
-            return f"ERROR: {e}"
-
-    workspace = data.get("workspace")
-    if isinstance(workspace, list) and len(workspace) > 0:
-        out_workspace: list[dict[str, str]] = []
-        for i, item in enumerate(workspace):
-            if not isinstance(item, dict):
-                return f"ERROR: 'workspace[{i}]' must be an object"
-            p = item.get("path")
-            s = item.get("source")
-            if not isinstance(p, str) or not p.strip():
-                return f"ERROR: 'workspace[{i}].path' must be a non-empty string"
-            if not isinstance(s, str):
-                return f"ERROR: 'workspace[{i}].source' must be a string"
-            out_workspace.append({"path": p, "source": s})
-        workspace_files = [WorkspaceFile.model_validate(w) for w in out_workspace]
-        workspace_payload: dict[str, str | None | list[WorkspaceFile]] = {
-            "workspace": workspace_files,
-            "old_name": old_name,
-            "new_name": new_name,
-            "scope_node": scope_node,
-        }
-        prompt_val = data.get("prompt") or data.get("user_message")
-        if isinstance(prompt_val, str):
-            workspace_payload["prompt"] = prompt_val
-        try:
-            return WorkspaceRenameParams.model_validate(workspace_payload)
-        except ValidationError as e:
-            return f"ERROR: {e}"
-
-    files = data.get("files")
-    if isinstance(files, list) and len(files) > 0:
-        out_files: list[dict[str, str]] = []
-        for i, item in enumerate(files):
-            if not isinstance(item, dict):
-                return f"ERROR: 'files[{i}]' must be an object"
-            p = item.get("path")
-            s = item.get("source")
-            if not isinstance(p, str) or not p.strip():
-                return f"ERROR: 'files[{i}].path' must be a non-empty string"
-            if not isinstance(s, str):
-                return f"ERROR: 'files[{i}].source' must be a string"
-            out_files.append({"path": p, "source": s})
-        workspace_files = [WorkspaceFile.model_validate(w) for w in out_files]
-        try:
-            return WorkspaceRenameParams.model_validate(
-                {
-                    "workspace": workspace_files,
-                    "old_name": old_name,
-                    "new_name": new_name,
-                    "scope_node": scope_node,
-                }
-            )
-        except ValidationError as e:
-            return f"ERROR: {e}"
-
-    source = data.get("source")
-    path = data.get("path")
-    if not isinstance(source, str):
-        return "ERROR: missing or invalid 'source' (must be a string)"
-    if path is not None and not isinstance(path, str):
-        return "ERROR: 'path' must be a string or null"
+    lang = data.get("language")
+    if lang not in ("python", "typescript"):
+        lang = "python"
+    payload: dict[str, str | None | bool] = {
+        "old_name": old_name,
+        "new_name": new_name,
+        "scope_node": scope_node,
+        "use_replica": True,
+        "language": lang,
+    }
+    prompt_val = data.get("prompt") or data.get("user_message")
+    if isinstance(prompt_val, str):
+        payload["prompt"] = prompt_val
     try:
-        return SingleFileRenameParams.model_validate(
-            {
-                "source": source,
-                "old_name": old_name,
-                "new_name": new_name,
-                "scope_node": scope_node,
-                "path": path,
-            }
-        )
+        return UseReplicaRenameParams.model_validate(payload)
     except ValidationError as e:
         return f"ERROR: {e}"
 
 
-def _build_workspace_dir(parsed: RenameParams) -> Path:
-    """Create a temp dir and write workspace files from parsed. Caller must cleanup."""
-    tmp = tempfile.mkdtemp(prefix="refactor_a2a_")
-    root = Path(tmp)
-    if isinstance(parsed, WorkspaceRenameParams):
-        for wf in parsed.workspace:
-            out_path = root / wf.path
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_text(wf.source, encoding="utf-8")
-    elif isinstance(parsed, SingleFileRenameParams):
-        path = parsed.path or "file.py"
-        out_path = root / path
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(parsed.source, encoding="utf-8")
-    else:
-        raise TypeError("UseReplicaRenameParams has no workspace to build")
-    return root
-
-
-def _internal_message_from_parsed(parsed: RenameParams, lang: str) -> str:
+def _internal_message_from_parsed(parsed: UseReplicaRenameParams, lang: str) -> str:
     """Build the prompt we send to the orchestrator when no raw prompt is provided."""
     kind = "TypeScript" if lang == "typescript" else "Python"
     return (
@@ -327,7 +207,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             agent if agent is not None else create_orchestrator_agent()
         )
 
-    async def execute(  # noqa: C901, PLR0911, PLR0912 — message dispatch and artifact handling
+    async def execute(  # noqa: C901, PLR0912 — message dispatch and artifact handling
         self,
         context: RequestContext,
         event_queue: EventQueue,
@@ -446,7 +326,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                     context_id,
                     TaskState.failed,
                     "ERROR: empty input. Send JSON with refactor request (e.g. "
-                    "old_name, new_name, source or workspace).",
+                    "old_name, new_name, use_replica: true). Push workspace via sync first.",
                 )
             )
             return
@@ -458,103 +338,92 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             )
             return
 
-        use_replica = isinstance(parsed, UseReplicaRenameParams)
-        if use_replica:
-            replica_dir = os.environ.get(REPLICA_DIR_ENV, "/workspace")
-            workspace_dir = Path(replica_dir)
-            if not workspace_dir.exists():
-                await event_queue.enqueue_event(
-                    _status_event(
-                        task_id,
-                        context_id,
-                        TaskState.failed,
-                        "use_replica is true but REPLICA_DIR does not exist; "
-                        "push workspace via sync service first.",
-                    )
+        replica_dir = os.environ.get(REPLICA_DIR_ENV, "/workspace")
+        workspace_dir = Path(replica_dir)
+        if not workspace_dir.exists():
+            await event_queue.enqueue_event(
+                _status_event(
+                    task_id,
+                    context_id,
+                    TaskState.failed,
+                    "use_replica is true but REPLICA_DIR does not exist; "
+                    "push workspace via sync service first.",
                 )
-                return
+            )
+            return
+
+        lang, file_ext = _language_and_ext(parsed)
+        use_replica = True
+        deps = OrchestratorDeps(
+            language=lang,
+            workspace=workspace_dir,
+            mode="Ask",
+            file_ext=file_ext,
+            get_user_input=None,
+        )
+        raw_prompt = parsed.prompt
+        if raw_prompt is not None and raw_prompt.strip():
+            internal_message = raw_prompt.strip()
         else:
-            workspace_dir = _build_workspace_dir(parsed)
-        lang, file_ext = _language_and_ext(parsed, workspace_dir)
-        try:
-            deps = OrchestratorDeps(
-                language=lang,
-                workspace=workspace_dir,
-                mode="Ask",
-                file_ext=file_ext,
-                get_user_input=None,
-            )
-            raw_prompt = parsed.prompt
-            if raw_prompt is not None and raw_prompt.strip():
-                internal_message = raw_prompt.strip()
-            else:
-                internal_message = _internal_message_from_parsed(parsed, lang)
-            result, run_state = await run_orchestrator(
-                self._agent,
-                deps,
-                internal_message,
-                message_history=None,
-            )
-            if isinstance(result, NeedInputResult):
-                await event_queue.enqueue_event(
-                    TaskArtifactUpdateEvent(
-                        task_id=task_id,
-                        context_id=context_id,
-                        artifact=Artifact(
-                            artifact_id=uuid.uuid4().hex,
-                            name="refactor-input-required",
-                            description=result.need_input.message,
-                            parts=[
-                                Part(root=TextPart(text=result.need_input.message)),
-                                Part(
-                                    root=DataPart(
-                                        data=result.need_input.payload.model_dump()
-                                    )
-                                ),
-                            ],
-                        ),
-                        append=False,
-                    )
+            internal_message = _internal_message_from_parsed(parsed, lang)
+        result, run_state = await run_orchestrator(
+            self._agent,
+            deps,
+            internal_message,
+            message_history=None,
+        )
+        if isinstance(result, NeedInputResult):
+            await event_queue.enqueue_event(
+                TaskArtifactUpdateEvent(
+                    task_id=task_id,
+                    context_id=context_id,
+                    artifact=Artifact(
+                        artifact_id=uuid.uuid4().hex,
+                        name="refactor-input-required",
+                        description=result.need_input.message,
+                        parts=[
+                            Part(root=TextPart(text=result.need_input.message)),
+                            Part(
+                                root=DataPart(
+                                    data=result.need_input.payload.model_dump()
+                                )
+                            ),
+                        ],
+                    ),
+                    append=False,
                 )
-                await event_queue.enqueue_event(
-                    _status_event(
-                        task_id,
-                        context_id,
-                        TaskState.input_required,
-                        result.need_input.message,
-                        final=False,
-                    )
-                )
-                self._state_store[task_id] = OrchestratorStateEntry(
-                    message_history=run_state,
-                    workspace_dir=str(workspace_dir),
-                    use_replica=use_replica,
-                    language=lang,
-                )
-                return
-            await _emit_artifacts_from_workspace(
-                workspace_dir,
-                task_id,
-                context_id,
-                event_queue,
-                lang=lang,
             )
             await event_queue.enqueue_event(
                 _status_event(
                     task_id,
                     context_id,
-                    TaskState.completed,
-                    result.output,
+                    TaskState.input_required,
+                    result.need_input.message,
+                    final=False,
                 )
             )
-        finally:
-            # Cleanup temp dir only when not storing state and not using replica
-            if (
-                task_id not in self._state_store
-                and not use_replica
-                and workspace_dir.exists()
-            ):
-                shutil.rmtree(workspace_dir, ignore_errors=True)
+            self._state_store[task_id] = OrchestratorStateEntry(
+                message_history=run_state,
+                workspace_dir=str(workspace_dir),
+                use_replica=use_replica,
+                language=lang,
+            )
+            return
+        await _emit_artifacts_from_workspace(
+            workspace_dir,
+            task_id,
+            context_id,
+            event_queue,
+            lang=lang,
+        )
+        await event_queue.enqueue_event(
+            _status_event(
+                task_id,
+                context_id,
+                TaskState.completed,
+                result.output,
+            )
+        )
 
     async def cancel(
         self,

@@ -164,7 +164,7 @@ ban-relative-imports = "all"
 "src/refactor_agent/ci/config.py" = ["E501"]
 "src/refactor_agent/a2a/auth_middleware.py" = ["TC002", "PLR0911"]
 "src/refactor_agent/a2a/executor.py" = [
-    "E501", "PLR0915",
+    "E501", "PLR0911", "PLR0915",
     "TC001", "TC002",
 ]
 "src/refactor_agent/agent/factory.py" = ["E501"]
@@ -223,7 +223,15 @@ disable_error_code = ["attr-defined"]
 [[tool.mypy.overrides]]
 # Auth: Firestore/Starlette have complex or missing stubs; google.cloud.firestore typing.
 module = ["refactor_agent.auth.*", "refactor_agent.a2a.auth_middleware"]
-disable_error_code = ["attr-defined", "no-any-return", "union-attr", "arg-type", "operator", "untyped-decorator", "unused-awaitable"]
+disable_error_code = [
+    "attr-defined", "no-any-return", "union-attr", "arg-type",
+    "operator", "untyped-decorator", "unused-awaitable", "type-arg",
+]
+
+[[tool.mypy.overrides]]
+# Backend + method_logging: ASGI app typing (object/callable), scope dicts.
+module = ["refactor_agent.backend.*", "refactor_agent.a2a.method_logging"]
+disable_error_code = ["operator", "type-arg", "unreachable"]
 
 [[tool.mypy.overrides]]
 module = [

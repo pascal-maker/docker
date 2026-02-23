@@ -21,6 +21,14 @@ uv run python scripts/run_poc_sync_server.py
 
 Default port: **8765** (override with `POC_SYNC_PORT`). Replica directory: **REPLICA_DIR** env (default `/workspace`). The A2A server must use the same `REPLICA_DIR` when handling requests with `use_replica: true`.
 
+## Git clone flow
+
+When `repo_url` is provided with bootstrap (POST `/sync/workspace` or WebSocket `bootstrap` message), the server clones the repo into `REPLICA_DIR` using the user's GitHub token. The client must send `Authorization: Bearer <token>` with `repo` scope. The server runs `git clone --depth 1` into the replica, then overlays any dirty/unsaved files from the request. On Cloud Run, sync and A2A share the same URL; the extension pushes workspace first, then calls A2A with `use_replica: true`.
+
+## Ephemeral replica and TTL
+
+The replica is ephemeral: it lives on the container's filesystem and is cleaned up after inactivity. Configure `REPLICA_TTL_MINUTES` (default 30); a background task clears `REPLICA_DIR` when no sync activity has occurred for that period. On reconnect or instance eviction, the client re-syncs (re-clone + overlay).
+
 ## WebSocket protocol
 
 All messages are JSON. The server replies to each message with either `{"ok": "..."}` or `{"error": "..."}`.

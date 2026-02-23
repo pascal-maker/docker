@@ -17,6 +17,7 @@ from refactor_agent.a2a.auth_middleware import GitHubTokenMiddleware
 from refactor_agent.auth.github_auth import GitHubTokenValidator
 from refactor_agent.auth.user_store import UserStore
 from refactor_agent.sync.models import BootstrapMessage
+from refactor_agent.sync.replica_ttl import update_replica_activity
 from refactor_agent.sync.server import (
     DEFAULT_REPLICA_DIR,
     _handle_bootstrap,
@@ -57,6 +58,7 @@ async def http_sync_workspace(request: Request) -> JSONResponse:
         return JSONResponse(
             {"error": f"invalid bootstrap payload: {e}"}, status_code=400
         )
+    update_replica_activity()
     token = getattr(request.state, "github_token", None)
     err = await _handle_bootstrap(
         _get_replica_root(), bootstrap_msg, github_token=token

@@ -84,13 +84,9 @@ flowchart TB
 
 ## Extension, Chainlit, and CI config
 
-- **VS Code extension**: Set **A2A base URL** to the Cloud Run URL (e.g. `https://a2a-server-xxx-ew.a.run.app`). For hosted backend without sync, the extension can send workspace-in-JSON; no sync service is deployed on GCP.
+- **VS Code extension**: Set **A2A base URL** to the Cloud Run URL (e.g. `https://a2a-server-xxx-ew.a.run.app`). Sync uses the same URL by default; push workspace via POST `/sync/workspace`, then call A2A with `use_replica: true`.
 - **Hosted Chainlit**: When `chainlit_image` is set in tfvars, Terraform deploys a second Cloud Run service. Set `REFACTOR_AGENT_A2A_URL` in that service to the A2A URL (Terraform sets it automatically). Use `chainlit_invoker_member` (e.g. `user:you@example.com`) so only you can open the Chainlit URL; do not use `allUsers`. Get the URL with `terraform -chdir=infra output chainlit_url`.
 - **CI**: No change required for the refactor check. To send results to the dashboard, set `REFACTOR_AGENT_INGEST_URL` and `REFACTOR_AGENT_INGEST_API_KEY` in the workflow once the dashboard is deployed.
-
-## Sync not deployed
-
-The sync server (WebSocket + `POST /sync/workspace`) is not deployed on Cloud Run. For hosted use, the VS Code extension (and other clients) should use **workspace-in-JSON** in the A2A request body; the executor supports both `use_replica` and inline workspace.
 
 ## Beta users and pricing
 

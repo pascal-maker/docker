@@ -52,8 +52,8 @@
         },
         "refactorAgent.syncUrl": {
           "type": "string",
-          "default": "http://localhost:8765",
-          "description": "Sync service URL for workspace push (HTTP base for POST /sync/workspace)"
+          "default": "",
+          "description": "Sync service URL. When empty, uses A2A base URL (same for hosted Cloud Run)."
         },
         "refactorAgent.apiKey": {
           "type": "string",

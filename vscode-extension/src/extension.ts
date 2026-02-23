@@ -86,6 +86,17 @@ async function getA2aBaseUrl(
   return fromConfig;
 }
 
+/** Sync URL: use explicit syncUrl if set, else A2A base URL (same for hosted Cloud Run). */
+async function getSyncUrl(
+  folder: vscode.WorkspaceFolder | undefined
+): Promise<string> {
+  const fromConfig = vscode.workspace
+    .getConfiguration("refactorAgent")
+    .get<string>("syncUrl", "");
+  if (fromConfig && fromConfig.trim()) return fromConfig.trim();
+  return getA2aBaseUrl(folder);
+}
+
 /** Parse "rename X to Y", "rename X Y", or JSON { old_name, new_name }. */
 function parseRenameIntentFromPrompt(
   prompt: string
@@ -730,9 +741,7 @@ class RefactorViewProvider implements vscode.WebviewViewProvider {
     promptText?: string
   ): Promise<void> {
     const a2aBaseUrl = await getA2aBaseUrl(folder);
-    const syncUrl = vscode.workspace
-      .getConfiguration("refactorAgent")
-      .get<string>("syncUrl", "http://localhost:8765");
+    const syncUrl = await getSyncUrl(folder);
     const authToken = await getAuthToken();
     if (!authToken) {
       append(
