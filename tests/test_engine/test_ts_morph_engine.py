@@ -1,4 +1,4 @@
-"""Integration tests for TsMorphEngine (requires npm install in bridge dir)."""
+"""Integration tests for TsMorphEngine (requires pnpm install in bridge dir)."""
 
 from __future__ import annotations
 

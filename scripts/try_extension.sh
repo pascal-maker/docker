@@ -31,8 +31,8 @@ printf '%s\n' "{\"refactorAgent.engine\": \"$PLAYGROUND\"}" > "$VSCODE_SETTINGS_
 
 cd "$EXT_DIR"
 echo "Installing dependencies..."
-npm install --no-audit --no-fund
+pnpm install
 echo "Compiling extension..."
-npm run compile
+pnpm run compile
 echo "Opening Extension Development Host with playground/$PLAYGROUND (engine=$PLAYGROUND)..."
 exec code --extensionDevelopmentPath="$EXT_DIR" "$WORKSPACE_DIR"
