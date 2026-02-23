@@ -1,13 +1,12 @@
 # Build and push A2A server image to Artifact Registry.
-# Staging: push a tag (e.g. staging or staging-*) → image :<tag>. Production: publish a release → image :<release_tag>.
-# No build on push to main. Requires: GCP_PROJECT_ID, GCP_SA_KEY.
+# One version tag (e.g. v0.2.0): build once, deploy to staging then promote same image to production.
+# Triggers: push tag v* or publish GitHub Release. Requires: GCP_PROJECT_ID, GCP_SA_KEY.
 name: Build and push images
 
 on:
   push:
     tags:
-      - "staging"
-      - "staging-*"
+      - "v*"
   release:
     types: [published]
 

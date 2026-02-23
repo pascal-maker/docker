@@ -76,11 +76,11 @@ Infrastructure as code for the refactor-agent A2A backend and (later) dashboard.
 
 ## Dev endpoints (staging / production)
 
-Environments are **image tags** in Artifact Registry (no separate API): staging = tag from `main` (e.g. `:staging`), production = tag from a release (e.g. `:v1.0.0`). The same Cloud Run service is updated by pointing `a2a_image` at the desired tag.
+Environments are **image tags** in Artifact Registry (no separate API). Use **one version tag** for both: build once (e.g. `a2a-server:v0.2.0`), deploy to staging, then promote the same tag to production.
 
-- **Staging:** In your tfvars set `a2a_image = ".../a2a-server:staging"` and `a2a_min_instance_count = 1` so the first request avoids cold start. The [build-push workflow](../.github/workflows/build-push-images.yml) pushes `:staging` on push to `main`.
-- **Production:** Set `a2a_image = ".../a2a-server:v1.0.0"` (or `:latest`) and keep `a2a_min_instance_count = 0` to scale to zero.
-- **Outputs:** `a2a_url` is the A2A endpoint. When `chainlit_image` is set in tfvars, `chainlit_url` is the hosted Chainlit endpoint (transparent surface; restrict invoker via `chainlit_invoker_member`).
+- **Staging:** In staging tfvars set `a2a_image = ".../a2a-server:v0.2.0"` and `a2a_min_instance_count = 1` (optional). Push a tag `v*` from `main` to trigger the [build-push workflow](../.github/workflows/build-push-images.yml); it builds and pushes that image tag. Apply with your staging tfvars.
+- **Production:** After validating on staging, set the **same** `a2a_image = ".../a2a-server:v0.2.0"` in production tfvars and apply. No new build; same image promoted.
+- **Outputs:** `a2a_url` is the A2A endpoint. When `chainlit_image` is set in tfvars, `chainlit_url` is the hosted Chainlit endpoint (restrict invoker via `chainlit_invoker_member`).
 
 ## Backend (state) – reminder
 

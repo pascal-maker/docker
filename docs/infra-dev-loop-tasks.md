@@ -172,8 +172,9 @@ If your tfvars still has `a2a_image = "...:latest"`, you’re good. If you pushe
 ### 4.2 Build-and-push workflow
 
 - [x] After 2.2, the build workflow has **GCP_PROJECT_ID** and **GCP_SA_KEY**. It does **not** run on push to `main`.
-- [x] **Staging:** push a tag `staging` or `staging-*` (e.g. `git tag staging && git push origin staging`) → builds and pushes `a2a-server:staging` (or `:staging-<suffix>`).
-- [x] **Production:** publish a GitHub release (e.g. `v1.0.0`) → builds and pushes `a2a-server:v1.0.0`.
+- [x] **One version tag:** push a tag `v*` (e.g. `v0.2.0`) from `main` → builds and pushes `a2a-server:v0.2.0`. Publish a GitHub Release with the same tag to get the same build (and release notes).
+- [x] **Staging:** Deploy that version to staging (Terraform apply with staging tfvars, `a2a_image = ".../a2a-server:v0.2.0"`).
+- [x] **Production:** Promote the same version (same image tag) to production (Terraform apply with prod tfvars, same `a2a_image`).
 - [x] (Optional) Set repo variable **GCP_REGION**: GitHub → Settings → Secrets and variables → Actions → **Variables** → Name `GCP_REGION`, Value `europe-west1`.
 
 ---
@@ -185,7 +186,7 @@ Only if you want the Chainlit UI deployed on Cloud Run talking to the same A2A b
 ### 5.1 Terraform
 
 - [ ] In `dev.tfvars`, set:
-  - `chainlit_image` = same image as A2A (e.g. `.../a2a-server:staging`) — same image, different entrypoint.
+  - `chainlit_image` = same image as A2A (e.g. `.../a2a-server:v0.2.0`) — same image, different entrypoint.
   - `chainlit_invoker_member` = `"user:YOUR_EMAIL"` (so only you can open the Chainlit URL).
 - [ ] `terraform -chdir=infra apply -var-file=dev.tfvars`
 
