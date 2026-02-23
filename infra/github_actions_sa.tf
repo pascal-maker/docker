@@ -70,6 +70,13 @@ resource "google_project_iam_member" "github_actions_storage_admin" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+# So GitHub Actions can update Cloud Run services that run as the default Compute Engine SA (actAs).
+resource "google_service_account_iam_member" "github_actions_act_as_compute" {
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 output "github_actions_sa_email" {
   description = "Service account email for GitHub Actions; use with gcloud iam service-accounts keys create to create a key, then add the JSON to repo secret GCP_SA_KEY."
   value       = google_service_account.github_actions.email

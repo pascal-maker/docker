@@ -50,7 +50,7 @@ variable "chainlit_auth_secret" {
 
 # Optional: used to grant GitHub Actions SA access to Terraform state bucket for CI deploy.
 variable "terraform_state_bucket" {
-  description = "GCS bucket name for Terraform state (e.g. PROJECT-terraform-state). If set, GitHub Actions SA gets objectAdmin so CI can run terraform apply."
+  description = "GCS bucket name for Terraform state (e.g. PROJECT-terraform-state). If set, GitHub Actions SA gets storage.admin so CI can run terraform apply and manage bucket IAM."
   type        = string
   default     = ""
 }
