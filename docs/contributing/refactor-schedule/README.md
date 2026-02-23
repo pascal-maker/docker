@@ -4,7 +4,7 @@ context: |
   Multi-step refactors (e.g. enforce frontend/backend boundary, DDD → vertical slice)
   need many operations. Agent emits a schedule; scheduler optimizes and executes.
   Planning trusts LLM ordering first; optimization (DAG, waves, parallel) comes last.
-  Structural rewrites only — ts-morph manifold. See [ideas/vision.md](../ideas/vision.md) for algebraic
+  Structural rewrites only — ts-morph manifold. See [ideas/vision.md](../../roadmap/ideas/vision.md) for algebraic
   framing (commutativity, confluence, manifold boundary).
 ---
 

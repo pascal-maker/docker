@@ -48,7 +48,7 @@ Thin adapter around the orchestrator:
 - Runs the same orchestrator; tools that need input call the callback and block, so the run completes in one go.
 - Full feature visibility; only the outer layer (deps and Chainlit Ask APIs) is UI-specific.
 
-See [Chat UI (Chainlit)](chat-ui.md) for usage.
+See [Chat UI (Chainlit)](../clients/chat-ui.md) for usage.
 
 ## A2A
 
@@ -59,7 +59,7 @@ Thin adapter for agent-to-agent callers:
 - **Resumption:** Next message loads state, appends the user reply, and continues the orchestrator until completion or another NeedInput.
 - The Agent Card exposes a single generic “refactor” skill; human-in-the-loop (e.g. collision) is via `input_required` and the next message.
 
-See [A2A server (HTTP)](a2a-server.md) for endpoints and request formats.
+See [A2A server (HTTP)](../clients/a2a-server.md) for endpoints and request formats.
 
 ## Summary
 
@@ -68,6 +68,6 @@ See [A2A server (HTTP)](a2a-server.md) for endpoints and request formats.
 | **Dev UI** | deps + `get_user_input`      | Tools block on Chainlit Ask   |
 | **A2A**    | deps, no callback; runner    | NeedInput → `input_required` → resume |
 
-**A2A is opaque** (single refactor skill; tools/engine not exposed to callers). **Dev UI (Chainlit) is transparent** (full feature visibility) and must be highly secured when hosted; see [GCP infrastructure](infra/gcp.md) for deployment.
+**A2A is opaque** (single refactor skill; tools/engine not exposed to callers). **Dev UI (Chainlit) is transparent** (full feature visibility) and must be highly secured when hosted; see [GCP infrastructure](../infra/gcp.md) for deployment.
 
 One orchestrator, two surfaces; all substantial logic lives in the shared core.

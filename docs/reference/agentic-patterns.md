@@ -26,7 +26,7 @@ Patterns are often combined (e.g. plan then execute, or tool use then structured
 ## Patterns used in this project
 
 - **Orchestrator:** Single agent with tools (rename, move_symbol, find_references, etc.). User message → tool loop → final answer. Conceptually **ReAct-style**: reason, act with tools, observe, repeat.
-- **Planner (refactor schedule):** Specialist agent with **read-only** tools and **structured output** (`RefactorSchedule`). Exploration via tools, then one validated plan — a **plan-then-execute** split: planner produces the schedule, executor runs it. See [Refactor schedule](refactor-schedule/README.md) and the implementation plan.
+- **Planner (refactor schedule):** Specialist agent with **read-only** tools and **structured output** (`RefactorSchedule`). Exploration via tools, then one validated plan — a **plan-then-execute** split: planner produces the schedule, executor runs it. See [Refactor schedule](../contributing/refactor-schedule/README.md) and the implementation plan.
 - **Optional refinement:** Executor validates the schedule (paths, `depends_on`, no cycles); validation errors can be fed back to the planner for a **critic/refine** loop (post-MVP).
 
 ## LLM Compiler and the refactor schedule
@@ -42,7 +42,7 @@ The refactor schedule is a close fit for the **LLM Compiler** pattern: a DAG of 
 | Topological execution      | Executor topo-sorts by `depends_on`, runs in order     |
 | Parallel ready nodes       | MVP: sequential only; later: waves / parallel execution |
 
-Today the executor runs steps **sequentially** in topo order (no parallelism). The [refactor-schedule README](refactor-schedule/README.md) leaves **DAG enrichment** (affected spans, conflict graph) and **waves / parallel execution** for later (steps 8–9). Adopting the LLM Compiler framing makes that path explicit: same DAG model, add parallel execution of independent ops when the engine supports it.
+Today the executor runs steps **sequentially** in topo order (no parallelism). The [refactor-schedule README](../contributing/refactor-schedule/README.md) leaves **DAG enrichment** (affected spans, conflict graph) and **waves / parallel execution** for later (steps 8–9). Adopting the LLM Compiler framing makes that path explicit: same DAG model, add parallel execution of independent ops when the engine supports it.
 
 ## Further reading
 

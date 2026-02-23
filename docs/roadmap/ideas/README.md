@@ -14,5 +14,5 @@ Design notes, future work, and deployment roadmap.
 
 ## Roadmap and deployment
 
-- [Roadmap — generated codemod refactoring](../roadmap/generated-codemod-refactoring.md) — Exploration: LLM-generated codemods for migrations.
+- [Roadmap — generated codemod refactoring](../generated-codemod-refactoring.md) — Exploration: LLM-generated codemods for migrations.
 - [Deployment — Google Marketplace](../deployment/google-market-place.md) — Roadmap: list on Google Cloud AI Agent Marketplace; checklist.

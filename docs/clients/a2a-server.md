@@ -1,6 +1,6 @@
 # A2A server (HTTP)
 
-A2A surface for agent-to-agent refactor tasks; shares the same [orchestrator](architecture.md) as the Chat UI. Human-in-the-loop (e.g. name collision) uses `input_required` and resumption.
+A2A surface for agent-to-agent refactor tasks; shares the same [orchestrator](../guides/architecture.md) as the Chat UI. Human-in-the-loop (e.g. name collision) uses `input_required` and resumption.
 
 Start the server (default port 9999):
 

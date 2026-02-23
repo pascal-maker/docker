@@ -9,7 +9,7 @@ This doc describes how to manually (and optionally automatically) verify the pla
 
 ## Playgrounds as fixtures
 
-The [Python](../../playground/python/README.md) and [TypeScript](../../playground/typescript/README.md) playgrounds are laid out in **Domain Driven Design** style with **intentional boundary violations** (e.g. a backend use case under `frontend/`). They are the standard target for “multi-step refactor” tests. See the playground READMEs for layout and example prompts.
+The [Python](../../../playground/python/README.md) and [TypeScript](../../../playground/typescript/README.md) playgrounds are laid out in **Domain Driven Design** style with **intentional boundary violations** (e.g. a backend use case under `frontend/`). They are the standard target for “multi-step refactor” tests. See the playground READMEs for layout and example prompts.
 
 ## How to test manually
 
@@ -46,11 +46,11 @@ The [Python](../../playground/python/README.md) and [TypeScript](../../playgroun
 - **Unit tests** in `tests/test_schedule/`:
   - `test_models.py`: `RefactorSchedule` and operation variants parse from the JSON fixture and round-trip.
   - `test_executor.py`: Executor rejects cycles in `dependsOn`, unknown dependency ids, and non-TypeScript workspaces in PoC.
-- **Integration:** You can add tests that load a `RefactorSchedule` fixture, run `execute_schedule()` against a copy of the playground (e.g. `tmp_path` with copied files), and assert on expected file contents or structure. See [refactor-schedule README](refactor-schedule/README.md) for the data model and executor contract.
+- **Integration:** You can add tests that load a `RefactorSchedule` fixture, run `execute_schedule()` against a copy of the playground (e.g. `tmp_path` with copied files), and assert on expected file contents or structure. See [refactor-schedule README](../refactor-schedule/README.md) for the data model and executor contract.
 
 ## Links
 
 - [Refactor schedule (data model, pipeline)](../refactor-schedule/README.md)
-- [Chat UI (modes, single vs multi-step)](../chat-ui.md)
-- [Python playground README](../playground/python/README.md)
-- [TypeScript playground README](../playground/typescript/README.md)
+- [Chat UI (modes, single vs multi-step)](../../clients/chat-ui.md)
+- [Python playground README](../../../playground/python/README.md)
+- [TypeScript playground README](../../../playground/typescript/README.md)

@@ -4,8 +4,8 @@ The sync service is the canonical way to get workspace state from a client to th
 
 ## Overview
 
-- **Server:** [sync/server.py](../src/refactor_agent/sync/server.py) — listens (default port 8765), writes to a **replica directory** (`REPLICA_DIR`, default `/workspace`).
-- **Client:** [sync/client.py](../src/refactor_agent/sync/client.py) — gathers files (e.g. `.py` under a root), pushes via WebSocket. Other clients (e.g. the VS Code extension) can implement the same protocol in TypeScript or use the HTTP upload endpoint.
+- **Server:** [sync/server.py](../../../src/refactor_agent/sync/server.py) — listens (default port 8765), writes to a **replica directory** (`REPLICA_DIR`, default `/workspace`).
+- **Client:** [sync/client.py](../../../src/refactor_agent/sync/client.py) — gathers files (e.g. `.py` under a root), pushes via WebSocket. Other clients (e.g. the VS Code extension) can implement the same protocol in TypeScript or use the HTTP upload endpoint.
 
 ## Running the sync server
 

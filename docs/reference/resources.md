@@ -7,7 +7,7 @@ title: Resources
 
 # Documentation
 ## This repo
-- [Testing (refactor schedule, playgrounds)](testing/README.md) — how to test the plan/execute flow with DDD playgrounds
+- [Testing (refactor schedule, playgrounds)](../contributing/testing/README.md) — how to test the plan/execute flow with DDD playgrounds
 ## General
 - https://github.com/a2aproject/A2A
 - https://ts-morph.com

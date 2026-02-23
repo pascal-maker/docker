@@ -13,7 +13,7 @@ Agent-to-agent refactor tasks over HTTP. Same orchestrator as the Chat UI; human
 - **Agent Card:** `GET /.well-known/agent-card.json`
 - **Refactor:** `POST /` with A2A `message/send` JSON-RPC (single-file, workspace, or explicit files).
 
-See [A2A server (HTTP)](a2a-server.md) for endpoints, request formats, and Agent Card.
+See [A2A server (HTTP)](../clients/a2a-server.md) for endpoints, request formats, and Agent Card.
 
 ## Sync service
 
@@ -22,7 +22,7 @@ WebSocket service that keeps a **replica** of the client’s workspace on the se
 - **Server:** default port 8765; writes to a replica directory.
 - **Client:** Python client or VS Code extension; same WebSocket protocol.
 
-See [Sync service](sync-service.md) for running the server and the WebSocket protocol.
+See [Sync service](../clients/sync-service.md) for running the server and the WebSocket protocol.
 
 ## Dashboard (ingestion API)
 
@@ -31,19 +31,19 @@ Centralized dashboard for refactor/architecture check results: CI posts to an in
 - **Ingestion:** `POST /api/ingest/check-result`
 - **Query:** `GET /api/orgs/{org_id}/issues` (list), `GET /api/orgs/{org_id}/issues/{run_id}` (detail).
 
-See [Refactor issues dashboard](dashboard.md) for running the backend and frontend and seeding sample data.
+See [Refactor issues dashboard](../contributing/dashboard.md) for running the backend and frontend and seeding sample data.
 
 ## MCP server (stdio)
 
 Stdio MCP server for Claude Code or Cursor: one tool, `rename_symbol(file_path, old_name, new_name, scope_node?)`, using the LibCST engine. The client spawns the process and talks over stdin/stdout.
 
-See [MCP server (stdio)](mcp-server.md) for the run command and MCP config (`cwd` must be the repo root).
+See [MCP server (stdio)](../clients/mcp-server.md) for the run command and MCP config (`cwd` must be the repo root).
 
 ## Summary
 
 | Entry point      | Purpose                          | Doc |
 |------------------|----------------------------------|-----|
-| A2A HTTP         | Agent-to-agent refactor tasks    | [a2a-server.md](a2a-server.md) |
-| Sync (WebSocket) | Workspace replica for use_replica| [sync-service.md](sync-service.md) |
-| Dashboard API    | Ingest and query check results   | [dashboard.md](dashboard.md) |
-| MCP (stdio)      | rename_symbol for Claude/Cursor  | [mcp-server.md](mcp-server.md) |
+| A2A HTTP         | Agent-to-agent refactor tasks    | [a2a-server.md](../clients/a2a-server.md) |
+| Sync (WebSocket) | Workspace replica for use_replica| [sync-service.md](../clients/sync-service.md) |
+| Dashboard API    | Ingest and query check results   | [dashboard.md](../contributing/dashboard.md) |
+| MCP (stdio)      | rename_symbol for Claude/Cursor  | [mcp-server.md](../clients/mcp-server.md) |

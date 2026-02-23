@@ -171,4 +171,4 @@ So: **no "create env" API** — with stateless + store, "onboarding" is implicit
 ## References
 
 - Current infra plan: [.cursor/plans/gcp_terraform_dev_infra_4e86f366.plan.md](../../../.cursor/plans/gcp_terraform_dev_infra_4e86f366.plan.md) (GCP Terraform dev infra).
-- Sync and workspace: [sync-service.md](../sync-service.md), [a2a-server.md](../a2a-server.md). Executor supports both `use_replica` (sync) and inline workspace.
+- Sync and workspace: [sync-service.md](../clients/sync-service.md), [a2a-server.md](../clients/a2a-server.md). Executor supports both `use_replica` (sync) and inline workspace.

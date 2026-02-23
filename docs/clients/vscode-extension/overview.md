@@ -25,7 +25,7 @@ For VS Code users, the **Refactor Agent** extension is a **standalone** sidebar 
 
 - **Install and dev setup:** [install.md](install.md)
 - **Debugging (blank panel, console):** [debugging.md](debugging.md)
-- **Usage and config:** [../../vscode-extension/README.md](../../vscode-extension/README.md)
+- **Usage and config:** [vscode-extension README (repo root)](../../../../vscode-extension/README.md)
 
 ## Relation to Cursor/MCP
 

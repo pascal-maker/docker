@@ -79,7 +79,7 @@ These are directions, not a single PR. Prioritization and scoping can be done se
 
 ## References
 
-- [Testing (refactor schedule, playgrounds)](testing/README.md) – manual and automated testing of the plan/execute flow.
-- [Refactor schedule (data model, executor)](refactor-schedule/README.md) – schedule format and executor contract.
-- [Chat UI](chat-ui.md) – modes (Plan / Ask / Auto) and how the schedule is produced and executed.
+- [Testing (refactor schedule, playgrounds)](../contributing/testing/README.md) – manual and automated testing of the plan/execute flow.
+- [Refactor schedule (data model, executor)](../contributing/refactor-schedule/README.md) – schedule format and executor contract.
+- [Chat UI](../clients/chat-ui.md) – modes (Plan / Ask / Auto) and how the schedule is produced and executed.
 - `scripts/reset-playground.sh` / `make reset-playground` – reset the NestJS playground to a clean state after partial runs.

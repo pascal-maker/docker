@@ -4,7 +4,7 @@ Deploy the A2A refactor backend (and later the dashboard) on GCP with Terraform.
 
 ## Two entry surfaces (opaque vs transparent)
 
-The internal agent is reached through two distinct surfaces: **A2A (opaque)** and **Dev UI (transparent)**. See [Architecture](../architecture.md) for how they share one orchestrator. For deployment, the following table and diagram show clients and endpoints.
+The internal agent is reached through two distinct surfaces: **A2A (opaque)** and **Dev UI (transparent)**. See [Architecture](../guides/architecture.md) for how they share one orchestrator. For deployment, the following table and diagram show clients and endpoints.
 
 | Surface | Clients | Endpoint | Visibility |
 |---------|---------|----------|------------|
@@ -63,7 +63,7 @@ flowchart TB
 
 | Use case | Recommendation |
 |----------|-----------------|
-| Local dev, Cursor/MCP, quick iteration | **Local**: `docker compose up a2a-server` or run sync + A2A scripts (see [Docker deployment](../docker-deployment.md)). |
+| Local dev, Cursor/MCP, quick iteration | **Local**: `docker compose up a2a-server` or run sync + A2A scripts (see [Docker deployment](../clients/docker-deployment.md)). |
 | Testing VS Code extension against a stable URL | **GCP**: Deploy A2A to Cloud Run, set `refactorAgent.a2aBaseUrl` to the Cloud Run URL. |
 | Hosted Chainlit (transparent UI) | **GCP**: Deploy Chainlit as a second Cloud Run service; set `chainlit_image` and `chainlit_invoker_member` in tfvars. Output `chainlit_url`. |
 | CI (refactor check) | Runs in GitHub Actions; no GCP required. Optional: CI can POST results to the dashboard ingestion URL (set when dashboard is deployed). |

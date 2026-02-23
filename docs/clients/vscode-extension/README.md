@@ -6,4 +6,4 @@ Documentation for the Refactor Agent VS Code / Cursor extension (source in `vsco
 - **[install.md](install.md)** — How to install from the repo or VSIX, and how to have the extension available by default in your dev environment.
 - **[debugging.md](debugging.md)** — Debugging a blank panel or missing messages (webview DevTools, console logs, common errors).
 
-Usage and configuration are in the extension’s own [README](../../vscode-extension/README.md).
+Usage and configuration are in the extension’s own [README](../../../vscode-extension/README.md).

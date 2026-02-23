@@ -2,7 +2,7 @@
 
 This document summarizes the repo’s coding rules, where they are intentionally relaxed or violated (and why), and the standards/resources they are based on.
 
-**Canonical source:** [CLAUDE.md](../../CLAUDE.md) (root). Cursor uses the same via [.cursor/rules/coding-guidelines.mdc](../../.cursor/rules/coding-guidelines.mdc).  
+**Canonical source:** [CLAUDE.md](../../../CLAUDE.md) (root). Cursor uses the same via [.cursor/rules/coding-guidelines.mdc](../../../.cursor/rules/coding-guidelines.mdc).  
 **Audit:** [audit.md](audit.md).
 
 ---
@@ -93,10 +93,10 @@ Ways to reduce or remove the documented relaxations, based on current tooling an
 
 ### In-repo
 
-- **[CLAUDE.md](../../CLAUDE.md)** — Canonical coding guidelines (source of truth).
-- **[.cursor/rules/coding-guidelines.mdc](../../.cursor/rules/coding-guidelines.mdc)** — Same content for Cursor (always apply).
+- **[CLAUDE.md](../../../CLAUDE.md)** — Canonical coding guidelines (source of truth).
+- **[.cursor/rules/coding-guidelines.mdc](../../../.cursor/rules/coding-guidelines.mdc)** — Same content for Cursor (always apply).
 - **[audit.md](audit.md)** — Audit results and changes made to align with the guidelines.
-- **[pyproject.toml](../../pyproject.toml)** — Ruff (lint/format), mypy, pytest, pydocstyle, per-file ignores, and rule references.
+- **[pyproject.toml](../../../pyproject.toml)** — Ruff (lint/format), mypy, pytest, pydocstyle, per-file ignores, and rule references.
 
 ### Style and formatting
 
