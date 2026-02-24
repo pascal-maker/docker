@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { createInterface } from "readline";
 import { Request } from "./types.js";
 import {
@@ -19,6 +20,11 @@ import {
   handleRenameSymbol,
   handleToSource,
 } from "./handlers.js";
+
+const sentryDsn = process.env.SENTRY_DSN?.trim();
+if (sentryDsn) {
+  Sentry.init({ dsn: sentryDsn, tracesSampleRate: 0 });
+}
 
 type HandlerResult = unknown;
 

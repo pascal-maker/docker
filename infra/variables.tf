@@ -54,3 +54,24 @@ variable "terraform_state_bucket" {
   type        = string
   default     = ""
 }
+
+# Sentry (optional). Set SENTRY_AUTH_TOKEN env or sentry_auth_token in secrets.tfvars.
+variable "sentry_auth_token" {
+  description = "Sentry auth token for Terraform provider. Create at sentry.io: Settings → Auth Tokens (scopes: project:read, project:write, org:read)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "sentry_organization" {
+  description = "Sentry organization slug (e.g. my-org). Required when using Sentry IaC."
+  type        = string
+  default     = ""
+}
+
+variable "sentry_base_url" {
+  description = "Sentry API base URL. Use https://de.sentry.io/api/ for EU region; default is US (sentry.io)."
+  type        = string
+  default     = ""
+}
+

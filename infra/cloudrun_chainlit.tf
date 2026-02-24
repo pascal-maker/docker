@@ -35,6 +35,10 @@ resource "google_cloud_run_v2_service" "chainlit" {
           }
         }
       }
+      env {
+        name  = "SENTRY_DSN"
+        value = try(sentry_key.backend[0].dsn["public"], "")
+      }
       resources {
         limits = {
           cpu    = "1"

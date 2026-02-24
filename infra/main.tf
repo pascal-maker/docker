@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    sentry = {
+      source  = "jianyuan/sentry"
+      version = "~> 0.14"
+    }
   }
 
   # GCS backend: state and locking in EU. Create bucket first (see infra/README.md).
@@ -25,4 +29,9 @@ terraform {
 provider "google" {
   project = var.project_id
   region  = var.region
+}
+
+provider "sentry" {
+  token    = var.sentry_auth_token
+  base_url = var.sentry_base_url != "" ? var.sentry_base_url : "https://sentry.io/api/"
 }

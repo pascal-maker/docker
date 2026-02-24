@@ -57,6 +57,10 @@ resource "google_cloud_run_v2_service" "a2a" {
         name  = "REPLICA_TTL_MINUTES"
         value = "30"
       }
+      env {
+        name  = "SENTRY_DSN"
+        value = try(sentry_key.backend[0].dsn["public"], "")
+      }
       resources {
         limits = {
           cpu    = "1"

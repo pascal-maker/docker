@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from refactor_agent._log_config import configure_logging
 from refactor_agent.dashboard.ingest import router as ingest_router
 from refactor_agent.dashboard.routes.issues import router as issues_router
 
@@ -84,6 +85,7 @@ def run_dashboard(
     ingest_api_key: str | None = None,
 ) -> None:
     """Run the dashboard with uvicorn."""
+    configure_logging()
     port = port or int(os.environ.get("REFACTOR_AGENT_DASHBOARD_PORT", DEFAULT_PORT))
     app = create_app(db_path=db_path, ingest_api_key=ingest_api_key)
     uvicorn.run(app, host=host, port=port)
