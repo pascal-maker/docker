@@ -7,7 +7,7 @@ Canonical repo-wide quality rules. Cursor uses the same content via `.cursor/rul
 # General
 
 * Strict typing across the entire repository; no untyped defs, no `Any` without justification.
-* Run `make check` (format-check, lint, typecheck, test) before every commit; all four must pass. CI runs them as separate jobs so each has its own green/red.
+* Run `make pre-commit-install` once after clone to enable git hooks. Hooks run ruff, TS format/lint/typecheck, and mypy. For full checks including tests, run `make check` before pushing. CI runs format, lint, typecheck, and test as separate jobs.
 * Line length 88 characters (Python); enforced by ruff.
 * Google-style docstrings on all public functions and classes; skip module, package, and `__init__` docstrings.
 * No relative imports; use absolute imports only.

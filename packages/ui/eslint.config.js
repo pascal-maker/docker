@@ -22,6 +22,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      complexity: ["error", { max: 30 }],
       "no-restricted-imports": [
         "error",
         {

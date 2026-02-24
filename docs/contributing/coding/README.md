@@ -12,7 +12,7 @@ This document summarizes the repo’s coding rules, where they are intentionally
 ### General
 
 - **Typing:** Strict typing everywhere; no untyped defs; no `Any` without justification.
-- **Pre-commit:** Run `make check` (format-check, lint, typecheck, test) before every commit; all four must pass. CI runs them as separate jobs.
+- **Pre-commit:** Run `make pre-commit-install` once after clone. Hooks run ruff (format + lint), TS format/lint/typecheck, and mypy on each commit. For full checks including tests, run `make check` before pushing.
 - **Formatting:** Line length 88 (ruff). Double quotes, spaces. No relative imports; absolute only.
 - **Docstrings:** Google-style on public functions and classes; skip module/package/`__init__`.
 - **Suppressions:** Never suppress linter/type-checker without a short comment explaining why.

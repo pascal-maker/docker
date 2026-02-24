@@ -13,6 +13,7 @@ export default tseslint.config(
       },
     },
     rules: {
+      complexity: ["error", { max: 30 }],
       "no-restricted-imports": [
         "error",
         {
@@ -25,6 +26,7 @@ export default tseslint.config(
           ],
         },
       ],
+      "@typescript-eslint/no-deprecated": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },

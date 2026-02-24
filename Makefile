@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -80,6 +80,18 @@ ts-lint: ## TypeScript lint (all TS packages except playground)
 
 ts-typecheck: ## TypeScript typecheck (all TS packages except playground)
 	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run typecheck; done
+
+ts-knip: ## Knip: find dead code, unused exports, unused deps (TS)
+	pnpm run knip
+
+dead-code: ## Vulture: find dead code in Python (run after uv sync)
+	$(RUN) vulture src tests scripts
+
+deprecation-check: ## Flake8 deprecation plugin: flag deprecated API usage (Python)
+	$(RUN) flake8 --select=D src tests scripts
+
+pre-commit-install: ## Install pre-commit hooks (run once after clone)
+	$(RUN) pre-commit install
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "dashboard-ui": {
+      "entry": ["src/main.tsx", "vite.config.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "site": {
+      "entry": ["src/main.tsx", "vite.config.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/ui": {
+      "entry": ["src/index.ts", "src/button.tsx", "src/card.tsx", "src/input.tsx", "src/utils.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "src/refactor_agent/engine/typescript/bridge": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "vscode-extension": {
+      "entry": ["src/extension.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignore": ["**/dist/**", "**/out/**", "**/node_modules/**", "playground/**"],
+  "ignoreDependencies": ["@types/react-dom", "react-dom"],
+}

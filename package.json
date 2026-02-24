@@ -1,5 +1,11 @@
 {
   "name": "refactor-agent-infra",
   "private": true,
-  "description": "Refactor Agent monorepo (Python backend + TS packages)"
+  "description": "Refactor Agent monorepo (Python backend + TS packages)",
+  "scripts": {
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "knip": "^5.0.0"
+  }
 }

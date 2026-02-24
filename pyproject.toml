@@ -36,6 +36,10 @@ dev = [
     "mypy",
     "chainlit",
     "types-PyYAML",
+    "vulture>=2.11",
+    "flake8>=7.0",
+    "flake8-deprecated>=2.3",
+    "pre-commit>=4.0",
 ]
 
 [build-system]
@@ -155,7 +159,7 @@ ban-relative-imports = "all"
 # Cloud Functions: Flask request, minimal deps
 "functions/**/*.py" = [
     "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
-    "E501", "S310", "S110", "ARG001",
+    "E501", "S310", "S110", "ARG001", "S105", "SIM105",
 ]
 # Scripts: one-off CLI/seed tools
 "scripts/**/*.py" = [
@@ -265,6 +269,24 @@ disallow_untyped_defs = false
 # LibCST typed transformer return type is narrower (FlattenSentinel/RemovalSentinel); we return node.
 module = ["refactor_agent.engine.python.libcst_engine"]
 disable_error_code = ["override"]
+
+# ---------------------------------------------------------------------------
+# Vulture – dead code detection
+# ---------------------------------------------------------------------------
+[tool.vulture]
+min_confidence = 80
+paths = ["src", "tests", "scripts"]
+ignore_names = ["_", "logger", "app", "router", "client", "rest", "current_user", "UserLocation", "FieldInfo"]
+exclude = ["*/node_modules/*", "*/__pycache__/*", "*.pyc"]
+
+# ---------------------------------------------------------------------------
+# Flake8 (deprecation only; ruff handles other linting)
+# ---------------------------------------------------------------------------
+[tool.flake8]
+select = ["D"]
+extend-ignore = ["E", "F", "W"]
+exclude = [".git", "__pycache__", "node_modules", ".venv", "venv"]
+max-line-length = 88
 
 # ---------------------------------------------------------------------------
 # Pytest

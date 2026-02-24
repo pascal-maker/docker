@@ -209,7 +209,7 @@ export function buildSkeletonForFile(sf: SourceFile): string {
  * that resolves to `fromSf`. Removes the entire import declaration
  * when no specifiers remain.
  */
-export function stripNamedImport(
+function stripNamedImport(
   sf: SourceFile,
   fromSf: SourceFile,
   symbolName: string

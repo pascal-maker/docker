@@ -6,7 +6,8 @@ Semantic AST-level code refactoring as a service. Typed tree operations exposed 
 
 ```bash
 uv sync
-make check        # format, lint, typecheck, test
+make check              # format, lint, typecheck, test
+make pre-commit-install # install git hooks (run once)
 make ui           # launch Chainlit dev UI at localhost:8000
 ```
 

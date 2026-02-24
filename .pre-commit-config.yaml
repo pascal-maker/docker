@@ -1,0 +1,32 @@
+# Pre-commit hooks: run `uv run pre-commit install` once to enable.
+# See https://pre-commit.com
+default_language_version:
+  python: python3.12
+
+repos:
+  # Python: format + lint (uses project ruff)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.2
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Local: Python typecheck, TS format/lint/typecheck
+  - repo: local
+    hooks:
+      - id: ts-format
+        name: TS format check
+        entry: make ts-format-check
+        language: system
+        pass_filenames: false
+      - id: python-typecheck
+        name: Python typecheck (mypy)
+        entry: uv run mypy src
+        language: system
+        pass_filenames: false
+      - id: ts-checks
+        name: TS lint + typecheck
+        entry: bash -c "pnpm --filter @refactor-agent/ui run build 2>/dev/null || true && make ts-lint ts-typecheck"
+        language: system
+        pass_filenames: false
