@@ -133,6 +133,9 @@ runtime-evaluated-base-classes = [
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sentry".msg = "Use sentry-sdk for Python. The 'sentry' package is the legacy Sentry server, not the client SDK."
+
 # Per-file ignores: only where framework/convention requires it. Prefer fixing code.
 # Tests: assert (S101), fixtures (ARG), docstrings (D), annotations (ANN), magic values
 # (PLR2004), self (SLF001), booleans (FBT), pytest params (PT006), test secrets (S105/S106).

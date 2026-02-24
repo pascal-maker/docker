@@ -4,8 +4,12 @@
   "description": "Refactor Agent – rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
   "version": "0.1.0",
   "publisher": "refactor-agent",
-  "engines": { "vscode": "^1.90.0" },
-  "categories": ["Other"],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onView:refactorAgent-refactorView",
     "onCommand:refactorAgent.focusView",
@@ -64,13 +68,21 @@
         "refactorAgent.engine": {
           "type": "string",
           "default": "python",
-          "enum": ["python", "typescript"],
+          "enum": [
+            "python",
+            "typescript"
+          ],
           "description": "Language engine (must match opened workspace; set by try_extension.sh <playground>)."
         },
         "refactorAgent.accessRequestUrl": {
           "type": "string",
           "default": "https://refactor-agent.dev",
           "description": "URL for requesting access when status is pending (shown in onboarding message)."
+        },
+        "refactorAgent.sentryDsn": {
+          "type": "string",
+          "default": "",
+          "description": "Sentry DSN for error reporting. Leave empty to disable."
         }
       }
     }
@@ -92,5 +104,8 @@
     "prettier": "^3.3.3",
     "typescript": "~5.7.0",
     "typescript-eslint": "^8.15.0"
+  },
+  "dependencies": {
+    "@sentry/node": "^8.55.0"
   }
 }

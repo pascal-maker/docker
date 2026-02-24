@@ -22,6 +22,18 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@sentry/node", "@sentry/node/*"],
+              message:
+                "Use @sentry/react for frontend. @sentry/node is for Node.js backend only.",
+            },
+          ],
+        },
+      ],
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

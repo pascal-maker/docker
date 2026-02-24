@@ -13,6 +13,18 @@ export default tseslint.config(
       },
     },
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@sentry/react", "@sentry/react/*"],
+              message:
+                "Use @sentry/node for Node.js backend. @sentry/react is for frontend only.",
+            },
+          ],
+        },
+      ],
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
