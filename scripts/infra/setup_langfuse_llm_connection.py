@@ -6,9 +6,9 @@ an LLM connection so the Langfuse Playground and LLM-as-a-Judge use the same
 gateway. When unset, exits successfully without making changes.
 
 Usage:
-    uv run python scripts/setup_langfuse_llm_connection.py
+    uv run python scripts/infra/setup_langfuse_llm_connection.py
     # Or with .env loaded:
-    uv run python -c "from dotenv import load_dotenv; load_dotenv(); exec(open('scripts/setup_langfuse_llm_connection.py').read())"
+    uv run python -c "from dotenv import load_dotenv; load_dotenv(); exec(open('scripts/infra/setup_langfuse_llm_connection.py').read())"
 """
 
 from __future__ import annotations

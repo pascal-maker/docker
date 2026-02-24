@@ -203,7 +203,7 @@ flowchart TB
 - **Site**: React SPA (Firebase Hosting or static). "Request access" redirects to GitHub OAuth (web flow, `read:user user:email` scope).
 - **Auth callback**: Cloud Function (HTTP). Exchanges code for token, fetches user, writes `users/{id}` with `status="pending"`, redirects to success/error page.
 - **Email notify**: Cloud Function (Firestore trigger). On create in `users` where `status=pending`, sends email to admin via Resend.
-- **Extension auth**: VS Code built-in GitHub auth (`vscode.authentication.getSession`). Same Firestore `users` collection; admin approves via `scripts/approve_user.py` or Firestore console.
+- **Extension auth**: VS Code built-in GitHub auth (`vscode.authentication.getSession`). Same Firestore `users` collection; admin approves via `scripts/auth/approve_user.py` or Firestore console.
 
 See [site-deploy.md](site-deploy.md) for deployment.
 

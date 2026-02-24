@@ -1,7 +1,7 @@
 """Run combined A2A + sync backend (single service, single port).
 
 Usage:
-  uv run python scripts/run_refactor_backend.py
+  uv run python scripts/backend/run_refactor_backend.py
 
 Serves:
   - GET /.well-known/agent-card.json (public)

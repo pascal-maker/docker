@@ -18,7 +18,7 @@ Use this with a **planning agent** to continue the LibCST + MCP + A2A work:
 2. **Produce an implementation plan** for the remaining work only: Phase 3 (hosting the refactor service; what “hosting” means in that plan — e.g. deploy MCP/A2A or API, auth, etc.) and Phase 4 (VS Code extension; how it talks to the backend, UI for rename/extract, etc.). Do not implement yet; output a clear, phased plan with constraints from the original plan (time-to-value, strict typing, no edits to the plan file except to mark Phase 2 done and to set “next: Phase 3 / Phase 4”).
 3. Keep the same constraints as in the existing plan; reference **CLAUDE.md**, **vision.md**, and the current code (engine, agent, MCP server, A2A server, README) as needed.
 
-**Relevant files:** The plan file(s) above, `src/refactor_agent/ast_refactor/` (engine, agent, mcp_server, a2a_executor, a2a_server), `scripts/run_ast_refactor_mcp.py`, `scripts/run_ast_refactor_a2a.py`, `README.md`, `pyproject.toml`, `CLAUDE.md`, `vision.md`.
+**Relevant files:** The plan file(s) above, `src/refactor_agent/ast_refactor/` (engine, agent, mcp_server, a2a_executor, a2a_server), `scripts/a2a/run_ast_refactor_mcp.py`, `scripts/a2a/run_ast_refactor_a2a.py`, `README.md`, `pyproject.toml`, `CLAUDE.md`, `vision.md`.
 
 # Planning prompt: Custom MCP bridge for AST refactor agent
 
@@ -44,16 +44,16 @@ Implement a **custom local MCP bridge** that sits between the coding agent (Curs
 
 ### Technical context (this repo)
 
-- **A2A refactor server:** `uv run python scripts/run_ast_refactor_a2a.py` (default `http://localhost:9999`). It already supports:
+- **A2A refactor server:** `uv run python scripts/a2a/run_ast_refactor_a2a.py` (default `http://localhost:9999`). It already supports:
   - **Workspace format:** POST body `{ "old_name": "...", "new_name": "...", "workspace": [ { "path": "a.py", "source": "..." }, ... ] }`. The agent returns one **rename-result** artifact per file that references the symbol; each artifact has `path` and `modified_source`.
-  - **Bridge compatibility:** The server’s middleware already maps `tasks/send` → `message/send` and `tasks/getResult` → task result (see `scripts/run_ast_refactor_a2a.py`). So the bridge can speak A2A JSON-RPC to this server.
+  - **Bridge compatibility:** The server’s middleware already maps `tasks/send` → `message/send` and `tasks/getResult` → task result (see `scripts/a2a/run_ast_refactor_a2a.py`). So the bridge can speak A2A JSON-RPC to this server.
 - **Limitation today:** The A2A agent is stateless and has no filesystem access. It only sees the request body. If the client sends a single file, it can only return one artifact. Full impact requires the **client** to send a workspace. Our bridge is that client — with repo access, it builds and sends the workspace.
 
 ### Requirements for the bridge
 
 - **MCP tools:** Expose at least one tool the coding agent can call for “rename symbol with full repo impact”, e.g. `rename_symbol(old_name, new_name, scope_node?, root_dir?)`. The bridge resolves `root_dir` (default: workspace root), discovers Python files (e.g. `**/*.py` under root), reads their contents, calls the A2A agent with `workspace: [{ path, source }, ...]`, then applies every returned artifact to disk.
 - **Config:** Refactor agent URL (e.g. `http://localhost:9999`) should be configurable (env var or MCP server config) so the same bridge works against a local or remote refactor server.
-- **Protocol:** Bridge talks to the refactor server via HTTP (A2A JSON-RPC). Use the same request/response shape as in `scripts/run_ast_refactor_a2a.py` and `scripts/call_a2a_agent.py` (or the test scripts) so the existing server works unchanged.
+- **Protocol:** Bridge talks to the refactor server via HTTP (A2A JSON-RPC). Use the same request/response shape as in `scripts/a2a/run_ast_refactor_a2a.py` and `scripts/a2a/call_a2a_agent.py` (or the test scripts) so the existing server works unchanged.
 - **Apply step:** After `get_task_result`, parse artifacts; for each artifact that has `path` and `modified_source`, write `modified_source` to that path (relative to workspace root if needed). Return a summary to the coding agent (e.g. “Renamed in 3 files: a.py, b.py, c.py”).
 
 ### Out of scope for this task

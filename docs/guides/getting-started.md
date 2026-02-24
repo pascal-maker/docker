@@ -19,10 +19,10 @@ Two ways to use the refactor agent: run everything locally (Docker) or use the e
 2. **Sync your workspace** to the replica (in another terminal):
 
    ```bash
-   uv run python scripts/run_poc_sync_client.py /path/to/your/project
+   uv run python scripts/sync/run_poc_sync_client.py /path/to/your/project
    ```
 
-   Or sync this repo: `uv run python scripts/run_poc_sync_client.py .`
+   Or sync this repo: `uv run python scripts/sync/run_poc_sync_client.py .`
 
 3. **Use a client** to talk to the agent:
    - **VS Code / Cursor:** Install the [Refactor Agent extension](../clients/vscode-extension/README.md); it speaks A2A HTTP directly.

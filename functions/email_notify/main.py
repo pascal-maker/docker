@@ -46,7 +46,7 @@ def _send_admin_notification(
             f"<p>A new user has requested access to Refactor Agent.</p>"
             f"<p><strong>GitHub:</strong> {github_login}</p>"
             f"<p><strong>Email:</strong> {user_email or 'not provided'}</p>"
-            f"<p>Approve via Firestore console or <code>scripts/approve_user.py</code>.</p>"
+            f"<p>Approve via Firestore console or <code>scripts/auth/approve_user.py</code>.</p>"
         ),
     }
     body = json.dumps(payload).encode("utf-8")

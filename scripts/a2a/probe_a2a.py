@@ -1,8 +1,8 @@
 """Probe A2A staging (or any base URL): what is reachable with and without auth.
 
 Usage:
-  uv run python scripts/probe_a2a.py [BASE_URL]
-  uv run python scripts/probe_a2a.py https://a2a-server-xxxxx-ew.a.run.app
+  uv run python scripts/a2a/probe_a2a.py [BASE_URL]
+  uv run python scripts/a2a/probe_a2a.py https://a2a-server-xxxxx-ew.a.run.app
 
 Base URL is read from (first wins): CLI arg, A2A_URL env, .refactor-agent-a2a-url
 in repo root (from make infra-a2a-url), else http://localhost:9999.

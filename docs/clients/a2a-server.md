@@ -5,13 +5,13 @@ A2A surface for agent-to-agent refactor tasks; shares the same [orchestrator](..
 Start the server (default port 9999):
 
 ```bash
-uv run python scripts/run_ast_refactor_a2a.py
+uv run python scripts/a2a/run_ast_refactor_a2a.py
 ```
 
 Custom port:
 
 ```bash
-uv run python scripts/run_ast_refactor_a2a.py 8080
+uv run python scripts/a2a/run_ast_refactor_a2a.py 8080
 ```
 
 ## Endpoints
@@ -64,10 +64,10 @@ The A2A refactor agent is stateless and has no filesystem access. It only sees t
 With the server running, in another terminal:
 
 ```bash
-uv run python scripts/test_a2a_rename.py
+uv run python scripts/a2a/test_a2a_rename.py
 ```
 
-This GETs the agent card and POSTs a rename task. Optional: pass a base URL, e.g. `uv run python scripts/test_a2a_rename.py http://localhost:8080`.
+This GETs the agent card and POSTs a rename task. Optional: pass a base URL, e.g. `uv run python scripts/a2a/test_a2a_rename.py http://localhost:8080`.
 
 ## Human-in-the-loop (collision detection)
 
@@ -76,7 +76,7 @@ To trigger the "pause and ask" flow, send a rename that would cause a name colli
 ### Using the test script
 
 ```bash
-uv run python scripts/test_a2a_collision.py
+uv run python scripts/a2a/test_a2a_collision.py
 ```
 
 The script sends a rename that would shadow `main`, then sends `yes` to confirm (pass `--no` to cancel instead). You should see `input-required` status, then the confirmed rename result.

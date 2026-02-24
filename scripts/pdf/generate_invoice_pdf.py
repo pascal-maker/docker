@@ -1,7 +1,7 @@
 """Generate a two-page invoice test PDF with a line-items table and payment terms.
 
 Usage:
-    uv run --with fpdf2 python scripts/generate_invoice_pdf.py [output_path]
+    uv run --with fpdf2 python scripts/pdf/generate_invoice_pdf.py [output_path]
 """
 
 from __future__ import annotations

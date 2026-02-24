@@ -2,9 +2,9 @@
 """Admin CLI: list pending users, approve, or ban. Uses Firestore via ADC.
 
 Usage:
-  uv run python scripts/approve_user.py <github_login>          # approve
-  uv run python scripts/approve_user.py <github_login> --ban    # ban
-  uv run python scripts/approve_user.py --list pending          # show pending requests
+  uv run python scripts/auth/approve_user.py <github_login>          # approve
+  uv run python scripts/auth/approve_user.py <github_login> --ban    # ban
+  uv run python scripts/auth/approve_user.py --list pending          # show pending requests
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ MCP (Model Context Protocol) lets Claude Code and Cursor call refactor tools. Th
 ### In-repo MCP server (`ast-refactor`)
 
 - **Status:** Works.
-- **Location:** `src/refactor_agent/mcp/server.py`, `scripts/run_ast_refactor_mcp.py`
+- **Location:** `src/refactor_agent/mcp/server.py`, `scripts/a2a/run_ast_refactor_mcp.py`
 - Uses LibCST engine directly; reads file, renames, writes back. Does not call A2A or sync.
 - See [clients/mcp-server.md](../clients/mcp-server.md) for setup.
 

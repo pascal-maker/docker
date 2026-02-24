@@ -1,14 +1,14 @@
 """Run the AST refactor MCP server (stdio transport).
 
 Usage:
-  uv run python scripts/run_ast_refactor_mcp.py
+  uv run python scripts/a2a/run_ast_refactor_mcp.py
 
 Or add to Claude Code / Cursor MCP config, e.g.:
   {
     "mcpServers": {
       "ast-refactor": {
         "command": "uv",
-        "args": ["run", "python", "scripts/run_ast_refactor_mcp.py"],
+        "args": ["run", "python", "scripts/a2a/run_ast_refactor_mcp.py"],
         "cwd": "/path/to/refactor-agent"
       }
     }

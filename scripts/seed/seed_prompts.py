@@ -1,7 +1,7 @@
 """Seed initial prompts into Langfuse from the prompts/ directory.
 
 Usage:
-    uv run python scripts/seed_prompts.py
+    uv run python scripts/seed/seed_prompts.py
 """
 
 from __future__ import annotations

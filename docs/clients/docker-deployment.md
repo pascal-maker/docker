@@ -17,19 +17,19 @@ In another terminal, run the sync client. It watches for file saves and pushes c
 From this repo, sync another project:
 
 ```bash
-uv run python scripts/run_poc_sync_client.py /path/to/your/python/project
+uv run python scripts/sync/run_poc_sync_client.py /path/to/your/python/project
 ```
 
 Sync this repo itself:
 
 ```bash
-uv run python scripts/run_poc_sync_client.py .
+uv run python scripts/sync/run_poc_sync_client.py .
 ```
 
 From another directory:
 
 ```bash
-uv run python <this-repo>/scripts/run_poc_sync_client.py /path/to/your/python/project
+uv run python <this-repo>/scripts/sync/run_poc_sync_client.py /path/to/your/python/project
 ```
 
 Default WebSocket URL is `ws://localhost:8765`; override with `POC_SYNC_WS_URL` if needed.
@@ -39,11 +39,11 @@ Default WebSocket URL is `ws://localhost:8765`; override with `POC_SYNC_WS_URL` 
 The A2A server in Docker runs both the **WebSocket sync server** and the **A2A HTTP server** in one container (see `docker/entrypoint.sh`). When running locally (no Docker), start them separately:
 
 1. **Sync server** (so a replica exists for `use_replica`):  
-   `uv run python -m refactor_agent.sync` or `uv run python scripts/run_poc_sync_server.py`  
+   `uv run python -m refactor_agent.sync` or `uv run python scripts/sync/run_poc_sync_server.py`  
    Listens on port 8765 by default (`POC_SYNC_PORT`).
 
 2. **A2A HTTP server**:  
-   `uv run python scripts/run_ast_refactor_a2a.py`  
+   `uv run python scripts/a2a/run_ast_refactor_a2a.py`  
    Listens on port 9999. The sync server must be running (and the client must have synced a workspace) if you use `use_replica`.
 
 ## MCP bridge
@@ -76,7 +76,7 @@ To point the Langfuse Playground and LLM-as-a-Judge at the same LiteLLM gateway 
 
 ```bash
 # With LITELLM_PROXY_URL and Langfuse keys set (e.g. in .env):
-uv run python scripts/setup_langfuse_llm_connection.py
+uv run python scripts/infra/setup_langfuse_llm_connection.py
 ```
 
 If `LITELLM_PROXY_URL` is unset, the script no-ops. Optional: `LANGFUSE_LLM_CONNECTION_MODELS` (comma-separated model names; default `claude-sonnet-4-6`).

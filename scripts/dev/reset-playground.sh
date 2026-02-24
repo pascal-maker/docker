@@ -5,7 +5,7 @@
 # Use after partial refactor runs so the next run starts from a clean state.
 set -euo pipefail
 
-REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$REPO_ROOT"
 
 # Restore in-repo playground (playground/typescript, playground/python) to last commit.

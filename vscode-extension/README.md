@@ -9,7 +9,7 @@ Standalone extension to rename Python symbols across your workspace via the A2A 
    - Or use the same host as A2A if running in Docker.
 
 2. **A2A server** — Run the refactor backend.
-   - Local: `uv run python scripts/run_ast_refactor_a2a.py` (port 9999).
+   - Local: `uv run python scripts/a2a/run_ast_refactor_a2a.py` (port 9999).
    - Set `REPLICA_DIR` to the same path as the sync server (e.g. `/workspace` in Docker).
 
 3. **API key (optional)** — For a hosted A2A endpoint, set **Refactor Agent: Api Key** in settings.

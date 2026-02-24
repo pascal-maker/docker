@@ -38,7 +38,7 @@ To populate the local DB with example check runs (so you can see the list and de
 
 ```bash
 make dashboard-seed
-# or: uv run python scripts/seed_dashboard.py
+# or: uv run python scripts/seed/seed_dashboard.py
 ```
 
 Uses `REFACTOR_AGENT_DASHBOARD_DB` if set, otherwise `dashboard.db` in the current directory. Then open the UI and select org **demo** or **acme**.

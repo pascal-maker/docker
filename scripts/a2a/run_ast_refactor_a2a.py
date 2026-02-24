@@ -1,7 +1,7 @@
 """Run the AST refactor A2A server (HTTP on port 9999).
 
 Usage:
-  uv run python scripts/run_ast_refactor_a2a.py
+  uv run python scripts/a2a/run_ast_refactor_a2a.py
 
 Then:
   - GET http://localhost:9999/.well-known/agent-card.json for the Agent Card.

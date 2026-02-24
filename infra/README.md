@@ -82,7 +82,7 @@ From the repo root you can probe what is reachable with or without auth, and run
   ```bash
   make probe-a2a A2A_URL=https://your-a2a-url.run.app
   ```
-  Or pass the URL as the first argument: `uv run python scripts/probe_a2a.py https://...`
+  Or pass the URL as the first argument: `uv run python scripts/a2a/probe_a2a.py https://...`
 
 - **Security check** (exit 0/1 for CI; use `REQUIRE_AUTH_FOR_SEND=1` once you enforce auth so that POST without auth must return 401/403):
   ```bash

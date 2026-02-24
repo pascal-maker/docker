@@ -3,14 +3,14 @@
 Sends tasks/send with params.id (like GongRzhe A2A-MCP-Server), then
 get_task_result with that id. Run the server first:
 
-  uv run python scripts/run_ast_refactor_a2a.py
+  uv run python scripts/a2a/run_ast_refactor_a2a.py
 
 Then:
 
-  uv run python scripts/call_a2a_agent.py [BASE_URL]
+  uv run python scripts/a2a/call_a2a_agent.py [BASE_URL]
 
 Example with greeter source:
-  uv run python scripts/call_a2a_agent.py
+  uv run python scripts/a2a/call_a2a_agent.py
 """
 
 from __future__ import annotations

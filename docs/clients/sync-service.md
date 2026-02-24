@@ -16,7 +16,7 @@ uv run python -m refactor_agent.sync
 Or:
 
 ```bash
-uv run python scripts/run_poc_sync_server.py
+uv run python scripts/sync/run_poc_sync_server.py
 ```
 
 Default port: **8765** (override with `POC_SYNC_PORT`). Replica directory: **REPLICA_DIR** env (default `/workspace`). The A2A server must use the same `REPLICA_DIR` when handling requests with `use_replica: true`.

@@ -59,7 +59,7 @@ The existing `run_ast_refactor_a2a.py` builds the A2A app and wraps it with meth
 
 ### 3. Entrypoint and Terraform
 
-- New entrypoint script (e.g. `scripts/run_refactor_backend.py`) that builds the combined app and runs uvicorn on `PORT`.
+- New entrypoint script (e.g. `scripts/backend/run_refactor_backend.py`) that builds the combined app and runs uvicorn on `PORT`.
 - Update `docker/entrypoint-cloudrun.sh` to run the new script.
 - Add `REPLICA_DIR` env var to `infra/cloudrun_a2a.tf`.
 - No new Cloud Run service or secret. Same image, same auth.
@@ -95,7 +95,7 @@ The existing `run_ast_refactor_a2a.py` builds the A2A app and wraps it with meth
 - `src/refactor_agent/sync/app.py` — Sync Starlette app (already has auth middleware)
 - `src/refactor_agent/sync/server.py` — WebSocket handler, `_clone_repo`, `_handle_bootstrap`
 - `src/refactor_agent/a2a/auth_middleware.py` — `GitHubTokenMiddleware`
-- `scripts/run_ast_refactor_a2a.py` — Current A2A entrypoint (build app, method logging, uvicorn)
+- `scripts/a2a/run_ast_refactor_a2a.py` — Current A2A entrypoint (build app, method logging, uvicorn)
 - `docker/entrypoint-cloudrun.sh` — Current Cloud Run entrypoint (A2A only)
 - `docker/entrypoint.sh` — Local entrypoint (sync + A2A, two processes)
 - `infra/cloudrun_a2a.tf` — Cloud Run Terraform

@@ -2,7 +2,7 @@
   "mcpServers": {
     "ast-refactor": {
       "command": "uv",
-      "args": ["run", "python", "scripts/run_ast_refactor_mcp.py"],
+      "args": ["run", "python", "scripts/a2a/run_ast_refactor_mcp.py"],
       "cwd": "."
     },
     "a2a": {

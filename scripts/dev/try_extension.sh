@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build the Refactor Agent VS Code extension, start the combined backend (A2A + sync),
 # and open the Extension Development Host.
-# Run from repo root: ./scripts/try_extension.sh <playground>
+# Run from repo root: ./scripts/dev/try_extension.sh <playground>
 # Playground: "typescript" or "python" (opens playground/<playground> and sets refactorAgent.engine).
 
 set -e
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EXT_DIR="$REPO_ROOT/vscode-extension"
 REPLICA_DIR="$(mktemp -d -t refactor-agent-replica.XXXXXX)"
 PLAYGROUND="${1:-}"
@@ -54,7 +54,7 @@ if [[ -z "$GOOGLE_CLOUD_PROJECT" ]]; then
   echo "  GOOGLE_CLOUD_PROJECT=refactor-agent"
 fi
 echo "Starting backend (A2A + sync on port 9999, replica=$REPLICA_DIR)..."
-uv run python scripts/run_refactor_backend.py &
+uv run python scripts/backend/run_refactor_backend.py &
 
 # Wait for backend to be ready
 for i in $(seq 1 30); do

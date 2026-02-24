@@ -1,7 +1,7 @@
 """Generate a simple test PDF with headings, paragraphs, and a table.
 
 Usage:
-    uv run --with fpdf2 python scripts/generate_test_pdf.py [output_path]
+    uv run --with fpdf2 python scripts/pdf/generate_test_pdf.py [output_path]
 """
 
 from __future__ import annotations

@@ -1,10 +1,10 @@
 """Test the A2A server: GET agent card, POST a rename task, print result.
 
 Run the A2A server first in another terminal:
-  uv run python scripts/run_ast_refactor_a2a.py
+  uv run python scripts/a2a/run_ast_refactor_a2a.py
 
 Then run this script:
-  uv run python scripts/test_a2a_rename.py [BASE_URL]
+  uv run python scripts/a2a/test_a2a_rename.py [BASE_URL]
 
 Default BASE_URL is http://localhost:9999.
 """

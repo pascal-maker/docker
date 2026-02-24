@@ -1,10 +1,10 @@
 """Test the A2A server human-in-the-loop (name collision) flow.
 
 Run the A2A server first in another terminal:
-  uv run python scripts/run_ast_refactor_a2a.py
+  uv run python scripts/a2a/run_ast_refactor_a2a.py
 
 Then run this script:
-  uv run python scripts/test_a2a_collision.py [BASE_URL]
+  uv run python scripts/a2a/test_a2a_collision.py [BASE_URL]
 
 Step 1: Sends a rename that causes a collision (greet -> main when main exists).
 Step 2: If the response is input_required, sends "yes" to confirm (or pass --no to cancel).

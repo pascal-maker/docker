@@ -1,16 +1,16 @@
 """Programmatic A2A security check for CI: assert auth policy.
 
 Usage:
-  uv run python scripts/check_a2a_security.py [--base-url URL] [--require-auth-for-send]
+  uv run python scripts/a2a/check_a2a_security.py [--base-url URL] [--require-auth-for-send]
 
 Base URL is read from (first wins): --base-url, A2A_URL env, .refactor-agent-a2a-url
 in repo root, else http://localhost:9999.
 
   # Fail if POST message/send succeeds without auth (use after adding app-level auth):
-  uv run python scripts/check_a2a_security.py --base-url https://a2a-xxx.run.app --require-auth-for-send
+  uv run python scripts/a2a/check_a2a_security.py --base-url https://a2a-xxx.run.app --require-auth-for-send
 
   # Only check that agent card is reachable (no auth policy):
-  uv run python scripts/check_a2a_security.py --base-url https://a2a-xxx.run.app
+  uv run python scripts/a2a/check_a2a_security.py --base-url https://a2a-xxx.run.app
 
 Exit code: 0 if all checks pass, 1 otherwise. Safe to run in CI; no secrets required
 unless the server requires auth for the agent card.

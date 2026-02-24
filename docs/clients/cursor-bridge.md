@@ -11,7 +11,7 @@ Cursor talks to agents via MCP. To use the A2A refactor agent from Cursor, run a
 1. **Start the A2A server:**
 
    ```bash
-   uv run python scripts/run_ast_refactor_a2a.py
+   uv run python scripts/a2a/run_ast_refactor_a2a.py
    ```
 
 2. **Configure the A2A–MCP bridge** in `.cursor/mcp.json` (e.g. `uvx a2a-mcp-server` as the `a2a` server). The [GongRzhe A2A-MCP-Server](https://github.com/GongRzhe/A2A-MCP-Server) uses method names `tasks/send` and `tasks/sendSubscribe`; this A2A server rewrites them to the A2A-spec `message/send` and `message/stream` so the bridge works without changes. Restart or refresh MCP in Cursor so it loads the bridge.
