@@ -1,22 +1,18 @@
 # Cloud Run service for the A2A refactor server (EU-only, europe-west1).
 # Build and push the image first; set var.a2a_image to the full image URL.
 
-data "google_project" "project" {
-  project_id = var.project_id
-}
-
 # Grant default Cloud Run SA access to the Anthropic API key secret.
 resource "google_secret_manager_secret_iam_member" "anthropic_key_cloudrun" {
-  secret_id = google_secret_manager_secret.anthropic_api_key.id
+  secret_id = "projects/${var.project_id}/secrets/refactor-agent-anthropic-api-key"
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }
 
 # Grant Cloud Run SA access to Firestore for user store, audit log, rate limits.
 resource "google_project_iam_member" "cloudrun_firestore" {
   project = var.project_id
   role    = "roles/datastore.user"
-  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  member  = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }
 
 resource "google_cloud_run_v2_service" "a2a" {
@@ -36,7 +32,7 @@ resource "google_cloud_run_v2_service" "a2a" {
         name = "ANTHROPIC_API_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.anthropic_api_key.name
+            secret  = var.anthropic_api_key_secret_name
             version = "latest"
           }
         }
@@ -59,7 +55,7 @@ resource "google_cloud_run_v2_service" "a2a" {
       }
       env {
         name  = "SENTRY_DSN"
-        value = try(sentry_key.backend[0].dsn["public"], "")
+        value = var.sentry_dsn_backend
       }
       resources {
         limits = {
@@ -73,7 +69,6 @@ resource "google_cloud_run_v2_service" "a2a" {
   }
 
   depends_on = [
-    google_project_service.run,
     google_secret_manager_secret_iam_member.anthropic_key_cloudrun,
   ]
 }

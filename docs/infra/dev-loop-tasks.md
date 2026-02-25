@@ -92,13 +92,13 @@ Secrets are managed in Terraform via a **gitignored** `secrets.tfvars`. Same flo
 
   Edit `infra/secrets.tfvars` and set at least `anthropic_api_key` (e.g. from `.env` `ANTHROPIC_API_KEY`). Set `chainlit_auth_secret` when you deploy Chainlit.
 
-- [x] **Full apply** (from repo root or `infra/`):
+- [x] **Full apply** (from repo root or `infra/`). Always use both var files:
 
   ```bash
   make infra-apply
   ```
 
-  Or: `cd infra && terraform apply -var-file=dev.tfvars -var-file=secrets.tfvars`. This creates APIs, Secret Manager secrets and their versions, GitHub Actions SA, and Cloud Run A2A.
+  Or: `cd infra && terraform apply -var-file=dev.tfvars -var-file=secrets.tfvars`. This creates APIs, Secret Manager secrets and their versions, GitHub Actions SA, and Cloud Run A2A. See [infra/README.md](../../infra/README.md#secrets-and-variables) for the full secrets list.
 
 **To change a key or add a provider later:** edit `infra/secrets.tfvars` (and add the variable in `variables.tf` + optional `google_secret_manager_secret_version` in `secrets.tf` if it’s a new provider), then run `make infra-apply` again.
 
@@ -188,12 +188,29 @@ Only if you want the Chainlit UI deployed on Cloud Run talking to the same A2A b
 - [ ] In `dev.tfvars`, set:
   - `chainlit_image` = same image as A2A (e.g. `.../a2a-server:v0.2.0`) — same image, different entrypoint.
   - `chainlit_invoker_member` = `"user:YOUR_EMAIL"` (so only you can open the Chainlit URL).
-- [ ] `terraform -chdir=infra apply -var-file=dev.tfvars`
+- [ ] `terraform -chdir=infra apply -var-file=dev.tfvars -var-file=secrets.tfvars` (or `make infra-apply`)
 
 ### 5.2 Get Chainlit URL
 
 - [ ] `terraform -chdir=infra output chainlit_url`
 - [ ] Open in browser (you’ll need to be logged in with the Google account that matches `chainlit_invoker_member`).
+
+---
+
+## Phase 6: Site deployment and Firebase (optional)
+
+Only if you want the marketing site deployed to Firebase Hosting via CI.
+
+### 6.1 GitHub OAuth and secrets
+
+- [ ] Create a GitHub OAuth App (see [site-deploy.md](site-deploy.md#github-oauth-app-setup)).
+- [ ] Add `github_oauth_client_id`, `github_oauth_client_secret`, `resend_api_key` to `secrets.tfvars`.
+- [ ] For Terraform to sync build-time env and Firebase deploy secrets to GitHub Actions: add `github_token` (admin:repo scope), `github_repository` (owner/repo), and `firebase_service_account_json` to `secrets.tfvars`. Get the Firebase JSON from Firebase Console (Project Settings → Service accounts → Generate new private key) or `firebase init hosting:github`.
+- [ ] Run `make infra-apply` (or `terraform apply -var-file=dev.tfvars -var-file=secrets.tfvars`). Terraform syncs `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL`, and `FIREBASE_SERVICE_ACCOUNT` to repo secrets.
+
+### 6.2 Deploy workflow
+
+- [ ] Push to `main` when `site/` changes triggers [deploy-site workflow](../../.github/workflows/deploy-site.yml). Ensure `GCP_PROJECT_ID` is set as a repo variable or secret.
 
 ---
 
@@ -212,6 +229,7 @@ Only if you want the Chainlit UI deployed on Cloud Run talking to the same A2A b
 | 9 | Get `a2a_url`; set in VS Code extension |
 | 10 | Add ANTHROPIC + LANGFUSE secrets to GitHub for refactor check |
 | 11 | (Optional) Enable Chainlit in tfvars; apply; use `chainlit_url` |
+| 12 | (Optional) Site deploy: GitHub OAuth, Resend, Firebase SA in secrets.tfvars; Terraform syncs to GitHub Actions |
 
 We can go through these one by one and adjust (e.g. project ID, region, or skipping Chainlit for now).
 

@@ -34,6 +34,7 @@ report.md
 
 # Terraform (infra/). Commit .terraform.lock.hcl for consistent provider versions.
 infra/.terraform/
+infra/site/.build/
 infra/*.tfstate
 infra/*.tfstate.*
 infra/*.tfvars
@@ -41,3 +42,5 @@ infra/dev.tfvars
 infra/secrets.tfvars
 gh-actions-key.json
 .refactor-agent-a2a-url
+
+firebase-sa.json

@@ -76,8 +76,3 @@ resource "google_service_account_iam_member" "github_actions_act_as_compute" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.github_actions.email}"
 }
-
-output "github_actions_sa_email" {
-  description = "Service account email for GitHub Actions; use with gcloud iam service-accounts keys create to create a key, then add the JSON to repo secret GCP_SA_KEY."
-  value       = google_service_account.github_actions.email
-}

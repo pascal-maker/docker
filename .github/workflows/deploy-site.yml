@@ -1,0 +1,49 @@
+# Build and deploy the marketing site to Firebase Hosting.
+# Trigger: push to main when site/ or functions/ change, or manual.
+# Requires: FIREBASE_TOKEN (from firebase login:ci), VITE_GITHUB_OAUTH_CLIENT_ID, VITE_AUTH_CALLBACK_URL.
+
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "functions/**"
+      - "packages/ui/**"
+      - "firebase.json"
+      - ".firebaserc"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build @refactor-agent/ui
+        run: pnpm --filter @refactor-agent/ui run build
+
+      - name: Build site
+        env:
+          VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
+          VITE_AUTH_CALLBACK_URL: ${{ secrets.VITE_AUTH_CALLBACK_URL }}
+        run: pnpm --filter site run build
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}

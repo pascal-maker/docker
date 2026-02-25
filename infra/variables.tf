@@ -75,3 +75,104 @@ variable "sentry_base_url" {
   default     = ""
 }
 
+# Cloudflare (optional). Set when using cloudflare module for DNS and Email Routing.
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token (Zone:DNS Edit, Email Routing:Edit). Set in secrets.tfvars when using cloudflare module."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "cloudflare_email_destination" {
+  description = "Real email that receives forwards from noreply@ and admin@refactorum.com. Must verify once via Cloudflare link."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# Resend DNS (add domain in Resend Dashboard first, then add values here).
+variable "resend_dkim_name" {
+  description = "Resend DKIM record name (e.g. resend._domainkey). From Resend Dashboard after adding domain."
+  type        = string
+  default     = ""
+}
+
+variable "resend_dkim_target" {
+  description = "Resend DKIM CNAME target. From Resend Dashboard after adding domain."
+  type        = string
+  default     = ""
+}
+
+# Firebase Hosting DNS (add custom domain in Firebase Console first, then add values here).
+variable "firebase_hosting_target" {
+  description = "Firebase Hosting A/CNAME target for root or www. From Firebase Console after adding custom domain."
+  type        = string
+  default     = ""
+}
+
+variable "firebase_hosting_type" {
+  description = "Firebase Hosting record type: A or CNAME."
+  type        = string
+  default     = "CNAME"
+}
+
+variable "firebase_hosting_name" {
+  description = "Firebase Hosting DNS record name: @ for root, www for www subdomain."
+  type        = string
+  default     = "www"
+}
+
+# Site: marketing site and auth flow.
+variable "site_url" {
+  description = "Full URL of the marketing site (e.g. https://refactorum.com)."
+  type        = string
+  default     = "https://refactorum.com"
+}
+
+variable "site_admin_email" {
+  description = "Admin email for access request notifications (e.g. admin@refactorum.com)."
+  type        = string
+  default     = "admin@refactorum.com"
+}
+
+variable "github_oauth_client_id" {
+  description = "GitHub OAuth App Client ID. Set in secrets.tfvars (from GitHub Developer Settings)."
+  type        = string
+  default     = ""
+}
+
+variable "github_oauth_client_secret" {
+  description = "GitHub OAuth App Client secret. Set in secrets.tfvars. Required for auth callback Cloud Function."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "resend_api_key" {
+  description = "Resend API key for admin email notifications. Set in secrets.tfvars."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# GitHub provider for Terraform-managed Actions secrets.
+variable "github_token" {
+  description = "GitHub token with admin:repo scope for managing Actions secrets. Set in secrets.tfvars."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_repository" {
+  description = "GitHub repository (owner/name, e.g. my-org/refactor-agent). Required for Terraform-managed Actions secrets."
+  type        = string
+  default     = ""
+}
+
+variable "firebase_service_account_json" {
+  description = "Firebase service account JSON for deploy-site workflow. Set in secrets.tfvars. Terraform syncs to GitHub secret FIREBASE_SERVICE_ACCOUNT."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+

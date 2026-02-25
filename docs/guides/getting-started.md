@@ -47,6 +47,10 @@ make ui
 
 Then open the Chainlit app (default localhost:8000). See [Chat UI (Chainlit)](../clients/chat-ui.md) for modes (Ask / Auto / Plan), persistence, and auth.
 
+## Path 3: Deploy to GCP (Cloud Run, Firebase)
+
+To deploy the A2A server and (optionally) the marketing site to GCP, see [infra/README.md](../../infra/README.md) and [Dev-loop tasks](../infra/dev-loop-tasks.md). Use both `dev.tfvars` and `secrets.tfvars` for Terraform apply.
+
 ## Next steps
 
 - [Architecture](architecture.md) — how the orchestrator and two surfaces (Dev UI vs A2A) work.

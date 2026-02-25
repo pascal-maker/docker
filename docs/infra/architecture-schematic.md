@@ -170,37 +170,44 @@ The site and its auth callback are **separate** from the combined ASGI app. Both
 
 ```mermaid
 flowchart TB
-  subgraph site [Site]
+  subgraph users [Users]
+    browser[Browser]
+  end
+
+  subgraph hosting [Firebase Hosting]
     spa[React SPA]
     cta[Request access CTA]
   end
 
-  subgraph auth_fx [Cloud Function - auth]
-    callback["/auth/github/callback"]
-  end
-
-  subgraph email_fx [Cloud Function - email]
-    trigger[Firestore onCreate]
-    resend[Resend API]
+  subgraph functions [Cloud Functions]
+    auth[Auth Callback]
+    email[Email Notify]
   end
 
   subgraph firestore [Firestore]
-    users[(users collection)]
+    users_col[(users)]
+  end
+
+  subgraph external [External]
+    github[GitHub OAuth]
+    resend[Resend]
   end
 
   subgraph cloudrun [Cloud Run - A2A + sync]
     combined[Combined ASGI app]
   end
 
+  browser --> spa
   spa --> cta
-  cta -->|"GitHub OAuth redirect"| callback
-  callback -->|"get_or_create_user"| users
-  users -->|"status=pending"| trigger
-  trigger --> resend
-  combined <-->|"GitHubTokenMiddleware"| users
+  cta -->|"Request access"| github
+  github -->|"Callback with code"| auth
+  auth -->|"Create user"| users_col
+  users_col -->|"onCreate"| email
+  email -->|"Notify admin"| resend
+  combined <-->|"GitHubTokenMiddleware"| users_col
 ```
 
-- **Site**: React SPA (Firebase Hosting or static). "Request access" redirects to GitHub OAuth (web flow, `read:user user:email` scope).
+- **Site**: React SPA on Firebase Hosting (custom domain refactorum.com). "Request access" redirects to GitHub OAuth (web flow, `read:user user:email` scope).
 - **Auth callback**: Cloud Function (HTTP). Exchanges code for token, fetches user, writes `users/{id}` with `status="pending"`, redirects to success/error page.
 - **Email notify**: Cloud Function (Firestore trigger). On create in `users` where `status=pending`, sends email to admin via Resend.
 - **Extension auth**: VS Code built-in GitHub auth (`vscode.authentication.getSession`). Same Firestore `users` collection; admin approves via `scripts/auth/approve_user.py` or Firestore console.

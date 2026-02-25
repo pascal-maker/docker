@@ -2,6 +2,7 @@
 
 Triggered on document create in users collection when status is 'pending'.
 Sends email via Resend to admin.
+Uses functions_framework for Cloud Functions Gen2 (Terraform deployment).
 """
 
 from __future__ import annotations
@@ -10,25 +11,32 @@ import json
 import os
 import urllib.request
 
-from firebase_functions import firestore_fn
+import functions_framework
 
 
-@firestore_fn.on_document_created(document="users/{userId}")
-def on_user_created(event: firestore_fn.Event[firestore_fn.DocumentSnapshot]) -> None:
-    """Send email to admin when a new user with status=pending is created."""
-    admin_email = os.environ.get("ADMIN_EMAIL")
-    api_key = os.environ.get("RESEND_API_KEY")
-    if not admin_email or not api_key:
-        return
-    snapshot = event.data
-    if snapshot is None:
-        return
-    data = snapshot.to_dict() or {}
-    if data.get("status") != "pending":
-        return
-    login = data.get("github_login", "unknown")
-    user_email = data.get("email", "")
-    _send_admin_notification(admin_email, api_key, login, user_email)
+def _parse_firestore_value(value: dict) -> str | int | float | bool | None:
+    """Extract scalar from Firestore Value message."""
+    if "stringValue" in value:
+        return value["stringValue"]
+    if "integerValue" in value:
+        return int(value["integerValue"])
+    if "doubleValue" in value:
+        return float(value["doubleValue"])
+    if "booleanValue" in value:
+        return value["booleanValue"]
+    if "nullValue" in value:
+        return None
+    return None
+
+
+def _parse_firestore_document(data: dict) -> dict:
+    """Parse Firestore Document from CloudEvent data.value."""
+    value = data.get("value") or {}
+    fields = value.get("fields") or {}
+    result: dict[str, str | int | float | bool | None] = {}
+    for key, val in fields.items():
+        result[key] = _parse_firestore_value(val)
+    return result
 
 
 def _send_admin_notification(
@@ -38,8 +46,9 @@ def _send_admin_notification(
     user_email: str,
 ) -> None:
     """Send email to admin via Resend API."""
+    from_addr = os.environ.get("FROM_EMAIL", "Refactor Agent <onboarding@resend.dev>")
     payload = {
-        "from": "Refactor Agent <onboarding@resend.dev>",
+        "from": from_addr,
         "to": [admin_email],
         "subject": f"Refactor Agent: Access request from {github_login}",
         "html": (
@@ -63,3 +72,19 @@ def _send_admin_notification(
         urllib.request.urlopen(req, timeout=10)
     except Exception:
         pass
+
+
+@functions_framework.cloud_event
+def on_user_created(cloud_event) -> None:
+    """Send email to admin when a new user with status=pending is created."""
+    admin_email = os.environ.get("ADMIN_EMAIL")
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not admin_email or not api_key:
+        return
+    data = cloud_event.data or {}
+    doc_data = _parse_firestore_document(data)
+    if doc_data.get("status") != "pending":
+        return
+    login = str(doc_data.get("github_login", "unknown"))
+    user_email = str(doc_data.get("email", "")) if doc_data.get("email") else ""
+    _send_admin_notification(admin_email, api_key, login, user_email)

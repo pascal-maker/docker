@@ -1,98 +1,61 @@
 # Site and Auth Functions Deployment
 
-The site and its auth/email Cloud Functions are deployed separately from the A2A/sync backend.
+The site and its auth/email Cloud Functions are deployed via **Terraform** (infra/site module) and **Firebase Hosting**. See [architecture-schematic.md](architecture-schematic.md) section 5 for the diagram.
 
 ## Prerequisites
 
 - GitHub OAuth App for web (see [GitHub OAuth App setup](#github-oauth-app-setup) below)
 - Resend account and API key (for admin email notifications)
 - GCP project with Firestore, Secret Manager, Cloud Functions APIs enabled
+- Firebase project (add GCP project in [Firebase Console](https://console.firebase.google.com))
 
 ### GitHub OAuth App setup
 
-Create a new OAuth App at https://github.com/settings/applications/new.
+**GitHub does not provide an API to create OAuth Apps** — registration is manual.
+
+1. Go to https://github.com/settings/applications/new
+2. Create a new OAuth App with:
 
 | Field | Value |
 |-------|-------|
-| **Application name** | `Refactor Agent` (or any name users will recognize) |
-| **Homepage URL** | Your site URL (e.g. `https://refactor-agent.example.com` or `http://localhost:5173` for local dev) |
-| **Application description** | Optional. e.g. "AI-powered code refactoring in your editor" |
-| **Authorization callback URL** | Full URL of the auth callback Cloud Function, e.g. `https://europe-west1-PROJECT.cloudfunctions.net/auth-github-callback` |
+| **Application name** | `Refactor Agent` |
+| **Homepage URL** | `https://refactorum.com` |
+| **Authorization callback URL** | `https://europe-west1-PROJECT.cloudfunctions.net/auth-github-callback` |
 
-The callback URL must match exactly what you deploy. For local testing, you can register `http://localhost:8080/auth/github/callback` if you run the auth callback locally (Functions Framework on port 8080).
+3. Copy the **Client ID** and **Client secret**.
+4. Add the client secret to Secret Manager: `echo -n "your_secret" | gcloud secrets versions add refactor-agent-github-oauth-client-secret --data-file=-`
+5. Set `github_oauth_client_id` and `github_oauth_client_secret` in `secrets.tfvars`. For GitHub Actions to receive build-time env vars, also set `github_token` and `github_repository`; Terraform will sync `VITE_GITHUB_OAUTH_CLIENT_ID` and `VITE_AUTH_CALLBACK_URL`. Run `terraform apply -var-file=dev.tfvars -var-file=secrets.tfvars`.
 
-After registering, GitHub shows a **Client ID** (use as `VITE_GITHUB_OAUTH_CLIENT_ID`) and lets you generate a **Client secret** (store in Secret Manager, use as `GITHUB_OAUTH_CLIENT_SECRET` for the Cloud Function).
+**Reminder:** Update the GitHub OAuth App URLs from localhost to production before deploying.
 
-**Scope:** The app requests `read:user user:email` (for profile and email; no `repo` — that's for the VS Code extension).
+## Terraform deployment
 
-### Local testing
+The site module (`infra/site/`) manages:
 
-1. Copy `functions/auth_callback/.env.example` to `functions/auth_callback/.env` and fill in your GitHub OAuth Client ID, Client secret, and GCP project ID.
+- **Auth callback** Cloud Function (HTTP) — OAuth code exchange, Firestore user creation
+- **Email notify** Cloud Function (Firestore trigger) — Resend admin notification on new pending user
+- **Firebase Hosting** site (optional; set `count = 1` in `firebase_hosting.tf` when ready)
+
+Secrets (`refactor-agent-github-oauth-client-secret`, `refactor-agent-resend-api-key`) are created by Terraform; add values via `gcloud secrets versions add`.
+
+## Site build and deploy
+
+**Build:** `pnpm --filter site build` → `site/dist/`
+
+**Build-time env:** `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL` (synced to GitHub Actions by Terraform when `github_token`, `github_repository`, and the values are set in `secrets.tfvars`).
+
+**Deploy:** CI runs `FirebaseExtended/action-hosting-deploy` on push to `main` when `site/` changes. Requires `FIREBASE_SERVICE_ACCOUNT` secret. **Terraform can sync it:** set `firebase_service_account_json` in `secrets.tfvars` (heredoc or one-line JSON) and run `terraform apply`; Terraform pushes the value to GitHub. Alternatively, add the JSON manually: GitHub → Settings → Secrets and variables → Actions → New repository secret → `FIREBASE_SERVICE_ACCOUNT`. Get the JSON from Firebase Console (Project Settings → Service accounts → Generate new private key) or `firebase init hosting:github`.
+
+**Manual deploy:** `firebase deploy --only hosting`
+
+## Custom domain and email
+
+- **Domain:** refactorum.com (Cloudflare). DNS and Email Routing in `infra/cloudflare/` module.
+- **Email:** noreply@ and admin@refactorum.com forward via Cloudflare Email Routing. Sending via Resend (verify domain in Resend Dashboard).
+
+## Local testing
+
+1. Copy `functions/auth_callback/.env.example` to `functions/auth_callback/.env`.
 2. Run `./scripts/run_auth_callback_local.sh`.
-3. In another terminal, run the site (`pnpm --filter site dev`). Ensure `site/.env` has `VITE_GITHUB_OAUTH_CLIENT_ID` and `VITE_AUTH_CALLBACK_URL=http://localhost:8080/auth/github/callback`.
+3. Run the site: `pnpm --filter site dev`. Set `site/.env` with `VITE_GITHUB_OAUTH_CLIENT_ID` and `VITE_AUTH_CALLBACK_URL=http://localhost:8080/auth/github/callback`.
 4. Firestore must be available (real GCP project with ADC).
-
-## 1. Auth Callback Cloud Function
-
-Deploys the OAuth callback that exchanges GitHub code for token and creates Firestore user.
-
-```bash
-cd functions/auth_callback
-gcloud functions deploy auth-github-callback \
-  --gen2 \
-  --runtime=python312 \
-  --region=europe-west1 \
-  --source=. \
-  --entry-point=auth_callback \
-  --trigger-http \
-  --allow-unauthenticated \
-  --set-env-vars="SITE_URL=https://your-site.com,GITHUB_OAUTH_CLIENT_ID=xxx,GITHUB_OAUTH_CLIENT_SECRET=xxx,GITHUB_OAUTH_REDIRECT_URI=https://xxx.run.app/auth/github/callback" \
-  --set-secrets="GITHUB_OAUTH_CLIENT_SECRET=refactor-agent-github-oauth-client-secret:latest"
-```
-
-Create the client secret in Secret Manager first:
-
-```bash
-echo -n "your_client_secret" | gcloud secrets create refactor-agent-github-oauth-client-secret --data-file=-
-```
-
-## 2. Email Notify Cloud Function
-
-Deploys the Firestore trigger that emails admin on new pending user.
-
-```bash
-cd functions/email_notify
-gcloud functions deploy email-notify-pending-user \
-  --gen2 \
-  --runtime=python312 \
-  --region=europe-west1 \
-  --source=. \
-  --entry-point=on_user_created \
-  --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
-  --trigger-event-filters="database=(default)" \
-  --trigger-event-filters-path-pattern="document=users/{userId}" \
-  --set-env-vars="ADMIN_EMAIL=admin@example.com" \
-  --set-secrets="RESEND_API_KEY=refactor-agent-resend-api-key:latest"
-```
-
-## 3. Site (Firebase Hosting or static)
-
-Build and deploy the SPA:
-
-```bash
-pnpm --filter site build
-# Deploy dist/ to Firebase Hosting, Cloud Storage, or similar
-```
-
-Set build-time env vars for the site. Create `site/.env` (or `site/.env.local` for local-only, gitignored):
-
-```
-VITE_GITHUB_OAUTH_CLIENT_ID=<Client ID from GitHub OAuth App>
-VITE_AUTH_CALLBACK_URL=<Full URL of auth callback, e.g. https://xxx.cloudfunctions.net/auth-github-callback>
-```
-
-Restart the dev server after changing env vars (`pnpm --filter site dev`).
-
-## Architecture
-
-See [architecture-schematic.md](architecture-schematic.md) section 5 for the full deployment diagram.

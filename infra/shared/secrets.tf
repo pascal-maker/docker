@@ -32,6 +32,38 @@ resource "google_secret_manager_secret" "chainlit_auth_secret" {
   depends_on = [google_project_service.secretmanager]
 }
 
+# Site: GitHub OAuth client secret (add value via secrets.tfvars or gcloud secrets versions add).
+resource "google_secret_manager_secret" "github_oauth_client_secret" {
+  project   = var.project_id
+  secret_id = "refactor-agent-github-oauth-client-secret"
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  depends_on = [google_project_service.secretmanager]
+}
+
+# Site: Resend API key (add value via secrets.tfvars or gcloud secrets versions add).
+resource "google_secret_manager_secret" "resend_api_key" {
+  project   = var.project_id
+  secret_id = "refactor-agent-resend-api-key"
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  depends_on = [google_project_service.secretmanager]
+}
+
 # Secret versions from variables (only when set). Change keys in secrets.tfvars and apply.
 resource "google_secret_manager_secret_version" "anthropic_api_key" {
   count       = length(var.anthropic_api_key) > 0 ? 1 : 0
@@ -43,6 +75,18 @@ resource "google_secret_manager_secret_version" "chainlit_auth_secret" {
   count       = length(var.chainlit_auth_secret) > 0 ? 1 : 0
   secret      = google_secret_manager_secret.chainlit_auth_secret.id
   secret_data = var.chainlit_auth_secret
+}
+
+resource "google_secret_manager_secret_version" "github_oauth_client_secret" {
+  count       = length(var.github_oauth_client_secret) > 0 ? 1 : 0
+  secret      = google_secret_manager_secret.github_oauth_client_secret.id
+  secret_data = var.github_oauth_client_secret
+}
+
+resource "google_secret_manager_secret_version" "resend_api_key" {
+  count       = length(var.resend_api_key) > 0 ? 1 : 0
+  secret      = google_secret_manager_secret.resend_api_key.id
+  secret_data = var.resend_api_key
 }
 
 # Optional: uncomment when using Langfuse in cloud (same EU-only replication).

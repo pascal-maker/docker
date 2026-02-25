@@ -52,3 +52,17 @@ resource "google_project_service" "eventarc" {
   service            = "eventarc.googleapis.com"
   disable_on_destroy = false
 }
+
+# Required for Firestore triggers; Eventarc uses this to publish events.
+resource "google_project_service" "eventarcpublishing" {
+  project            = var.project_id
+  service            = "eventarcpublishing.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Firebase Hosting (required for site deployment).
+resource "google_project_service" "firebasehosting" {
+  project            = var.project_id
+  service            = "firebasehosting.googleapis.com"
+  disable_on_destroy = false
+}

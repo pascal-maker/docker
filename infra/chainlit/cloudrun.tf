@@ -3,9 +3,9 @@
 
 resource "google_secret_manager_secret_iam_member" "chainlit_auth_cloudrun" {
   count     = var.chainlit_image != "" ? 1 : 0
-  secret_id = google_secret_manager_secret.chainlit_auth_secret.id
+  secret_id = "projects/${var.project_id}/secrets/refactor-agent-chainlit-auth-secret"
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }
 
 resource "google_cloud_run_v2_service" "chainlit" {
@@ -24,20 +24,20 @@ resource "google_cloud_run_v2_service" "chainlit" {
       command = ["sh", "docker/entrypoint-chainlit.sh"]
       env {
         name  = "REFACTOR_AGENT_A2A_URL"
-        value = google_cloud_run_v2_service.a2a.uri
+        value = var.a2a_url
       }
       env {
         name = "CHAINLIT_AUTH_SECRET"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.chainlit_auth_secret.name
+            secret  = var.chainlit_auth_secret_name
             version = "latest"
           }
         }
       }
       env {
         name  = "SENTRY_DSN"
-        value = try(sentry_key.backend[0].dsn["public"], "")
+        value = var.sentry_dsn_backend
       }
       resources {
         limits = {
@@ -51,7 +51,6 @@ resource "google_cloud_run_v2_service" "chainlit" {
   }
 
   depends_on = [
-    google_project_service.run,
     google_secret_manager_secret_iam_member.chainlit_auth_cloudrun,
   ]
 }

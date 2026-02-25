@@ -4,7 +4,7 @@
 
 # Bucket used by gcloud builds submit for source uploads. Same region as rest of infra (europe-west1 = Belgium, Ghent area).
 # If this bucket already exists (e.g. from a prior gcloud builds submit), import it:
-#   terraform import -var-file=dev.tfvars google_storage_bucket.cloudbuild PROJECT_ID_cloudbuild
+#   terraform import -var-file=dev.tfvars module.shared.google_storage_bucket.cloudbuild PROJECT_ID_cloudbuild
 resource "google_storage_bucket" "cloudbuild" {
   project                     = var.project_id
   name                        = "${var.project_id}_cloudbuild"
@@ -70,4 +70,26 @@ resource "google_artifact_registry_repository_iam_member" "cloudbuild_cloudbuild
   repository = google_artifact_registry_repository.refactor_agent.name
   role       = "roles/artifactregistry.writer"
   member     = "serviceAccount:${local.cloudbuild_sa_email}"
+}
+
+# Cloud Functions Gen2 build: Cloud Build SA needs Cloud Functions Developer and actAs on compute SA.
+resource "google_project_iam_member" "cloudbuild_cloudfunctions_developer" {
+  project = var.project_id
+  role    = "roles/cloudfunctions.developer"
+  member  = "serviceAccount:${local.cloudbuild_sa_email}"
+}
+
+resource "google_service_account_iam_member" "cloudbuild_act_as_compute" {
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${local.compute_sa_email}"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${local.cloudbuild_sa_email}"
+}
+
+# Cloud Build default change (July 2024): new projects use Compute SA for builds with insufficient
+# permissions. Grant Cloud Build Account role so it can build Cloud Functions.
+# See: https://cloud.google.com/functions/docs/securing/build-custom-sa
+resource "google_project_iam_member" "compute_sa_cloudbuild_builder" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.builder"
+  member  = "serviceAccount:${local.compute_sa_email}"
 }
