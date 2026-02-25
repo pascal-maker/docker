@@ -25,6 +25,10 @@ This is what teams like React and Next.js do for migrations (e.g., [react-codemo
 
 Related pattern: Anthropic and others have observed that for large-scale changes, having an LLM generate a *program* that performs the work outperforms having the LLM perform the work directly — the generated program is consistent, reviewable, and deterministic.
 
+## Extending to arbitrary codemods
+
+Two acquisition paths: **on-the-fly generation** (generate at request time, apply, validate) and **RAG on a codemod codebase** (index pre-existing codemods, retrieve relevant ones via semantic search). For generation, use an iterative loop: with ground truth (start + end code), generate → apply → compare; retry up to K times; fall back to LLM-as-judge. Without ground truth, a separate agent first generates the expected end code. See [ideas/extensible-codemods](ideas/extensible-codemods.md) for the full design.
+
 ## Why this is interesting
 
 - **Consistency**: a codemod applies the exact same transformation everywhere. File-by-file LLM editing drifts across large codebases.
@@ -65,7 +69,7 @@ Reference: [Refactoring a Python Codebase with LibCST](https://engineering.insta
 
 ## Key challenges to explore
 
-1. **Correctness of generated codemods** — CST visitors are structurally complex. Edge cases (e.g., `requests.get()` vs `session.get()` vs a local `get()`) are easy to miss. Needs a generate → test → refine loop.
+1. **Correctness of generated codemods** — CST visitors are structurally complex. Edge cases (e.g., `requests.get()` vs `session.get()` vs a local `get()`) are easy to miss. Needs a generate → test → refine loop (see [extensible-codemods](ideas/extensible-codemods.md) for the iterative loop design).
 2. **Sandboxing** — executing LLM-generated code requires sandboxing. Evaluate in a subprocess with no filesystem write access; only return the transformed AST.
 3. **Validation loop** — after applying the codemod, run type-checking / diagnostics to catch regressions, then feed errors back to the LLM to refine the transform. This iterative loop is the hard part.
 4. **Scope detection** — deciding *when* to use a codemod vs. a simple tool call. For renaming a single function, a predefined tool is better. For migrating a library across 200 files, a codemod is better. The agent needs heuristics (or the user states intent).
@@ -82,6 +86,7 @@ The ts-morph bridge and project-level AST loading being built now would serve as
 
 ## Prior art & references
 
+- [Codemod.com](https://codemod.com/) — platform for large-scale migrations: Studio (AI-assisted codemod creation), Registry, Workflows (AST + AI + shell), Campaigns, CLI, MCP. Iterative before/after generation; ~45–75% accuracy after refinement. See [ideas/extensible-codemods](ideas/extensible-codemods.md).
 - [react-codemod](https://github.com/reactjs/react-codemod) — hand-written React migration codemods
 - [jscodeshift](https://github.com/facebook/jscodeshift) — Facebook's JS/TS codemod toolkit
 - [LibCST codemods](https://libcst.readthedocs.io/en/latest/codemods_tutorial.html) — Instagram's Python CST codemod framework

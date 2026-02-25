@@ -11,6 +11,7 @@ Design notes, future work, and deployment roadmap.
 - [Vision](vision.md) — Design ideas: collisions, opaque A2A, server-side orchestrator, modes (auto / ask / plan), remote state, tool calling vs DSL, CFG-constrained output.
 - [Validation feedback](validation-feedback.md) — Idea: validate planner output and feed errors back to the LLM.
 - [Handoff prompts](handoff-prompts.md) — Handoff prompts for the planning agent; custom MCP bridge prompt.
+- [Extensible codemods](extensible-codemods.md) — Paths (on-the-fly vs RAG), iterative generation loop, prior art (Codemod.com), embedding for RAG.
 
 ## Roadmap and deployment
 
