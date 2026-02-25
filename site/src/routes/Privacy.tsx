@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/design-system";
 
 const privacyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL as
   | string

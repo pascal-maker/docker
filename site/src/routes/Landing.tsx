@@ -1,4 +1,4 @@
-import { Button, ButtonLink } from "@refactor-agent/ui";
+import { Button, ButtonLink } from "@refactor-agent/design-system";
 
 export function Landing() {
   const requestAccessUrl = getRequestAccessUrl();

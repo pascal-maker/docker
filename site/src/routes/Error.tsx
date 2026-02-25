@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Button } from "@refactor-agent/ui";
+import { Button } from "@refactor-agent/design-system";
 
 export function Error() {
   return (

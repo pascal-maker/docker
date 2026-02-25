@@ -27,6 +27,6 @@ repos:
         pass_filenames: false
       - id: ts-checks
         name: TS lint + typecheck
-        entry: bash -c "pnpm --filter @refactor-agent/ui run build 2>/dev/null || true && make ts-lint ts-typecheck"
+        entry: bash -c "pnpm --filter @refactor-agent/design-system run build 2>/dev/null || true && make ts-lint ts-typecheck"
         language: system
         pass_filenames: false

@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/design-system";
 
 const name = import.meta.env.VITE_IMPRINT_NAME as string | undefined;
 const email = import.meta.env.VITE_IMPRINT_EMAIL as string | undefined;

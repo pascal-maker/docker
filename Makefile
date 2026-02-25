@@ -4,7 +4,7 @@ RUN := uv run
 TS_BRIDGE := src/refactor_agent/engine/typescript/bridge
 TS_PACKAGES := dashboard-ui $(TS_BRIDGE) vscode-extension
 # Workspace package names (for pnpm --filter)
-TS_FILTERS := dashboard-ui site @refactor-agent/ui ts-morph-bridge refactor-agent
+TS_FILTERS := dashboard-ui site @refactor-agent/design-system ts-morph-bridge refactor-agent
 
 INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent

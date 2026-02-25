@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button } from "@refactor-agent/ui";
+import { Button } from "@refactor-agent/design-system";
 import { useConsent } from "@/hooks/useConsent";
 
 const privacyUrl =

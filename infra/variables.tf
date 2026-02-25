@@ -176,3 +176,34 @@ variable "firebase_service_account_json" {
   sensitive   = true
 }
 
+# GDPR / legal (Belgium). Terraform syncs to GitHub Actions variables for site build.
+variable "vite_imprint_name" {
+  description = "Imprint name (Belgium legal notice). Synced to VITE_IMPRINT_NAME for site build."
+  type        = string
+  default     = ""
+}
+
+variable "vite_imprint_email" {
+  description = "Imprint contact email. Synced to VITE_IMPRINT_EMAIL for site build."
+  type        = string
+  default     = ""
+}
+
+variable "vite_privacy_policy_url" {
+  description = "URL to hosted privacy policy (e.g. Termly/iubenda). Synced to VITE_PRIVACY_POLICY_URL."
+  type        = string
+  default     = ""
+}
+
+variable "vite_terms_url" {
+  description = "URL to hosted terms of service. Synced to VITE_TERMS_URL."
+  type        = string
+  default     = ""
+}
+
+variable "vite_firebase_measurement_id" {
+  description = "Firebase Analytics measurement ID (consent-gated). Synced to VITE_FIREBASE_MEASUREMENT_ID."
+  type        = string
+  default     = ""
+}
+

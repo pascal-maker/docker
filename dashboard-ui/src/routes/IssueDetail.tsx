@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useIssueDetail } from "@/api/hooks";
-import { Card, CardContent, CardHeader, CardTitle } from "@refactor-agent/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@refactor-agent/design-system";
 
 export function IssueDetail() {
   const { orgId, runId } = useParams<{ orgId: string; runId: string }>();

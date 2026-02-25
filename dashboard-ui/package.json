@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@refactor-agent/ui": "workspace:*",
+    "@refactor-agent/design-system": "workspace:*",
     "@sentry/react": "^8.55.0",
     "@tanstack/react-query": "^5.62.0",
     "react": "^18.3.1",

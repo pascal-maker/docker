@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
-} from "@refactor-agent/ui";
+} from "@refactor-agent/design-system";
 
 const PAGE_SIZE = 50;
 

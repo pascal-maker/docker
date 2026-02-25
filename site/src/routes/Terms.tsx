@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/design-system";
 
 const termsUrl = import.meta.env.VITE_TERMS_URL as string | undefined;
 const contactEmail = import.meta.env.VITE_IMPRINT_EMAIL as string | undefined;

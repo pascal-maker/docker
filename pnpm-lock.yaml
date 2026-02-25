@@ -14,9 +14,9 @@ importers:
 
   dashboard-ui:
     dependencies:
-      '@refactor-agent/ui':
+      '@refactor-agent/design-system':
         specifier: workspace:*
-        version: link:../packages/ui
+        version: link:../packages/design-system
       '@sentry/react':
         specifier: ^8.55.0
         version: 8.55.0(react@18.3.1)
@@ -79,7 +79,7 @@ importers:
         specifier: ^6.0.1
         version: 6.4.1(@types/node@22.19.11)(jiti@1.21.7)(tsx@4.21.0)
 
-  packages/ui:
+  packages/design-system:
     dependencies:
       clsx:
         specifier: ^2.1.1
@@ -130,9 +130,9 @@ importers:
 
   site:
     dependencies:
-      '@refactor-agent/ui':
+      '@refactor-agent/design-system':
         specifier: workspace:*
-        version: link:../packages/ui
+        version: link:../packages/design-system
       '@sentry/react':
         specifier: ^8.55.0
         version: 8.55.0(react@18.3.1)

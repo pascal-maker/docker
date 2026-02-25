@@ -199,18 +199,17 @@ Only if you want the Chainlit UI deployed on Cloud Run talking to the same A2A b
 
 ## Phase 6: Site deployment and Firebase (optional)
 
-Only if you want the marketing site deployed to Firebase Hosting via CI.
+Only if you want the marketing site deployed to Firebase Hosting via CI. **Terraform-first:** all GitHub Actions secrets/variables are synced by Terraform.
 
-### 6.1 GitHub OAuth and secrets
+### 6.1 Pre-deploy checklist (Terraform wherever possible)
 
-- [ ] Create a GitHub OAuth App (see [site-deploy.md](site-deploy.md#github-oauth-app-setup)).
-- [ ] Add `github_oauth_client_id`, `github_oauth_client_secret`, `resend_api_key` to `secrets.tfvars`.
-- [ ] For Terraform to sync build-time env and Firebase deploy secrets to GitHub Actions: add `github_token` (admin:repo scope), `github_repository` (owner/repo), and `firebase_service_account_json` to `secrets.tfvars`. Get the Firebase JSON from Firebase Console (Project Settings → Service accounts → Generate new private key) or `firebase init hosting:github`.
-- [ ] Run `make infra-apply` (or `terraform apply -var-file=dev.tfvars -var-file=secrets.tfvars`). Terraform syncs `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL`, and `FIREBASE_SERVICE_ACCOUNT` to repo secrets.
+See [site-deploy.md](site-deploy.md#pre-deploy-checklist-terraform-first) for the full list. Summary:
 
-### 6.2 Deploy workflow
-
-- [ ] Push to `main` when `site/` changes triggers [deploy-site workflow](../../.github/workflows/deploy-site.yml). Ensure `GCP_PROJECT_ID` is set as a repo variable or secret.
+1. **Manual (no Terraform API):** Create GitHub OAuth App, add GCP project to Firebase, generate Firebase service account JSON.
+2. **Secret Manager:** `gcloud secrets versions add refactor-agent-github-oauth-client-secret --data-file=-`
+3. **Terraform:** Add to `secrets.tfvars`: `github_token`, `github_repository`, `github_oauth_client_id`, `github_oauth_client_secret`, `firebase_service_account_json`, `resend_api_key`. Run `make infra-apply`.
+4. Terraform syncs to GitHub: `GCP_PROJECT_ID`, `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL`, `FIREBASE_SERVICE_ACCOUNT`.
+5. Push to `main` → [deploy-site workflow](../../.github/workflows/deploy-site.yml) runs.
 
 ---
 
@@ -229,7 +228,7 @@ Only if you want the marketing site deployed to Firebase Hosting via CI.
 | 9 | Get `a2a_url`; set in VS Code extension |
 | 10 | Add ANTHROPIC + LANGFUSE secrets to GitHub for refactor check |
 | 11 | (Optional) Enable Chainlit in tfvars; apply; use `chainlit_url` |
-| 12 | (Optional) Site deploy: GitHub OAuth, Resend, Firebase SA in secrets.tfvars; Terraform syncs to GitHub Actions |
+| 12 | (Optional) Site deploy: OAuth + Firebase (manual); secrets in secrets.tfvars; Terraform syncs GCP_PROJECT_ID, VITE_*, FIREBASE_SERVICE_ACCOUNT to GitHub |
 
 We can go through these one by one and adjust (e.g. project ID, region, or skipping Chainlit for now).
 

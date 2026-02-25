@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
-} from "@refactor-agent/ui";
+} from "@refactor-agent/design-system";
 
 export function OrgSelector() {
   const [orgId, setOrgId] = useState("");
