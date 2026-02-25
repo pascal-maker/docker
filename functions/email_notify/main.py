@@ -16,16 +16,16 @@ import functions_framework
 
 def _parse_firestore_value(value: dict) -> str | int | float | bool | None:
     """Extract scalar from Firestore Value message."""
-    if "stringValue" in value:
-        return value["stringValue"]
-    if "integerValue" in value:
-        return int(value["integerValue"])
-    if "doubleValue" in value:
-        return float(value["doubleValue"])
-    if "booleanValue" in value:
-        return value["booleanValue"]
-    if "nullValue" in value:
-        return None
+    parsers: dict[str, object] = {
+        "stringValue": lambda: value["stringValue"],
+        "integerValue": lambda: int(value["integerValue"]),
+        "doubleValue": lambda: float(value["doubleValue"]),
+        "booleanValue": lambda: value["booleanValue"],
+        "nullValue": lambda: None,
+    }
+    for key, parser in parsers.items():
+        if key in value:
+            return parser()  # type: ignore[return-value]
     return None
 
 
@@ -66,6 +66,7 @@ def _send_admin_notification(
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "refactor-agent-email-notify/1.0",
         },
     )
     try:

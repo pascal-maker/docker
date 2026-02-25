@@ -18,3 +18,10 @@ resource "google_project_iam_member" "eventarc_event_receiver" {
   role    = "roles/eventarc.eventReceiver"
   member  = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }
+
+# Usage digest: default compute SA must read Cloud Monitoring metrics.
+resource "google_project_iam_member" "usage_digest_monitoring_reader" {
+  project = var.project_id
+  role    = "roles/monitoring.viewer"
+  member  = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}

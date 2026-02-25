@@ -66,3 +66,17 @@ resource "google_project_service" "firebasehosting" {
   service            = "firebasehosting.googleapis.com"
   disable_on_destroy = false
 }
+
+# Cloud Scheduler (daily usage digest).
+resource "google_project_service" "cloudscheduler" {
+  project            = var.project_id
+  service            = "cloudscheduler.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Cloud Monitoring (usage digest reads request_count metrics).
+resource "google_project_service" "monitoring" {
+  project            = var.project_id
+  service            = "monitoring.googleapis.com"
+  disable_on_destroy = false
+}
