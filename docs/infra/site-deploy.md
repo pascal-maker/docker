@@ -42,7 +42,7 @@ Secrets (`refactor-agent-github-oauth-client-secret`, `refactor-agent-resend-api
 
 **Build:** `pnpm --filter site build` → `site/dist/`
 
-**Build-time env:** `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL` (synced to GitHub Actions by Terraform when `github_token`, `github_repository`, and the values are set in `secrets.tfvars`).
+**Build-time env:** `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL` (synced to GitHub Actions by Terraform). For GDPR compliance (Belgium): `VITE_PRIVACY_POLICY_URL`, `VITE_TERMS_URL`, `VITE_IMPRINT_NAME`, `VITE_IMPRINT_EMAIL`, `VITE_FIREBASE_MEASUREMENT_ID`. See `site/.env.example`.
 
 **Deploy:** CI runs `FirebaseExtended/action-hosting-deploy` on push to `main` when `site/` changes. Requires `FIREBASE_SERVICE_ACCOUNT` secret. **Terraform can sync it:** set `firebase_service_account_json` in `secrets.tfvars` (heredoc or one-line JSON) and run `terraform apply`; Terraform pushes the value to GitHub. Alternatively, add the JSON manually: GitHub → Settings → Secrets and variables → Actions → New repository secret → `FIREBASE_SERVICE_ACCOUNT`. Get the JSON from Firebase Console (Project Settings → Service accounts → Generate new private key) or `firebase init hosting:github`.
 
@@ -57,5 +57,5 @@ Secrets (`refactor-agent-github-oauth-client-secret`, `refactor-agent-resend-api
 
 1. Copy `functions/auth_callback/.env.example` to `functions/auth_callback/.env`.
 2. Run `./scripts/run_auth_callback_local.sh`.
-3. Run the site: `pnpm --filter site dev`. Set `site/.env` with `VITE_GITHUB_OAUTH_CLIENT_ID` and `VITE_AUTH_CALLBACK_URL=http://localhost:8080/auth/github/callback`.
+3. Run the site: `pnpm --filter site dev`. Copy `site/.env.example` to `site/.env` and set `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL`, and optionally `VITE_IMPRINT_NAME`, `VITE_IMPRINT_EMAIL` for legal pages.
 4. Firestore must be available (real GCP project with ADC).

@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure primary button text is legible (fallback if Tailwind content misses UI package) */
+button.bg-blue-900,
+button.bg-blue-800 {
+  color: white !important;
+}
+
 :root {
   font-family: system-ui, sans-serif;
   line-height: 1.5;
@@ -11,7 +17,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-slate-100 text-slate-900;
 }
 
 #root {

@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { ConsentProvider } from "./contexts/ConsentContext";
 import "./index.css";
 
 Sentry.init({
@@ -14,6 +15,8 @@ const rootEl = document.getElementById("root");
 if (rootEl == null) throw new Error("root element missing");
 createRoot(rootEl).render(
   <StrictMode>
-    <App />
+    <ConsentProvider>
+      <App />
+    </ConsentProvider>
   </StrictMode>
 );

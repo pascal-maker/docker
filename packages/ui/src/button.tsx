@@ -7,14 +7,29 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", ...props }, ref) => {
+  (
+    { className, variant = "default", size = "default", style, ...props },
+    ref
+  ) => {
+    const isInverted = className?.includes("bg-white");
+    const forceWhiteText =
+      variant === "default" && !isInverted;
+    const mergedStyle = forceWhiteText
+      ? { color: "white", ...style }
+      : style;
+    const defaultVariantClass =
+      variant === "default" &&
+      cn(
+        "bg-blue-900 font-semibold hover:bg-blue-800",
+        !isInverted && "!text-white"
+      );
     return (
       <button
         ref={ref}
+        style={mergedStyle}
         className={cn(
           "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50",
-          variant === "default" &&
-            "bg-slate-900 text-slate-50 hover:bg-slate-800",
+          defaultVariantClass,
           variant === "outline" &&
             "border border-slate-200 bg-white hover:bg-slate-100",
           variant === "ghost" && "hover:bg-slate-100",

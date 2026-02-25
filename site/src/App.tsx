@@ -1,16 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Landing } from "@/routes/Landing";
-import { Success } from "@/routes/Success";
-import { Error } from "@/routes/Error";
-import { Privacy } from "@/routes/Privacy";
-import { Terms } from "@/routes/Terms";
-import { Imprint } from "@/routes/Imprint";
+import { AnalyticsLoader } from "@/components/AnalyticsLoader";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Footer } from "@/components/Footer";
+import { Error } from "@/routes/Error";
+import { Imprint } from "@/routes/Imprint";
+import { Landing } from "@/routes/Landing";
+import { Privacy } from "@/routes/Privacy";
+import { Success } from "@/routes/Success";
+import { Terms } from "@/routes/Terms";
 
 function App() {
   return (
     <BrowserRouter>
+      <AnalyticsLoader />
       <div className="min-h-screen flex flex-col">
         <main className="flex-1">
           <Routes>
