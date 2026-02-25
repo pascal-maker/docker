@@ -33,7 +33,11 @@ COPY docker ./docker
 ENV REPLICA_DIR=/workspace
 ENV PATH="/app/.venv/bin:$PATH"
 
-RUN mkdir -p /workspace
+# 4. Run as non-root (Trivy DS-0002)
+RUN groupadd -r app && useradd -r -g app -u 1000 app \
+    && mkdir -p /workspace && chown -R app:app /workspace
+
+USER app
 
 EXPOSE 8765 9999 8000
 

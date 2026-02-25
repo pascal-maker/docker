@@ -43,15 +43,32 @@ jobs:
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and push A2A server image
+      - name: Set image ref
+        id: image
         run: |
           PROJECT_ID="${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}"
           REGION="${{ vars.GCP_REGION || 'europe-west1' }}"
           REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/refactor-agent"
           IMAGE="${REPO}/a2a-server:${{ steps.tag.outputs.tag }}"
+          echo "ref=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build A2A server image
+        run: |
+          IMAGE="${{ steps.image.outputs.ref }}"
           docker pull "${IMAGE}" || true
           docker build --cache-from "${IMAGE}" -t "${IMAGE}" .
-          docker push "${IMAGE}"
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+
+      - name: Push A2A server image
+        run: docker push ${{ steps.image.outputs.ref }}
 
   deploy-staging:
     name: Deploy to staging

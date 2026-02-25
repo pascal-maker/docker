@@ -1,0 +1,32 @@
+name: Trivy Config Scan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "Dockerfile"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "Dockerfile"
+
+permissions:
+  actions: read
+  security-events: write
+  contents: read
+
+jobs:
+  trivy-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy config scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "config"
+          scan-ref: "."
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"

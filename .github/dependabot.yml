@@ -1,0 +1,40 @@
+# Dependabot: dependency alerts and auto-PRs for security updates.
+# Enable in repo Settings → Code security and analysis.
+# Repo uses uv (Python) and pnpm (Node/TS).
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "pip"
+    directory: "/functions/email_notify"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "pip"
+    directory: "/functions/auth_callback"
+    schedule:
+      interval: "weekly"
+      day: "monday"
