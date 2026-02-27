@@ -75,6 +75,13 @@ data "cloudflare_zone" "refactorum" {
   name  = "refactorum.com"
 }
 
+# Resolve GitHub App private key: inline content or read from file (tfvars cannot call file()).
+locals {
+  github_app_private_key = var.github_app_private_key != "" ? var.github_app_private_key : (
+    var.github_app_private_key_path != "" ? file("${path.module}/${var.github_app_private_key_path}") : ""
+  )
+}
+
 # Shared: APIs, Firestore, secrets, GitHub Actions SA, Artifact Registry, Cloud Build permissions, Sentry.
 module "shared" {
   source = "./shared"
@@ -84,6 +91,9 @@ module "shared" {
   anthropic_api_key          = var.anthropic_api_key
   chainlit_auth_secret       = var.chainlit_auth_secret
   github_oauth_client_secret = var.github_oauth_client_secret
+  github_app_client_secret   = var.github_app_client_secret
+  github_app_private_key     = local.github_app_private_key
+  github_app_webhook_secret  = var.github_app_webhook_secret
   resend_api_key             = var.resend_api_key
   terraform_state_bucket     = var.terraform_state_bucket
   sentry_organization        = var.sentry_organization
@@ -124,14 +134,19 @@ module "chainlit" {
 module "site" {
   source = "./site"
 
-  project_id                      = var.project_id
-  project_number                  = module.shared.project_number
-  region                          = var.region
-  site_url                        = var.site_url
-  github_oauth_client_id          = var.github_oauth_client_id
-  github_oauth_client_secret_name = module.shared.github_oauth_client_secret_name
-  resend_api_key_secret_name      = module.shared.resend_api_key_secret_name
-  admin_email                     = var.site_admin_email
+  project_id                         = var.project_id
+  project_number                     = module.shared.project_number
+  region                             = var.region
+  site_url                           = var.site_url
+  github_oauth_client_id             = var.github_oauth_client_id
+  github_oauth_client_secret_name    = module.shared.github_oauth_client_secret_name
+  github_app_id                      = var.github_app_id
+  github_app_client_id               = var.github_app_client_id
+  github_app_client_secret_name      = module.shared.github_app_client_secret_name
+  github_app_private_key_secret_name = module.shared.github_app_private_key_secret_name
+  github_app_webhook_secret_name     = module.shared.github_app_webhook_secret_name
+  resend_api_key_secret_name         = module.shared.resend_api_key_secret_name
+  admin_email                        = var.site_admin_email
 }
 
 # Cloudflare: DNS and Email Routing for refactorum.com.

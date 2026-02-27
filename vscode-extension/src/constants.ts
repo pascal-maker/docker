@@ -1,5 +1,4 @@
 export const PENDING_STATE_KEY = "refactorAgent.pendingReply";
-export const GITHUB_SCOPES = ["repo", "read:user"];
 export const CONVERSATIONS_KEY = "refactorAgent.conversations";
 export const CURRENT_CONVERSATION_ID_KEY =
   "refactorAgent.currentConversationId";

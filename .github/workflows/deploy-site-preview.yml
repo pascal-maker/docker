@@ -40,6 +40,7 @@ jobs:
 
       - name: Build site
         env:
+          VITE_GITHUB_APP_CLIENT_ID: ${{ secrets.VITE_GITHUB_APP_CLIENT_ID }}
           VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
           VITE_AUTH_CALLBACK_URL: ${{ secrets.VITE_AUTH_CALLBACK_URL }}
           VITE_IMPRINT_NAME: ${{ vars.VITE_IMPRINT_NAME }}

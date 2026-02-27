@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnalyticsLoader } from "@/components/AnalyticsLoader";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Footer } from "@/components/Footer";
+import { AuthSignIn } from "@/routes/AuthSignIn";
+import { AuthSuccess } from "@/routes/AuthSuccess";
 import { Error } from "@/routes/Error";
 import { Imprint } from "@/routes/Imprint";
 import { Landing } from "@/routes/Landing";
@@ -16,6 +18,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/success" element={<Success />} />
+            <Route path="/auth/signin" element={<AuthSignIn />} />
+            <Route path="/auth/success" element={<AuthSuccess />} />
             <Route path="/error" element={<Error />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/imprint" element={<Imprint />} />

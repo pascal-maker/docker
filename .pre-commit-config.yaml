@@ -12,6 +12,16 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  # Terraform: format (runs when infra/*.tf or infra/**/*.tfvars are staged)
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: Terraform format
+        entry: make infra-fmt
+        language: system
+        pass_filenames: false
+        files: ^infra/.*\.(tf|tfvars)$
+
   # Local: Python typecheck, TS format/lint/typecheck
   - repo: local
     hooks:

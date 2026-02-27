@@ -46,3 +46,13 @@ output "auth_callback_url" {
   description = "GitHub OAuth callback URL. Set in GitHub OAuth App settings."
   value       = module.site.auth_callback_url
 }
+
+output "github_webhook_url" {
+  description = "GitHub App webhook URL. Set in GitHub App → Webhook settings."
+  value       = module.site.github_webhook_url
+}
+
+output "auth_register_device_url" {
+  description = "Auth register device URL. Used by extension for device flow."
+  value       = module.site.auth_register_device_url
+}

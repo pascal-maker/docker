@@ -19,8 +19,23 @@ output "chainlit_auth_secret_name" {
 }
 
 output "github_oauth_client_secret_name" {
-  description = "Secret Manager secret name for GitHub OAuth client secret."
-  value       = google_secret_manager_secret.github_oauth_client_secret.name
+  description = "Secret Manager secret ID for GitHub OAuth client secret (deprecated)."
+  value       = google_secret_manager_secret.github_oauth_client_secret.secret_id
+}
+
+output "github_app_client_secret_name" {
+  description = "Secret Manager secret ID for GitHub App client secret."
+  value       = google_secret_manager_secret.github_app_client_secret.secret_id
+}
+
+output "github_app_private_key_secret_name" {
+  description = "Secret Manager secret ID for GitHub App private key."
+  value       = google_secret_manager_secret.github_app_private_key.secret_id
+}
+
+output "github_app_webhook_secret_name" {
+  description = "Secret Manager secret ID for GitHub App webhook secret."
+  value       = google_secret_manager_secret.github_app_webhook_secret.secret_id
 }
 
 output "resend_api_key_secret_name" {

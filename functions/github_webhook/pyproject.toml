@@ -1,0 +1,16 @@
+[project]
+name = "github-webhook"
+version = "0.1.0"
+description = "GitHub App installation_repositories webhook Cloud Function"
+requires-python = ">=3.12"
+dependencies = [
+    "functions-framework>=3.0,<5",
+    "google-cloud-firestore>=2.0,<4",
+]
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

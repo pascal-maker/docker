@@ -142,13 +142,53 @@ variable "site_admin_email" {
 }
 
 variable "github_oauth_client_id" {
-  description = "GitHub OAuth App Client ID. Set in secrets.tfvars (from GitHub Developer Settings)."
+  description = "Deprecated: GitHub OAuth App Client ID. Use github_app_client_id."
   type        = string
   default     = ""
 }
 
 variable "github_oauth_client_secret" {
-  description = "GitHub OAuth App Client secret. Set in secrets.tfvars. Required for auth callback Cloud Function."
+  description = "Deprecated: GitHub OAuth App Client secret. Use github_app_*."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# GitHub App (replaces OAuth App for per-repo access).
+variable "github_app_id" {
+  description = "GitHub App ID (numeric). Set in secrets.tfvars. From GitHub App settings."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_client_id" {
+  description = "GitHub App Client ID. Set in secrets.tfvars. From GitHub App settings."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_client_secret" {
+  description = "GitHub App Client secret. Set in secrets.tfvars. Required for auth callback."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_app_private_key" {
+  description = "GitHub App private key (PEM content). Set in secrets.tfvars. Alternative: use github_app_private_key_path."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_app_private_key_path" {
+  description = "Path to GitHub App private key PEM file (relative to infra/). Use when you prefer not to put PEM in tfvars."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_webhook_secret" {
+  description = "GitHub App webhook secret. Set in secrets.tfvars. For webhook signature verification."
   type        = string
   default     = ""
   sensitive   = true

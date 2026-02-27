@@ -263,12 +263,13 @@ export class RefactorViewProvider implements vscode.WebviewViewProvider {
       const intent =
         promptText != null ? parseRenameIntentFromPrompt(promptText) : null;
 
+      // Local+remote: use dirty files (fast sync via clone). Local-only: full workspace sync.
       const repoUrl = getGitRepoUrl(folder);
       post("setStatus", { phase: "syncing" });
       const files = repoUrl
         ? await gatherDirtyFiles(folder, engine)
         : await gatherWorkspaceFiles(folder, engine);
-      if (files.length === 0 && !repoUrl) {
+      if (files.length === 0) {
         post("setStatus", { phase: "idle" });
         const msg =
           engine === "typescript"

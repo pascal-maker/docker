@@ -34,10 +34,17 @@ resource "github_actions_secret" "firebase_service_account" {
 }
 
 resource "github_actions_secret" "vite_github_oauth_client_id" {
-  count           = var.github_repository != "" && var.github_token != "" ? 1 : 0
+  count           = var.github_repository != "" && var.github_token != "" && var.github_oauth_client_id != "" ? 1 : 0
   repository      = local.github_repo_name
   secret_name     = "VITE_GITHUB_OAUTH_CLIENT_ID"
   plaintext_value = var.github_oauth_client_id
+}
+
+resource "github_actions_secret" "vite_github_app_client_id" {
+  count           = var.github_repository != "" && var.github_token != "" && var.github_app_client_id != "" ? 1 : 0
+  repository      = local.github_repo_name
+  secret_name     = "VITE_GITHUB_APP_CLIENT_ID"
+  plaintext_value = var.github_app_client_id
 }
 
 resource "github_actions_secret" "vite_auth_callback_url" {

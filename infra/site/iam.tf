@@ -1,7 +1,26 @@
 # Grant default Cloud Run/Cloud Functions SA access to secrets and Eventarc for site Cloud Functions.
 # Cloud Functions Gen2 uses PROJECT_NUMBER-compute@developer.gserviceaccount.com by default.
 resource "google_secret_manager_secret_iam_member" "github_oauth_cloudrun" {
-  secret_id = "projects/${var.project_id}/secrets/refactor-agent-github-oauth-client-secret"
+  count     = length(var.github_oauth_client_secret_name) > 0 ? 1 : 0
+  secret_id = "projects/${var.project_id}/secrets/${var.github_oauth_client_secret_name}"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "github_app_client_secret_cloudrun" {
+  secret_id = "projects/${var.project_id}/secrets/${var.github_app_client_secret_name}"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "github_app_private_key_cloudrun" {
+  secret_id = "projects/${var.project_id}/secrets/${var.github_app_private_key_secret_name}"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "github_app_webhook_secret_cloudrun" {
+  secret_id = "projects/${var.project_id}/secrets/${var.github_app_webhook_secret_name}"
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }

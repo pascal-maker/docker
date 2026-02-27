@@ -13,7 +13,8 @@
   "activationEvents": [
     "onView:refactorAgent-refactorView",
     "onCommand:refactorAgent.focusView",
-    "onCommand:refactorAgent.openWebviewDevTools"
+    "onCommand:refactorAgent.openWebviewDevTools",
+    "onAuthenticationRequest:refactor-agent.auth"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -42,8 +43,15 @@
         "title": "Refactor Agent: Focus Refactor View"
       },
       {
-        "command": "refactorAgent.openWebviewDevTools",
+        "command":         "refactorAgent.openWebviewDevTools",
         "title": "Refactor Agent: Open Webview Developer Tools"
+      }
+    ],
+    "authentication": [
+      {
+        "id": "refactor-agent.auth",
+        "label": "Refactor Agent",
+        "description": "Sign in with Refactor Agent (GitHub App)"
       }
     ],
     "configuration": {
@@ -79,10 +87,20 @@
           "default": "https://refactor-agent.dev",
           "description": "URL for requesting access when status is pending (shown in onboarding message)."
         },
+        "refactorAgent.authSignInUrl": {
+          "type": "string",
+          "default": "",
+          "description": "URL for signing in (e.g. https://refactorum.com/auth/signin). When empty, derived from accessRequestUrl."
+        },
         "refactorAgent.sentryDsn": {
           "type": "string",
           "default": "",
           "description": "Sentry DSN for error reporting. Leave empty to disable."
+        },
+        "refactorAgent.authRegisterDeviceUrl": {
+          "type": "string",
+          "default": "https://europe-west1-refactor-agent.cloudfunctions.net/auth-register-device",
+          "description": "URL for device flow registration. Used when signing in with device code."
         }
       }
     }

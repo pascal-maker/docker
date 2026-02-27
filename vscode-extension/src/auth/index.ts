@@ -1,7 +1,7 @@
 import vscode from "vscode";
 import { execSync } from "child_process";
 import { StructuredError, SyncStatus } from "../types";
-import { GITHUB_SCOPES } from "../constants";
+import { RefactorAgentAuthProvider } from "./RefactorAgentAuthProvider";
 
 /** Parse sync/A2A error into structured form. */
 export function parseStructuredError(
@@ -58,19 +58,17 @@ export function classifyAuthStatus(err: StructuredError): SyncStatus {
 
 const A2A_URL_FILE = ".refactor-agent-a2a-url";
 
-/** Get GitHub OAuth token; fall back to apiKey from settings if user cancels. */
+/** Get Refactor Agent auth token; fall back to apiKey from settings if user cancels. */
 export async function getAuthToken(): Promise<string | undefined> {
   try {
     const session = await vscode.authentication.getSession(
-      "github",
-      GITHUB_SCOPES,
-      {
-        createIfNone: true,
-      }
+      RefactorAgentAuthProvider.id,
+      [],
+      { createIfNone: true }
     );
     return session?.accessToken;
   } catch {
-    // User cancelled or GitHub auth unavailable
+    // User cancelled or auth unavailable
   }
   return (
     vscode.workspace

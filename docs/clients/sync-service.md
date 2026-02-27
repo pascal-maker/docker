@@ -21,9 +21,13 @@ uv run python scripts/sync/run_poc_sync_server.py
 
 Default port: **8765** (override with `POC_SYNC_PORT`). Replica directory: **REPLICA_DIR** env (default `/workspace`). The A2A server must use the same `REPLICA_DIR` when handling requests with `use_replica: true`.
 
-## Git clone flow
+## Sync modes: clone vs full upload
 
-When `repo_url` is provided with bootstrap (POST `/sync/workspace` or WebSocket `bootstrap` message), the server clones the repo into `REPLICA_DIR` using the user's GitHub token. The client must send `Authorization: Bearer <token>` with `repo` scope. The server runs `git clone --depth 1` into the replica, then overlays any dirty/unsaved files from the request. On Cloud Run, sync and A2A share the same URL; the extension pushes workspace first, then calls A2A with `use_replica: true`.
+**With `repo_url` (local + GitHub remote):** When `repo_url` is provided with bootstrap (POST `/sync/workspace` or WebSocket `bootstrap` message), the server clones the repo into `REPLICA_DIR` using the user's GitHub token. The client must send `Authorization: Bearer <token>` with `repo` scope. The server runs `git clone --depth 1` into the replica, then overlays any dirty/unsaved files from the request. This is faster when the workspace has a GitHub remote.
+
+**Without `repo_url` (local-only):** When `repo_url` is omitted or null, the server skips the clone and writes only the files from the request. The client sends all workspace files (e.g. via `gatherWorkspaceFiles`). This supports strictly local workspaces with no remote. Slower but works without repository access.
+
+On Cloud Run, sync and A2A share the same URL; the extension pushes workspace first, then calls A2A with `use_replica: true`.
 
 ## Ephemeral replica and TTL
 
@@ -61,8 +65,8 @@ All messages are JSON. The server replies to each message with either `{"ok": ".
 The sync server exposes both WebSocket and HTTP. Clients can push workspace without WebSockets:
 
 - **POST /sync/workspace**  
-  Body: `{"files": [{"path": "<relative path>", "content": "<file content>"}, ...]}`  
-  Same semantics as `bootstrap`: replaces the replica with the given files. Response: `200` with `{"ok": true}` or `4xx/5xx` with `{"error": "..."}`.
+  Body: `{"files": [{"path": "<relative path>", "content": "<file content>"}, ...], "repo_url": "<optional GitHub URL>"}`  
+  Same semantics as `bootstrap`: replaces the replica with the given files. If `repo_url` is provided, the server clones first then overlays files; otherwise it writes files only. Response: `200` with `{"ok": true}` or `4xx/5xx` with `{"error": "..."}`.
 
 ## Intended flow
 

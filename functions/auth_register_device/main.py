@@ -1,57 +1,23 @@
-"""Cloud Function: GitHub App OAuth callback for site access requests.
+"""Cloud Function: Register user from device flow token.
 
-Exchanges authorization code for user-to-server token, fetches user and
-installations from GitHub, writes to Firestore with status='pending' and
-allowed_repos, redirects to site or vscode:// for extension.
+Accepts POST with Authorization: Bearer <token>. Verifies token is from our
+GitHub App (app_id check), fetches user and installations, writes to Firestore.
+Used by VS Code extension when device flow is used instead of browser redirect.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import urllib.parse
 import urllib.request
 
 import functions_framework
 
-GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
 GITHUB_INSTALLATIONS_URL = "https://api.github.com/user/installations"
 USERS_COLLECTION = "users"
 INSTALLATION_USERS_COLLECTION = "installation_users"
-
-
-def _exchange_code(code: str) -> dict | None:
-    """Exchange GitHub App OAuth code for access token. Returns full response."""
-    client_id = os.environ.get("GITHUB_APP_CLIENT_ID")
-    client_secret = os.environ.get("GITHUB_APP_CLIENT_SECRET")
-    redirect_uri = os.environ.get("GITHUB_OAUTH_REDIRECT_URI")
-    if not all([client_id, client_secret, redirect_uri]):
-        return None
-    data = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "code": code.strip(),
-        "redirect_uri": redirect_uri,
-    }
-    body = urllib.parse.urlencode(data).encode("utf-8")
-    req = urllib.request.Request(
-        GITHUB_TOKEN_URL,
-        data=body,
-        method="POST",
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status != 200:
-                return None
-            return json.loads(resp.read().decode())
-    except Exception:
-        return None
 
 
 def _fetch_github_user(token: str) -> dict | None:
@@ -100,7 +66,7 @@ def _fetch_primary_email(token: str) -> str | None:
 
 
 def _fetch_installations(token: str) -> list[dict]:
-    """Fetch user installations. Returns list of {id, ...}."""
+    """Fetch user installations."""
     req = urllib.request.Request(
         f"{GITHUB_INSTALLATIONS_URL}?per_page=100",
         headers={
@@ -120,7 +86,7 @@ def _fetch_installations(token: str) -> list[dict]:
 
 
 def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:
-    """Fetch repos for an installation. Returns list of {full_name, id}."""
+    """Fetch repos for an installation."""
     url = f"https://api.github.com/user/installations/{installation_id}/repositories"
     req = urllib.request.Request(
         f"{url}?per_page=100",
@@ -143,11 +109,6 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:
             ]
     except Exception:
         return []
-
-
-def _redirect_to(url: str, status: int = 302) -> tuple[str, int, dict[str, str]]:
-    """Return HTTP redirect response."""
-    return ("", status, {"Location": url})
 
 
 def _collect_repos_and_installation_ids(
@@ -180,7 +141,7 @@ def _write_user_to_firestore(
     allowed_repos: list[dict],
     installation_ids: list[int],
 ) -> None:
-    """Create or update user in Firestore with status and allowed_repos."""
+    """Create or update user in Firestore."""
     from google.cloud import firestore
 
     project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
@@ -214,42 +175,76 @@ def _write_user_to_firestore(
         inst_ref.set({"user_ids": existing})
 
 
-def _resolve_redirect_url(base_url: str, state: str, token: str) -> str:
-    """Build redirect URL based on state (vscode vs site success)."""
-    base = base_url.rstrip("/")
-    if "return:vscode" in state or "vscode" in state.lower():
-        token_param = urllib.parse.quote(token, safe="")
-        return f"{base}/auth/success?token={token_param}"
-    return f"{base}/success"
+def _json_response(body: str, status: int) -> tuple[str, int, dict[str, str]]:
+    """Return JSON response with Content-Type header."""
+    return (body, status, {"Content-Type": "application/json"})
+
+
+def _validate_register_request(request) -> tuple[str | None, tuple[str, int] | None]:
+    """Validate request; return (token, None) or (None, (error_json, status))."""
+    if request.method != "POST":
+        return None, (json.dumps({"error": "Method not allowed"}), 405)
+
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None, (
+            json.dumps({"error": "Missing or invalid Authorization header"}),
+            401,
+        )
+
+    token = auth[7:].strip()
+    if not token:
+        return None, (json.dumps({"error": "Empty token"}), 401)
+
+    return token, None
+
+
+def _filter_our_installations(
+    installations: list[dict], app_id_str: str
+) -> tuple[list[dict] | None, tuple[str, int] | None]:
+    """Filter to our app's installations. Return (our_installations, None) or (None, error)."""
+    if not app_id_str:
+        return None, (json.dumps({"error": "Server misconfiguration"}), 503)
+    try:
+        expected_app_id = int(app_id_str)
+    except ValueError:
+        return None, (json.dumps({"error": "Server misconfiguration"}), 503)
+    our_installations = [
+        i
+        for i in installations
+        if isinstance(i, dict) and i.get("app_id") == expected_app_id
+    ]
+    if not our_installations:
+        return None, (
+            json.dumps({"error": "Token not from Refactor Agent app"}),
+            403,
+        )
+    return our_installations, None
 
 
 @functions_framework.http
-def auth_callback(request):
-    """Handle GitHub App OAuth callback: exchange code, create user, redirect."""
-    code = request.args.get("code")
-    state = request.args.get("state", "")
-    base_url = os.environ.get("SITE_URL", "http://localhost:5173")
-    error_url = f"{base_url.rstrip('/')}/error"
-
-    if not code:
-        return _redirect_to(error_url)
-
-    token_response = _exchange_code(code)
-    token = token_response.get("access_token") if token_response else None
-    if not token:
-        return _redirect_to(error_url)
+def auth_register_device(request):
+    """Register user from device flow token. POST with Authorization: Bearer <token>."""
+    token, err = _validate_register_request(request)
+    if err is not None:
+        return _json_response(err[0], err[1])
 
     user_data = _fetch_github_user(token)
     if not user_data:
-        return _redirect_to(error_url)
+        return _json_response(json.dumps({"error": "Invalid token"}), 401)
+
+    installations = _fetch_installations(token)
+    our_installations, err = _filter_our_installations(
+        installations, os.environ.get("GITHUB_APP_ID", "").strip()
+    )
+    if our_installations is None and err is not None:
+        return _json_response(err[0], err[1])
 
     user_id = str(user_data["id"])
     login = user_data["login"]
     email = user_data.get("email") or _fetch_primary_email(token)
-
-    installations = _fetch_installations(token)
     allowed_repos_list, installation_ids_list = _collect_repos_and_installation_ids(
-        token, installations
+        token, our_installations
     )
 
     try:
@@ -257,7 +252,6 @@ def auth_callback(request):
             user_id, login, email, allowed_repos_list, installation_ids_list
         )
     except Exception:
-        return _redirect_to(error_url)
+        return _json_response(json.dumps({"error": "Failed to register user"}), 500)
 
-    redirect_url = _resolve_redirect_url(base_url, state, token)
-    return _redirect_to(redirect_url)
+    return _json_response(json.dumps({"ok": True}), 200)

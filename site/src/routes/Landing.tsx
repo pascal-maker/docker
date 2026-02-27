@@ -30,13 +30,15 @@ export function Landing() {
 }
 
 function getRequestAccessUrl(): string {
-  const clientId = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID ?? "";
+  const clientId =
+    import.meta.env.VITE_GITHUB_APP_CLIENT_ID ??
+    import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID ??
+    "";
   const callbackUrl = import.meta.env.VITE_AUTH_CALLBACK_URL ?? "";
   if (!clientId || !callbackUrl) return "#";
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: callbackUrl,
-    scope: "read:user user:email",
   });
   return `https://github.com/login/oauth/authorize?${params.toString()}`;
 }

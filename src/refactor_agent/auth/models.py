@@ -15,6 +15,13 @@ class GitHubUser(BaseModel):
     email: str | None = None
 
 
+class RepoAccess(BaseModel):
+    """Repository access from GitHub App installation."""
+
+    full_name: str = Field(description="e.g. owner/repo")
+    id: int = Field(description="GitHub repo ID")
+
+
 class UserRecord(BaseModel):
     """Firestore user document."""
 
@@ -25,6 +32,7 @@ class UserRecord(BaseModel):
     status: str = Field(description="pending | active | banned | suspended")
     ban_reason: str | None = None
     rate_limit_override: int | None = None
+    allowed_repos: list[RepoAccess] = Field(default_factory=list)
 
 
 class AuditLogEntry(BaseModel):

@@ -9,12 +9,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from refactor_agent.auth.logger import logger
-from refactor_agent.auth.models import AuditLogEntry, GitHubUser, UserRecord
+from refactor_agent.auth.models import AuditLogEntry, GitHubUser, RepoAccess, UserRecord
 
 if TYPE_CHECKING:
     from google.cloud.firestore_v1 import Client
 
 USERS_COLLECTION = "users"
+INSTALLATION_USERS_COLLECTION = "installation_users"
 AUDIT_LOGS_COLLECTION = "audit_logs"
 USAGE_WINDOWS_COLLECTION = "usage_windows"
 BAN_CACHE_TTL_SECS = 30.0
@@ -59,6 +60,7 @@ class UserStore:
         github_user: GitHubUser,
         *,
         onboarding_mode: str = "alpha",
+        allowed_repos: list[RepoAccess] | None = None,
     ) -> UserRecord:
         """Get existing user or create with status based on onboarding_mode.
 
@@ -67,6 +69,13 @@ class UserStore:
         db = self._db()
         user_id = str(github_user.id)
         doc_ref = db.collection(USERS_COLLECTION).document(user_id)
+
+        def _parse_allowed_repos(data: list) -> list[RepoAccess]:
+            return [
+                RepoAccess(full_name=item["full_name"], id=item["id"])
+                for item in data or []
+                if isinstance(item, dict) and "full_name" in item and "id" in item
+            ]
 
         def _get_or_create() -> UserRecord:
             doc = doc_ref.get()
@@ -83,25 +92,76 @@ class UserStore:
                     status=data.get("status", "active"),
                     ban_reason=data.get("ban_reason"),
                     rate_limit_override=data.get("rate_limit_override"),
+                    allowed_repos=_parse_allowed_repos(data.get("allowed_repos", [])),
                 )
             initial_status = "active" if onboarding_mode == "beta" else "pending"
+            repos = allowed_repos or []
             record = UserRecord(
                 id=user_id,
                 github_login=github_user.login,
                 email=github_user.email,
                 status=initial_status,
+                allowed_repos=repos,
             )
-            doc_ref.set(
-                {
-                    "github_login": record.github_login,
-                    "email": record.email,
-                    "created_at": record.created_at,
-                    "status": record.status,
-                }
-            )
+            payload: dict = {
+                "github_login": record.github_login,
+                "email": record.email,
+                "created_at": record.created_at,
+                "status": record.status,
+                "allowed_repos": [
+                    {"full_name": r.full_name, "id": r.id} for r in repos
+                ],
+            }
+            doc_ref.set(payload)
             return record
 
         return await asyncio.to_thread(_get_or_create)
+
+    async def update_user_repos(
+        self, user_id: str, allowed_repos: list[RepoAccess]
+    ) -> None:
+        """Update allowed_repos for a user (e.g. from webhook)."""
+        db = self._db()
+        doc_ref = db.collection(USERS_COLLECTION).document(user_id)
+
+        def _update() -> None:
+            doc_ref.update(
+                {
+                    "allowed_repos": [
+                        {"full_name": r.full_name, "id": r.id} for r in allowed_repos
+                    ],
+                }
+            )
+
+        await asyncio.to_thread(_update)
+
+    async def update_installation_users(
+        self, installation_id: int, user_ids: list[str]
+    ) -> None:
+        """Store mapping of installation_id -> user_ids for webhook lookups."""
+        db = self._db()
+        doc_ref = db.collection(INSTALLATION_USERS_COLLECTION).document(
+            str(installation_id)
+        )
+
+        def _set() -> None:
+            doc_ref.set({"user_ids": user_ids})
+
+        await asyncio.to_thread(_set)
+
+    async def get_installation_user_ids(self, installation_id: int) -> list[str]:
+        """Get user_ids for an installation (for webhook)."""
+        db = self._db()
+        doc = (
+            db.collection(INSTALLATION_USERS_COLLECTION)
+            .document(str(installation_id))
+            .get()
+        )
+        if not doc.exists:
+            return []
+        data = doc.to_dict() or {}
+        ids = data.get("user_ids", [])
+        return [str(x) for x in ids] if isinstance(ids, list) else []
 
     def is_banned(self, user_id: str) -> bool:
         """Check if user is banned; uses short TTL in-process cache."""

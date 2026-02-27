@@ -30,7 +30,28 @@ variable "terraform_state_bucket" {
 }
 
 variable "github_oauth_client_secret" {
-  description = "GitHub OAuth App Client secret. Set in secrets.tfvars for auth callback Cloud Function."
+  description = "Deprecated: GitHub OAuth App Client secret. Use github_app_client_secret."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_app_client_secret" {
+  description = "GitHub App Client secret. Set in secrets.tfvars for auth callback Cloud Function."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_app_private_key" {
+  description = "GitHub App private key (PEM). For webhook verification and token refresh."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_app_webhook_secret" {
+  description = "GitHub App webhook secret. For webhook signature verification."
   type        = string
   default     = ""
   sensitive   = true

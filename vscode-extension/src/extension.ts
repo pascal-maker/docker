@@ -1,5 +1,6 @@
 import { init as initSentry } from "@sentry/node";
 import * as vscode from "vscode";
+import { RefactorAgentAuthProvider } from "./auth/RefactorAgentAuthProvider";
 import { createSyncStatusBarItem } from "./statusBar";
 import { RefactorViewProvider } from "./RefactorViewProvider";
 
@@ -16,6 +17,14 @@ export function activate(extContext: vscode.ExtensionContext): void {
       tracesSampleRate: 0,
     });
   }
+
+  const authProvider = new RefactorAgentAuthProvider(extContext);
+  const uriHandler = {
+    handleUri: (uri: vscode.Uri) => {
+      authProvider.handleCallback(uri);
+    },
+  };
+  extContext.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
 
   const syncStatus = createSyncStatusBarItem();
   extContext.subscriptions.push(syncStatus.item);

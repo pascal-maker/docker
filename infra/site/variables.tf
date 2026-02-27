@@ -19,7 +19,35 @@ variable "site_url" {
 }
 
 variable "github_oauth_client_secret_name" {
-  description = "Secret Manager secret name for GitHub OAuth client secret."
+  description = "Deprecated: Secret Manager secret name for GitHub OAuth client secret."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_id" {
+  description = "GitHub App ID (numeric). Used to verify tokens are from our app."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_client_id" {
+  description = "GitHub App Client ID (from GitHub App settings)."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_client_secret_name" {
+  description = "Secret Manager secret ID for GitHub App client secret."
+  type        = string
+}
+
+variable "github_app_private_key_secret_name" {
+  description = "Secret Manager secret ID for GitHub App private key."
+  type        = string
+}
+
+variable "github_app_webhook_secret_name" {
+  description = "Secret Manager secret ID for GitHub App webhook secret."
   type        = string
 }
 
