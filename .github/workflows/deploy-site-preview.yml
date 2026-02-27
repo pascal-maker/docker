@@ -1,0 +1,57 @@
+# Build and deploy the marketing site to a Firebase Hosting preview channel for PRs.
+# Trigger: pull_request when site/ or design-system changes.
+# Posts a comment on the PR with the preview URL.
+# Same secrets/vars as deploy-site.yml.
+
+name: Deploy site (preview)
+
+on:
+  pull_request:
+    paths:
+      - "site/**"
+      - "packages/design-system/**"
+      - "firebase.json"
+      - ".firebaserc"
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build @refactor-agent/design-system
+        run: pnpm --filter @refactor-agent/design-system run build
+
+      - name: Build site
+        env:
+          VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
+          VITE_AUTH_CALLBACK_URL: ${{ secrets.VITE_AUTH_CALLBACK_URL }}
+          VITE_IMPRINT_NAME: ${{ vars.VITE_IMPRINT_NAME }}
+          VITE_IMPRINT_EMAIL: ${{ vars.VITE_IMPRINT_EMAIL }}
+          VITE_PRIVACY_POLICY_URL: ${{ vars.VITE_PRIVACY_POLICY_URL }}
+          VITE_TERMS_URL: ${{ vars.VITE_TERMS_URL }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+        run: pnpm --filter site run build
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+          expires: 7d

@@ -34,10 +34,10 @@ resource "google_cloudfunctions2_function" "auth_callback" {
     available_memory   = "256Mi"
     timeout_seconds    = 60
     environment_variables = {
-      SITE_URL               = var.site_url
-      GITHUB_OAUTH_CLIENT_ID = var.github_oauth_client_id
+      SITE_URL                  = var.site_url
+      GITHUB_OAUTH_CLIENT_ID    = var.github_oauth_client_id
       GITHUB_OAUTH_REDIRECT_URI = "https://${var.region}-${var.project_id}.cloudfunctions.net/auth-github-callback"
-      GOOGLE_CLOUD_PROJECT   = var.project_id
+      GOOGLE_CLOUD_PROJECT      = var.project_id
     }
     # Terraform docs: secret = name only (not full resource path); project_id = project number preferred.
     secret_environment_variables {
@@ -47,7 +47,7 @@ resource "google_cloudfunctions2_function" "auth_callback" {
       project_id = var.project_number
     }
     ingress_settings               = "ALLOW_ALL"
-    all_traffic_on_latest_revision  = true
+    all_traffic_on_latest_revision = true
   }
 
   depends_on = [

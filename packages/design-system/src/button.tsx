@@ -12,11 +12,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const isInverted = className?.includes("bg-white");
-    const forceWhiteText =
-      variant === "default" && !isInverted;
-    const mergedStyle = forceWhiteText
-      ? { color: "white", ...style }
-      : style;
+    const forceWhiteText = variant === "default" && !isInverted;
+    const mergedStyle = forceWhiteText ? { color: "white", ...style } : style;
     const defaultVariantClass =
       variant === "default" &&
       cn(

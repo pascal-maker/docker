@@ -140,6 +140,8 @@ Terraform uses two var files:
 
 **Secret Manager:** Terraform creates the secret resources; you add values via `gcloud secrets versions add ... --data-file=-`. To rotate: add a new version; Cloud Run uses `version = "latest"` and picks it up on next deploy.
 
+**Credentials rotation:** See [docs/infra/credentials-rotation.md](../docs/infra/credentials-rotation.md) for step-by-step instructions to rotate each credential (GitHub, Cloudflare, Resend, Firebase, Sentry, etc.) with correct permissions.
+
 ## Outputs
 
 | Output         | Description                                                |

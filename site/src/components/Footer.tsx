@@ -1,7 +1,5 @@
 const privacyUrl =
   (import.meta.env.VITE_PRIVACY_POLICY_URL as string | undefined) ?? "/privacy";
-const termsUrl =
-  (import.meta.env.VITE_TERMS_URL as string | undefined) ?? "/terms";
 
 export function Footer() {
   return (
@@ -15,15 +13,6 @@ export function Footer() {
             : {})}
         >
           Privacy
-        </a>
-        <a
-          href={termsUrl}
-          className="hover:text-slate-900"
-          {...(termsUrl.startsWith("http")
-            ? { target: "_blank", rel: "noopener noreferrer" }
-            : {})}
-        >
-          Terms
         </a>
         <a href="/imprint" className="hover:text-slate-900">
           Imprint

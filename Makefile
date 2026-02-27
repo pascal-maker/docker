@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install infra-bootstrap image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -98,6 +98,14 @@ clean: ## Remove caches and build artifacts
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 # --- Infra (Terraform / GCP): run in order 1 → 2 → 3 → 4 ---
+infra-validate: ## Terraform format check + init + validate (no backend; CI and local)
+	cd infra && terraform fmt -check -recursive -diff
+	cd infra && terraform init -backend=false
+	cd infra && terraform validate
+
+infra-fmt: ## Format Terraform files
+	cd infra && terraform fmt -recursive
+
 infra-bootstrap: ## 1) Cloud Build + Storage API, build bucket and IAM (set INFRA_VAR_FILE if not dev.tfvars)
 	cd infra && terraform apply \
 		-target=google_project_service.cloudbuild \
@@ -115,7 +123,13 @@ image-push: ## 2) Build and push A2A image to Artifact Registry (uses Docker lay
 		. --project=$(GCP_PROJECT_ID)
 
 infra-apply: ## 3) Full Terraform apply – APIs, secrets, SA, Cloud Run (requires infra/secrets.tfvars)
-	cd infra && terraform apply -var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars
+	@cd infra && \
+	if [ -f firebase-sa.json ]; then \
+		terraform apply -var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars \
+			-var="firebase_service_account_json=$$(cat firebase-sa.json | jq -c .)"; \
+	else \
+		terraform apply -var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars; \
+	fi
 
 infra-gha-key: ## 4) Create GitHub Actions SA key → gh-actions-key.json (add as GCP_SA_KEY in repo secrets, then rm file)
 	@SA_EMAIL=$$(terraform -chdir=infra output -raw github_actions_sa_email 2>/dev/null) && \

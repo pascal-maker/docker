@@ -44,7 +44,7 @@ resource "google_cloudfunctions2_function" "email_notify" {
       version    = "latest"
       project_id = var.project_number
     }
-    ingress_settings              = "ALLOW_INTERNAL_ONLY"
+    ingress_settings               = "ALLOW_INTERNAL_ONLY"
     all_traffic_on_latest_revision = true
   }
 

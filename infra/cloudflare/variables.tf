@@ -21,9 +21,15 @@ variable "resend_dkim_name" {
 }
 
 variable "resend_dkim_target" {
-  description = "Resend DKIM CNAME target. Required when resend_dkim_name is set."
+  description = "Resend DKIM value: CNAME target hostname or TXT content (p=...). See resend_dkim_type."
   type        = string
   default     = ""
+}
+
+variable "resend_dkim_type" {
+  description = "Resend DKIM record type: CNAME or TXT. Resend Domains shows which."
+  type        = string
+  default     = "CNAME"
 }
 
 variable "firebase_hosting_target" {

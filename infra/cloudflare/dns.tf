@@ -10,12 +10,12 @@ resource "cloudflare_record" "resend_spf" {
   ttl     = 3600
 }
 
-# Resend DKIM - from Resend Dashboard after adding domain.
+# Resend DKIM - from Resend Dashboard after adding domain. Resend may show CNAME or TXT.
 resource "cloudflare_record" "resend_dkim" {
   count   = var.resend_dkim_name != "" && var.resend_dkim_target != "" ? 1 : 0
   zone_id = var.zone_id
   name    = var.resend_dkim_name
-  type    = "CNAME"
+  type    = var.resend_dkim_type
   content = var.resend_dkim_target
   ttl     = 3600
 }

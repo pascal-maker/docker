@@ -4,7 +4,7 @@ import { createContext, useCallback, useEffect, useState } from "react";
 const CONSENT_KEY = "refactor-agent-cookie-consent";
 const CONSENT_TIMESTAMP_KEY = "refactor-agent-cookie-consent-timestamp";
 
-export type ConsentStatus = "accepted" | "rejected" | null;
+type ConsentStatus = "accepted" | "rejected" | null;
 
 interface ConsentContextValue {
   consent: ConsentStatus;

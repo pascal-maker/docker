@@ -19,7 +19,7 @@ resource "google_cloud_scheduler_job" "usage_digest" {
   region      = var.region
   description = "Invoke usage-digest Cloud Function daily"
 
-  schedule = "0 9 * * *"
+  schedule  = "0 9 * * *"
   time_zone = "Europe/Brussels"
 
   http_target {

@@ -1,4 +1,9 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@refactor-agent/design-system";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@refactor-agent/design-system";
 
 const name = import.meta.env.VITE_IMPRINT_NAME as string | undefined;
 const email = import.meta.env.VITE_IMPRINT_EMAIL as string | undefined;
@@ -8,8 +13,6 @@ const vat = import.meta.env.VITE_IMPRINT_VAT as string | undefined;
 
 const privacyUrl =
   (import.meta.env.VITE_PRIVACY_POLICY_URL as string | undefined) ?? "/privacy";
-const termsUrl =
-  (import.meta.env.VITE_TERMS_URL as string | undefined) ?? "/terms";
 
 export function Imprint() {
   const hasContent = name ?? email ?? address ?? cbe ?? vat;
@@ -56,19 +59,15 @@ export function Imprint() {
               )}
               {vat != null && vat !== "" && (
                 <p className="text-slate-600">
-                  <span className="font-medium text-slate-900">VAT number:</span>{" "}
+                  <span className="font-medium text-slate-900">
+                    VAT number:
+                  </span>{" "}
                   {vat}
                 </p>
               )}
               <div className="pt-6 border-t border-slate-200">
-                <a
-                  href={privacyUrl}
-                  className="text-blue-600 hover:underline mr-4"
-                >
+                <a href={privacyUrl} className="text-blue-600 hover:underline">
                   Privacy Policy
-                </a>
-                <a href={termsUrl} className="text-blue-600 hover:underline">
-                  Terms of Service
                 </a>
               </div>
             </>

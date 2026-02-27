@@ -57,7 +57,7 @@ variable "terraform_state_bucket" {
 
 # Sentry (optional). Set SENTRY_AUTH_TOKEN env or sentry_auth_token in secrets.tfvars.
 variable "sentry_auth_token" {
-  description = "Sentry auth token for Terraform provider. Create at sentry.io: Settings → Auth Tokens (scopes: project:read, project:write, org:read)."
+  description = "Sentry auth token for Terraform provider. Create at sentry.io: Settings → Auth Tokens (scopes: project:read, project:write, org:read, team:read, team:write)."
   type        = string
   default     = ""
   sensitive   = true
@@ -98,9 +98,15 @@ variable "resend_dkim_name" {
 }
 
 variable "resend_dkim_target" {
-  description = "Resend DKIM CNAME target. From Resend Dashboard after adding domain."
+  description = "Resend DKIM value: CNAME target hostname or TXT content (p=...). See resend_dkim_type."
   type        = string
   default     = ""
+}
+
+variable "resend_dkim_type" {
+  description = "Resend DKIM record type: CNAME (target hostname) or TXT (p=... key). Resend Domains shows which."
+  type        = string
+  default     = "CNAME"
 }
 
 # Firebase Hosting DNS (add custom domain in Firebase Console first, then add values here).
@@ -157,7 +163,7 @@ variable "resend_api_key" {
 
 # GitHub provider for Terraform-managed Actions secrets.
 variable "github_token" {
-  description = "GitHub token with admin:repo scope for managing Actions secrets. Set in secrets.tfvars."
+  description = "GitHub fine-grained PAT for managing Actions secrets. Set in secrets.tfvars."
   type        = string
   default     = ""
   sensitive   = true

@@ -7,8 +7,6 @@ import { Imprint } from "@/routes/Imprint";
 import { Landing } from "@/routes/Landing";
 import { Privacy } from "@/routes/Privacy";
 import { Success } from "@/routes/Success";
-import { Terms } from "@/routes/Terms";
-
 function App() {
   return (
     <BrowserRouter>
@@ -20,7 +18,6 @@ function App() {
             <Route path="/success" element={<Success />} />
             <Route path="/error" element={<Error />} />
             <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
             <Route path="/imprint" element={<Imprint />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

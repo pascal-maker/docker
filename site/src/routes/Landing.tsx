@@ -15,10 +15,7 @@ export function Landing() {
         </p>
         <div>
           {canRequest ? (
-            <ButtonLink
-              href={requestAccessUrl}
-              className="text-base px-6 py-3"
-            >
+            <ButtonLink href={requestAccessUrl} className="text-base px-6 py-3">
               Request access
             </ButtonLink>
           ) : (

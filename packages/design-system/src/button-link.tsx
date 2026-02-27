@@ -1,8 +1,7 @@
 import { type AnchorHTMLAttributes, forwardRef } from "react";
 import { cn } from "./utils";
 
-export interface ButtonLinkProps
-  extends AnchorHTMLAttributes<HTMLAnchorElement> {
+export interface ButtonLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   variant?: "default" | "outline" | "ghost" | "link";
   size?: "default" | "sm";
 }

@@ -34,7 +34,7 @@ Add to `secrets.tfvars` (gitignored):
 
 | Variable | Source |
 |----------|--------|
-| `github_token` | GitHub PAT with `admin:repo` |
+| `github_token` | GitHub fine-grained PAT with Secrets, Variables, Administration (see [credentials-rotation.md](credentials-rotation.md)) |
 | `github_repository` | `owner/refactor-agent` |
 | `github_oauth_client_id` | From step 1 |
 | `github_oauth_client_secret` | From step 1 |
