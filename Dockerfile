@@ -1,6 +1,6 @@
 # Sync server + A2A + Chainlit; one image, entrypoint chooses which to run.
 # Build with BuildKit for cache: DOCKER_BUILDKIT=1 docker compose build
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
