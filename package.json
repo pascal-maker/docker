@@ -2,8 +2,11 @@
   "name": "refactor-agent-infra",
   "private": true,
   "description": "Refactor Agent monorepo (Python backend + TS packages)",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
+    "preinstall": "sh scripts/check-node.sh && npx only-allow pnpm",
     "knip": "knip",
     "build": "nx run-many -t build --all",
     "format-check": "nx run-many -t format-check --all",

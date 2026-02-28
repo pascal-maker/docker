@@ -3,8 +3,14 @@
   "root": "apps/backend",
   "sourceRoot": "apps/backend/src",
   "projectType": "application",
-  "implicitDependencies": ["ts-morph-bridge"],
-  "tags": ["scope:backend", "type:app", "lang:python"],
+  "implicitDependencies": [
+    "ts-morph-bridge"
+  ],
+  "tags": [
+    "scope:backend",
+    "type:app",
+    "lang:python"
+  ],
   "targets": {
     "install": {
       "executor": "nx:run-commands",
@@ -52,7 +58,7 @@
       "executor": "nx:run-commands",
       "cache": true,
       "options": {
-        "command": "uv run mypy src",
+        "command": "uv run mypy src && uv run pyright src",
         "cwd": "apps/backend"
       }
     }

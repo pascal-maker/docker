@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from starlette.types import Receive, Scope, Send
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 
 async def _combined_router(
@@ -13,8 +13,8 @@ async def _combined_router(
     receive: Receive,
     send: Send,
     *,
-    a2a_app: object,
-    sync_app: object,
+    a2a_app: ASGIApp,
+    sync_app: ASGIApp,
 ) -> None:
     """Route by path and request type: A2A or Sync."""
     path = (scope.get("path") or "").rstrip("/") or "/"
@@ -57,9 +57,9 @@ async def _combined_router(
 
 def build_combined_app_impl(
     *,
-    a2a_app: object,
-    sync_app: object,
-) -> object:
+    a2a_app: ASGIApp,
+    sync_app: ASGIApp,
+) -> ASGIApp:
     """Build the raw ASGI router (no middleware)."""
 
     async def _app(scope: Scope, receive: Receive, send: Send) -> None:

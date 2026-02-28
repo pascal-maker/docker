@@ -14,7 +14,7 @@ Pydantic settings source to read it; env_file expects KEY=value so we don't use 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from pydantic_settings import (
     BaseSettings,
@@ -51,6 +51,7 @@ class A2aUrlFileSource(PydanticBaseSettingsSource):
             return None, field_name, False
         return value, field_name, False
 
+    @override
     def __call__(self) -> dict[str, Any]:  # no-dict-sig: PydanticBaseSettingsSource API
         """Return dict of field values read from the dot file."""
         out: dict[str, Any] = {}

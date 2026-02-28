@@ -34,6 +34,7 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "mypy",
+    "pyright",
     "chainlit",
     "types-PyYAML",
     "vulture>=2.11",
@@ -52,6 +53,7 @@ build-backend = "uv_build"
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = "stubs"
 warn_return_any = true
 warn_unused_configs = true
 warn_unreachable = true
@@ -71,19 +73,51 @@ init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
 
+# ---------------------------------------------------------------------------
+# Pyright – static type checking (runs alongside mypy; catches different edge cases)
+# ---------------------------------------------------------------------------
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+stubPath = "stubs"
+# Warning: mypy needs some type: ignore that pyright considers unnecessary (different implementations).
+reportUnnecessaryTypeIgnoreComment = "warning"
+# Third-party packages without stubs: downgrade to warning (matches mypy ignore_missing_imports)
+reportMissingImports = "warning"
+reportMissingModuleSource = "warning"
+
+# Per-path overrides for modules with known third-party/framework typing gaps (matches mypy overrides)
+[[tool.pyright.executionEnvironments]]
+root = "src/refactor_agent/engine/python"
+reportAttributeAccessIssue = "warning"
+reportIncompatibleMethodOverride = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "src/refactor_agent/observability"
+reportArgumentType = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "src/refactor_agent/agent"
+reportArgumentType = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "src/refactor_agent/schedule"
+reportArgumentType = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "src/refactor_agent/sync"
+reportArgumentType = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "src/refactor_agent/ui"
+reportArgumentType = "warning"
+reportIndexIssue = "warning"
+
 [[tool.mypy.overrides]]
 # pydantic_ai._agent_graph has End, ModelRequestNode at runtime but not in __all__.
 module = ["pydantic_ai._agent_graph"]
 ignore_missing_imports = true
 disable_error_code = ["attr-defined"]
-
-[[tool.mypy.overrides]]
-# Auth: Firestore/Starlette have complex or missing stubs; google.cloud.firestore typing.
-module = ["refactor_agent.auth.*", "refactor_agent.a2a.auth_middleware"]
-disable_error_code = [
-    "attr-defined", "no-any-return", "union-attr", "arg-type",
-    "operator", "untyped-decorator", "unused-awaitable", "type-arg",
-]
 
 [[tool.mypy.overrides]]
 # Backend + method_logging: ASGI app typing (object/callable), scope dicts.
@@ -96,7 +130,6 @@ module = [
     "pydantic_ai.*",
     "pydantic_ai._utils",
     "dotenv.*",
-    "anthropic.*",
     "libcst.*",
     "fastmcp.*",
     "a2a.*",

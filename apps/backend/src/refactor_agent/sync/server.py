@@ -20,11 +20,14 @@ from refactor_agent.sync.logger import logger
 from refactor_agent.sync.models import BootstrapMessage, FileMessage
 from refactor_agent.sync.replica_ttl import update_replica_activity
 
+# ASGI scope dict — structure defined by ASGI spec, not our code
+type AsgiScope = dict[str, object]
+
 
 class _StarletteWebSocket(Protocol):
     """Minimal protocol for Starlette WebSocket (receive_text/send_text)."""
 
-    scope: dict[str, object]
+    scope: AsgiScope
 
     async def accept(self) -> None: ...
     async def receive_text(self) -> str: ...

@@ -12,7 +12,7 @@ This document summarizes the repo’s coding rules, where they are intentionally
 ### General
 
 - **Typing:** Strict typing everywhere; no untyped defs; no `Any` without justification.
-- **Pre-commit:** Run `make pre-commit-install` once after clone. Hooks run ruff (format + lint), TS format/lint/typecheck, and mypy on each commit. For full checks including tests, run `make check` before pushing.
+- **Pre-commit:** Run `make pre-commit-install` once after clone. Hooks run ruff (format + lint), TS format/lint/typecheck, and mypy + pyright on each commit. For full checks including tests, run `make check` before pushing.
 - **Formatting:** Line length 88 (ruff). Double quotes, spaces. No relative imports; absolute only.
 - **Docstrings:** Google-style on public functions and classes; skip module/package/`__init__`.
 - **Suppressions:** Never suppress linter/type-checker without a short comment explaining why.
@@ -71,6 +71,7 @@ These are intentional exceptions or necessary relaxations; each is documented in
 | **Suppressions without comment** | (None) | All `# noqa` and `# type: ignore` have a brief explanation (e.g. “signature required by Chainlit”, “lazy optional dep”, “used at runtime”). |
 | **Per-file lint ignores** | `pyproject.toml` → `[tool.ruff.lint.per-file-ignores]` | **Tests:** assert (S101), fixtures (ARG), docstrings (D), etc., as per pytest/convention. **Scripts/playground:** relaxed docs and complexity for one-off tools. **Specific modules:** TC001/TC002/TC003 for runtime imports (Pydantic, FastAPI, A2A SDK); C901/PLR0911/PLR0912 where dispatch or language guards add branches; ASYNC240 for acceptable sync I/O; FBT001/FBT002 for boolean tool flags; N802 for LibCST callback names; etc. All documented in pyproject comments. |
 | **Mypy overrides** | `pyproject.toml` → `[[tool.mypy.overrides]]` | `langfuse.*`, `pydantic_ai.*`, `anthropic.*`, `libcst.*`, `fastmcp.*`, `a2a.*`, `chainlit.*`: `ignore_missing_imports = true` (no stubs or incomplete stubs). `refactor_agent.ui.*`: `disallow_untyped_calls = false`, `disallow_untyped_defs = false` (Chainlit has no type stubs). |
+| **Pyright overrides** | `pyproject.toml` → `[[tool.pyright.executionEnvironments]]` | Runs alongside mypy; catches different edge cases. Per-path overrides for `engine/python`, `observability`, `agent`, `schedule`, `sync`, `ui` downgrade `reportArgumentType`, `reportAttributeAccessIssue`, `reportIncompatibleMethodOverride`, `reportIndexIssue` to warning (third-party/framework typing gaps). |
 
 No other deliberate violations; the rest of the codebase follows the rules above.
 

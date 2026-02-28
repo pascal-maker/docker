@@ -99,10 +99,11 @@ class ASTEngine:
 
     async def check_name_collisions(
         self,
-        _new_name: str,
-        _scope_node: str | None = None,
+        new_name: str,
+        scope_node: str | None = None,
     ) -> list[CollisionInfo]:
         """Collision detection not implemented for ASTEngine."""
+        _ = (new_name, scope_node)  # Protocol signature; unused in stub
         return []
 
     async def to_source(self) -> str:

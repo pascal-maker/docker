@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import libcst as cst
 from libcst.metadata import MetadataWrapper, PositionProvider, ScopeProvider
@@ -48,7 +48,8 @@ class _RenameTransformer(cst.CSTTransformer):
             logger.debug("Scope metadata missing for node", node=type(e).__name__)
         return False
 
-    def leave_Name(  # noqa: N802 — LibCST callback name
+    @override
+    def leave_Name(
         self, original_node: cst.Name, updated_node: cst.Name
     ) -> cst.BaseExpression:
         if updated_node.value != self._old_name or not self._in_target_scope(
@@ -63,7 +64,8 @@ class _RenameTransformer(cst.CSTTransformer):
             logger.debug("Position metadata missing for Name", error=type(e).__name__)
         return updated_node.with_changes(value=self._new_name)
 
-    def leave_FunctionDef(  # noqa: N802
+    @override
+    def leave_FunctionDef(
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.BaseStatement | cst.CSTNode:
         if updated_node.name.value != self._old_name:
@@ -80,7 +82,8 @@ class _RenameTransformer(cst.CSTTransformer):
             name=updated_node.name.with_changes(value=self._new_name)
         )
 
-    def leave_ClassDef(  # noqa: N802
+    @override
+    def leave_ClassDef(
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.BaseStatement | cst.CSTNode:
         if updated_node.name.value != self._old_name:
@@ -248,12 +251,18 @@ class LibCSTEngine:
 
     async def extract_function(
         self,
-        _scope_function: str,
-        _start_line: int,
-        _end_line: int,
-        _new_function_name: str,
+        scope_function: str,
+        start_line: int,
+        end_line: int,
+        new_function_name: str,
     ) -> str:
         """Stub: extract_function not yet implemented on LibCSTEngine."""
+        _ = (
+            scope_function,
+            start_line,
+            end_line,
+            new_function_name,
+        )  # Protocol signature; unused in stub
         return (
             "ERROR: extract_function is not yet implemented with LibCST; "
             "use the deprecated ASTEngine for extract operations."

@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
+
+type FirestoreScalar = str | int | float | bool | None
+type FirestoreRecursiveValue = (
+    FirestoreScalar
+    | Mapping[str, FirestoreRecursiveValue]
+    | list[FirestoreRecursiveValue]
+)
 
 
 class MapValue(BaseModel):
@@ -44,10 +50,8 @@ class FirestoreValue(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _from_proto_keys(cls, data: Any) -> Any:
+    def _from_proto_keys(cls, data: dict[str, object]) -> dict[str, object]:
         """Convert Firestore proto keys (camelCase) to model fields."""
-        if not isinstance(data, dict):
-            return data
         key_map = {
             "stringValue": "string_value",
             "integerValue": "integer_value",
@@ -62,9 +66,7 @@ class FirestoreValue(BaseModel):
         return {key_map.get(k, k): v for k, v in data.items() if k in key_map}
 
 
-def parse_firestore_value(
-    value: FirestoreValue,
-) -> str | int | float | bool | None | Mapping[str, Any] | list[Any]:
+def parse_firestore_value(value: FirestoreValue) -> FirestoreRecursiveValue:
     """Extract scalar or nested structure from FirestoreValue."""
     if value.null_value is not None:
         return None

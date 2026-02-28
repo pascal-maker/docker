@@ -36,8 +36,8 @@ repos:
         language: system
         pass_filenames: false
       - id: python-typecheck
-        name: Python typecheck (mypy)
-        entry: bash -c "cd apps/backend && uv run mypy src"
+        name: Python typecheck (mypy + pyright)
+        entry: bash -c "cd apps/backend && uv run mypy src && uv run pyright src"
         language: system
         pass_filenames: false
       - id: ts-checks

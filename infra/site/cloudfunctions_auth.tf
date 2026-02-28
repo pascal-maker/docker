@@ -1,8 +1,9 @@
 # Auth callback Cloud Function: GitHub OAuth -> Firestore user with status=pending.
+# TypeScript (nodejs24). Run `make functions-build` before terraform apply.
 
 data "archive_file" "auth_callback" {
   type        = "zip"
-  source_dir  = "${path.module}/../../functions/auth_callback"
+  source_dir  = "${path.module}/../../functions/auth_callback/.deploy"
   output_path = "${path.module}/.build/auth_callback.zip"
 }
 
@@ -18,8 +19,8 @@ resource "google_cloudfunctions2_function" "auth_callback" {
   project  = var.project_id
 
   build_config {
-    runtime     = "python312"
-    entry_point = "auth_callback"
+    runtime     = "nodejs24"
+    entry_point = "authCallback"
     source {
       storage_source {
         bucket = google_storage_bucket.functions_source.name

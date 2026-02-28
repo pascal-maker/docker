@@ -7,6 +7,7 @@ import os
 import shutil
 import uuid
 from pathlib import Path
+from typing import override
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
@@ -228,6 +229,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
             agent if agent is not None else create_orchestrator_agent()
         )
 
+    @override
     async def execute(  # noqa: C901, PLR0912 — message dispatch and artifact handling
         self,
         context: RequestContext,

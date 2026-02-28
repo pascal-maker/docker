@@ -6,6 +6,7 @@ import traceback
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import assert_never
 
 from refactor_agent.engine.subprocess_engine import SubprocessError
 from refactor_agent.engine.typescript.ts_morph_engine import TsMorphProjectEngine
@@ -204,7 +205,7 @@ async def _run_one(
                 success=True,
             )
 
-    raise AssertionError(f"Unhandled operation type: {type(op).__name__}")
+    assert_never(op)
 
 
 async def execute_schedule(

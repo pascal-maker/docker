@@ -1,0 +1,29 @@
+{
+  "name": "auth-register-device",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format-check": "prettier --check \"src/**/*.ts\"",
+    "lint": "oxlint --type-aware src",
+    "typecheck": "tsc --noEmit",
+    "start": "functions-framework --target=authRegisterDevice"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^5.0.0",
+    "@refactor-agent/functions-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.14.0",
+    "oxlint": "^1.0.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -14,10 +14,12 @@ import chainlit as cl
 from chainlit.data import get_data_layer
 from langfuse import get_client, propagate_attributes
 from pydantic import BaseModel, ConfigDict, RootModel
+
+# JSON-RPC request body (method, params, id) — response uses JsonRpcResponse from a2a.models
 from pydantic_ai._agent_graph import End, ModelRequestNode  # type: ignore[attr-defined]
 
 from refactor_agent._log_config import configure_logging
-from refactor_agent.a2a.models import WorkspaceFile
+from refactor_agent.a2a.models import JsonRpcResponse, TaskResult, WorkspaceFile
 from refactor_agent.observability.langfuse_config import init_langfuse
 from refactor_agent.orchestrator import (
     NeedInput,
@@ -33,17 +35,13 @@ from refactor_agent.ui.logger import logger
 
 
 class JsonRpcBody(RootModel[dict[str, object]]):
-    """JSON-RPC request or response body (no dict in signatures)."""
+    """JSON-RPC request body (method, params, id)."""
 
 
 class ToolCallArgs(BaseModel):
     """Tool call arguments for step label formatting (extra keys allowed)."""
 
     model_config = ConfigDict(extra="allow")
-
-
-class GetTaskResult(RootModel[dict[str, object]]):
-    """Result of tasks/get (task payload; no dict in signatures)."""
 
 
 _TRACE_NAME = "chat-agent"
@@ -104,7 +102,7 @@ def _workspace_payload(language: str) -> list[WorkspaceFile]:
     ]
 
 
-def _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcBody:
+def _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcResponse:
     """POST JSON-RPC to A2A server (run in thread to avoid blocking)."""
     url = base_url.rstrip("/")
     if not url.startswith(("http://", "https://")):
@@ -118,7 +116,7 @@ def _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcBody:
     )
     with urllib.request.urlopen(req, timeout=300) as resp:
         out: object = json.loads(resp.read().decode())
-        return JsonRpcBody.model_validate(out if isinstance(out, dict) else {})
+        return JsonRpcResponse.model_validate(out if isinstance(out, dict) else {})
 
 
 # ---------------------------------------------------------------------------
@@ -462,7 +460,7 @@ async def _run_request_remote(content: str, language: str, base_url: str) -> Non
         }
     )
 
-    def _get_task() -> GetTaskResult:
+    def _get_task() -> TaskResult | None:
         get_body = JsonRpcBody.model_validate(
             {
                 "jsonrpc": "2.0",
@@ -472,37 +470,28 @@ async def _run_request_remote(content: str, language: str, base_url: str) -> Non
             }
         )
         resp = _a2a_post_sync(base_url, get_body)
-        if "result" in resp.root:
-            result = resp.root["result"]
-            return GetTaskResult.model_validate(
-                result if isinstance(result, dict) else {}
-            )
-        return GetTaskResult.model_validate({})
+        if isinstance(resp.result, TaskResult):
+            return resp.result
+        return None
 
     try:
         while True:
             resp = await asyncio.to_thread(_a2a_post_sync, base_url, body)
-            if "error" in resp.root:
-                err = resp.root["error"]
-                msg = (
-                    err.get("message", json.dumps(err))
-                    if isinstance(err, dict)
-                    else str(err)
-                )
-                await cl.Message(content=f"A2A error: {msg}").send()
+            if resp.error is not None:
+                await cl.Message(content=f"A2A error: {resp.error.message}").send()
                 return
             await asyncio.sleep(1.0)
             task = await asyncio.to_thread(_get_task)
-            status_raw = task.root.get("status")
-            status = status_raw if isinstance(status_raw, dict) else {}
-            state = status.get("state")
-            message_obj = status.get("message")
-            message = message_obj if isinstance(message_obj, dict) else {}
-            msg_parts = message.get("parts") or []
+            if task is None:
+                continue
+            status = task.status
+            state = status.state if status else ""
+            message = status.message if status else None
+            msg_parts = message.parts if message else []
             msg_text = ""
             for p in msg_parts:
-                if isinstance(p, dict) and "text" in p:
-                    msg_text = p["text"]
+                if p.text:
+                    msg_text = p.text
                     break
             if state == "completed":
                 await cl.Message(content=msg_text or "Done.").send()

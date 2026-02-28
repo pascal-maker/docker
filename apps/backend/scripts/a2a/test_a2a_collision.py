@@ -20,9 +20,9 @@ import contextlib
 import json
 import sys
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
-from refactor_agent.a2a.models import JsonRpcResponse
+from refactor_agent.a2a.models import JsonRpcResponse, MessageResult, TaskResult
 
 if TYPE_CHECKING:
     import types
@@ -96,55 +96,69 @@ def main() -> int:
     print("Step 1: Sending rename greet -> main (main already exists)...")
     result = send_message(base_url, json.dumps(task_payload))
 
-    if "error" in result.root:
-        print("Error:", json.dumps(result.root, indent=2))
+    if result.error is not None:
+        print("Error:", result.error.model_dump_json(indent=2))
         return 1
 
-    res = result.root.get("result") or {}
-    kind = res.get("kind", "")
-    task_status = res.get("status") or {}
-    state = (task_status or {}).get("state", "")
+    res = result.result
+    kind = res.kind if res else ""
+    task_status = res.status if isinstance(res, TaskResult) else None
+    state = task_status.state if task_status else ""
 
     print("Response kind:", kind)
     print("Status state:", state or "(none)")
 
-    if kind == "task":
-        task_id = res.get("id")
-        context_id = res.get("contextId")
+    if kind == "task" and res is not None:
+        task_id = res.id
+        context_id = res.context_id
         print("Task ID:", task_id)
         print("Context ID:", context_id)
         if state == "input-required":
-            print("Artifacts:", len(res.get("artifacts") or []))
+            print("Artifacts:", len(res.artifacts or []))
             confirm = "no" if args.no else "yes"
             print(f"\nStep 2: Sending '{confirm}' to confirm/cancel...")
             result2 = send_message(
                 base_url, confirm, context_id=context_id, task_id=task_id
             )
-            if "error" in result2.root:
-                print("Error:", json.dumps(result2.root, indent=2))
+            if result2.error is not None:
+                print("Error:", result2.error.model_dump_json(indent=2))
                 return 1
-            res2 = result2.root.get("result") or {}
-            parts = (res2.get("parts") or []) if isinstance(res2, dict) else []
+            res2 = result2.result
+            if res2 is None:
+                parts = []
+            elif isinstance(res2, MessageResult):
+                parts = res2.parts
+            elif isinstance(res2, TaskResult) and res2.status and res2.status.message:
+                parts = res2.status.message.parts
+            else:
+                assert_never(res2)
             for p in parts:
-                if isinstance(p, dict) and "text" in p:
+                if p.text:
                     print(
                         "Result:",
-                        p["text"][:200] + ("..." if len(p["text"]) > 200 else ""),
+                        p.text[:200] + ("..." if len(p.text) > 200 else ""),
                     )
                     break
             else:
-                print("Result:", json.dumps(result2.root, indent=2)[:500])
+                print("Result:", result2.model_dump_json(indent=2)[:500])
         else:
-            print("Full result:", json.dumps(result.root, indent=2)[:800])
+            print("Full result:", result.model_dump_json(indent=2)[:800])
     else:
         # Message response (no collision triggered?)
-        parts = res.get("parts") or []
+        if res is None:
+            parts = []
+        elif isinstance(res, MessageResult):
+            parts = res.parts
+        elif isinstance(res, TaskResult) and res.status and res.status.message:
+            parts = res.status.message.parts
+        else:
+            assert_never(res)
         for p in parts:
-            if isinstance(p, dict) and "text" in p:
-                print("Agent message:", p["text"][:300])
+            if p.text:
+                print("Agent message:", p.text[:300])
                 break
         else:
-            print("Full result:", json.dumps(result.root, indent=2)[:800])
+            print("Full result:", result.model_dump_json(indent=2)[:800])
     return 0
 
 

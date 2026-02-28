@@ -1,9 +1,10 @@
 # Auth register device Cloud Function: POST with Bearer token -> Firestore user.
 # Used by VS Code extension when device flow is used instead of browser redirect.
+# TypeScript (nodejs24). Run `make functions-build` before terraform apply.
 
 data "archive_file" "auth_register_device" {
   type        = "zip"
-  source_dir  = "${path.module}/../../functions/auth_register_device"
+  source_dir  = "${path.module}/../../functions/auth_register_device/.deploy"
   output_path = "${path.module}/.build/auth_register_device.zip"
 }
 
@@ -19,8 +20,8 @@ resource "google_cloudfunctions2_function" "auth_register_device" {
   project  = var.project_id
 
   build_config {
-    runtime     = "python312"
-    entry_point = "auth_register_device"
+    runtime     = "nodejs24"
+    entry_point = "authRegisterDevice"
     source {
       storage_source {
         bucket = google_storage_bucket.functions_source.name

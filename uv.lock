@@ -9,11 +9,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "auth-callback",
-    "auth-register-device",
     "email-notify",
     "functions-shared",
-    "github-webhook",
     "refactor-agent",
     "refactor-agent-workspace",
     "usage-digest",
@@ -339,40 +336,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/13/c3/c3dc3f564ce6877ecd2a05f8d751b9b27a8c320c2533a98b0c86349778d0/audioop_lts-0.2.2-cp314-cp314t-win32.whl", hash = "sha256:068aa17a38b4e0e7de771c62c60bbca2455924b67a8814f3b0dee92b5820c0b3", size = 27331, upload-time = "2025-08-05T16:43:14.19Z" },
     { url = "https://files.pythonhosted.org/packages/72/bb/b4608537e9ffcb86449091939d52d24a055216a36a8bf66b936af8c3e7ac/audioop_lts-0.2.2-cp314-cp314t-win_amd64.whl", hash = "sha256:a5bf613e96f49712073de86f20dbdd4014ca18efd4d34ed18c75bd808337851b", size = 31697, upload-time = "2025-08-05T16:43:15.193Z" },
     { url = "https://files.pythonhosted.org/packages/f6/22/91616fe707a5c5510de2cac9b046a30defe7007ba8a0c04f9c08f27df312/audioop_lts-0.2.2-cp314-cp314t-win_arm64.whl", hash = "sha256:b492c3b040153e68b9fdaff5913305aaaba5bb433d8a7f73d5cf6a64ed3cc1dd", size = 25206, upload-time = "2025-08-05T16:43:16.444Z" },
-]
-
-[[package]]
-name = "auth-callback"
-version = "0.1.0"
-source = { editable = "functions/auth_callback" }
-dependencies = [
-    { name = "functions-framework" },
-    { name = "functions-shared" },
-    { name = "google-cloud-firestore" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "functions-framework", specifier = ">=3.0,<5" },
-    { name = "functions-shared", editable = "functions/shared" },
-    { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
-]
-
-[[package]]
-name = "auth-register-device"
-version = "0.1.0"
-source = { editable = "functions/auth_register_device" }
-dependencies = [
-    { name = "functions-framework" },
-    { name = "functions-shared" },
-    { name = "google-cloud-firestore" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "functions-framework", specifier = ">=3.0,<5" },
-    { name = "functions-shared", editable = "functions/shared" },
-    { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
 ]
 
 [[package]]
@@ -1232,25 +1195,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/77/67/de9d9be180db6d80b298c281dff71502095c0776d7cc9286f486f667f61a/genai_prices-0.0.55.tar.gz", hash = "sha256:8692c65d0deefe2ad0680d71841eb12822a35945a6060d2b6adbcbdf4945e1cb", size = 59987, upload-time = "2026-02-26T17:56:41.467Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c4/98/66a06b82a5c840f896490d5ef9c7691776b147589f2e8d2fa66c67a3db9c/genai_prices-0.0.55-py3-none-any.whl", hash = "sha256:ccd795c90c926b3c71066bf5656f14c67fc11fdba6d71e072c7fb4fa311e1b12", size = 62603, upload-time = "2026-02-26T17:56:40.502Z" },
-]
-
-[[package]]
-name = "github-webhook"
-version = "0.1.0"
-source = { editable = "functions/github_webhook" }
-dependencies = [
-    { name = "functions-framework" },
-    { name = "functions-shared" },
-    { name = "google-cloud-firestore" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "functions-framework", specifier = ">=3.0,<5" },
-    { name = "functions-shared", editable = "functions/shared" },
-    { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
-    { name = "pydantic", specifier = ">=2" },
 ]
 
 [[package]]
@@ -3773,6 +3717,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pyright"
+version = "1.1.408"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nodeenv" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/74/b2/5db700e52554b8f025faa9c3c624c59f1f6c8841ba81ab97641b54322f16/pyright-1.1.408.tar.gz", hash = "sha256:f28f2321f96852fa50b5829ea492f6adb0e6954568d1caa3f3af3a5f555eb684", size = 4400578, upload-time = "2026-01-08T08:07:38.795Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/82/a2c93e32800940d9573fb28c346772a14778b84ba7524e691b324620ab89/pyright-1.1.408-py3-none-any.whl", hash = "sha256:090b32865f4fdb1e0e6cd82bf5618480d48eecd2eb2e70f960982a3d9a4c17c1", size = 6399144, upload-time = "2026-01-08T08:07:37.082Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -4023,6 +3980,7 @@ dev = [
     { name = "flake8-deprecated" },
     { name = "mypy" },
     { name = "pre-commit" },
+    { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -4059,6 +4017,7 @@ dev = [
     { name = "flake8-deprecated", specifier = ">=2.3" },
     { name = "mypy" },
     { name = "pre-commit", specifier = ">=4.0" },
+    { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },

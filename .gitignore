@@ -37,11 +37,19 @@ report.md
 # Generated Cloud Function requirements (from make functions-export)
 functions/*/requirements.txt
 
+# TypeScript function deploy output (from make functions-build)
+functions/auth_callback/.deploy/
+functions/auth_register_device/.deploy/
+functions/github_webhook/.deploy/
+
 # Terraform (infra/). Commit .terraform.lock.hcl for consistent provider versions.
+# Run terraform from infra/ (GCS backend); never from infra/site/ (that creates local state).
 infra/.terraform/
 infra/site/.build/
 infra/*.tfstate
 infra/*.tfstate.*
+infra/**/*.tfstate
+infra/**/*.tfstate.*
 infra/*.tfvars
 infra/dev.tfvars
 infra/secrets.tfvars

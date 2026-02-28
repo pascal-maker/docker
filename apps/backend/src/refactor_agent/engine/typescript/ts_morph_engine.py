@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import override
 
 from refactor_agent.engine.base import (
     CollisionInfo,
@@ -44,14 +45,17 @@ class TsMorphEngine(SubprocessEngine):
         super().__init__()
         self._source = source
 
+    @override
     def _command(self) -> list[str]:
         """Return command to start the ts-morph bridge process (pnpm exec from bridge dir)."""
         return ["pnpm", "exec", "tsx", str(_BRIDGE_ENTRY)]
 
+    @override
     def _cwd(self) -> Path | None:
         """Run bridge from its directory so pnpm resolves tsx."""
         return _BRIDGE_DIR
 
+    @override
     async def __aenter__(self) -> TsMorphEngine:
         """Start the bridge and initialize it with the source."""
         await super().__aenter__()
@@ -79,15 +83,15 @@ class TsMorphEngine(SubprocessEngine):
             new_name: Desired new name.
             scope_node: Optional function/class to restrict scope.
         """
-        params_dict: dict[str, object] = {
-            "old_name": old_name,
-            "new_name": new_name,
-        }
-        if scope_node is not None:
-            params_dict["scope_node"] = scope_node
         result = await self._call(
             "rename_symbol",
-            JsonRpcParams.model_validate(params_dict),
+            JsonRpcParams.model_validate(
+                {
+                    "old_name": old_name,
+                    "new_name": new_name,
+                    **({"scope_node": scope_node} if scope_node is not None else {}),
+                }
+            ),
         )
         if isinstance(result, dict):
             return str(result.get("summary", result))
@@ -95,12 +99,18 @@ class TsMorphEngine(SubprocessEngine):
 
     async def extract_function(
         self,
-        _scope_function: str,
-        _start_line: int,
-        _end_line: int,
-        _new_function_name: str,
+        scope_function: str,
+        start_line: int,
+        end_line: int,
+        new_function_name: str,
     ) -> str:
         """Not implemented for TypeScript."""
+        _ = (
+            scope_function,
+            start_line,
+            end_line,
+            new_function_name,
+        )  # Protocol signature; unused in stub
         return (
             "ERROR: extract_function is not yet implemented for TypeScript; "
             "only rename_symbol is supported."
@@ -112,12 +122,14 @@ class TsMorphEngine(SubprocessEngine):
         scope_node: str | None = None,
     ) -> list[CollisionInfo]:
         """Check for existing definitions that would conflict with new_name."""
-        params_dict: dict[str, object] = {"new_name": new_name}
-        if scope_node is not None:
-            params_dict["scope_node"] = scope_node
         result = await self._call(
             "check_name_collisions",
-            JsonRpcParams.model_validate(params_dict),
+            JsonRpcParams.model_validate(
+                {
+                    "new_name": new_name,
+                    **({"scope_node": scope_node} if scope_node is not None else {}),
+                }
+            ),
         )
         if not isinstance(result, list):
             return []
@@ -177,10 +189,12 @@ class TsMorphProjectEngine(SubprocessEngine):
         self._workspace = workspace.resolve()
         self._tsconfig = tsconfig_path
 
+    @override
     def _command(self) -> list[str]:
         """Return command to start the ts-morph bridge process (pnpm exec from bridge dir)."""
         return ["pnpm", "exec", "tsx", str(_BRIDGE_ENTRY)]
 
+    @override
     def _cwd(self) -> Path | None:
         """Run bridge from its directory so pnpm resolves tsx."""
         return _BRIDGE_DIR
@@ -188,12 +202,18 @@ class TsMorphProjectEngine(SubprocessEngine):
     async def __aenter__(self) -> TsMorphProjectEngine:
         """Start the bridge and load the project."""
         await super().__aenter__()
-        params_dict: dict[str, object] = {"root_dir": str(self._workspace)}
-        if self._tsconfig is not None:
-            params_dict["tsconfig_path"] = str(self._tsconfig)
         result = await self._call(
             "init_project",
-            JsonRpcParams.model_validate(params_dict),
+            JsonRpcParams.model_validate(
+                {
+                    "root_dir": str(self._workspace),
+                    **(
+                        {"tsconfig_path": str(self._tsconfig)}
+                        if self._tsconfig is not None
+                        else {}
+                    ),
+                }
+            ),
         )
         files = result.get("files", []) if isinstance(result, dict) else []
         logger.debug("Loaded files", count=len(files), workspace=str(self._workspace))
@@ -243,12 +263,11 @@ class TsMorphProjectEngine(SubprocessEngine):
         file_path: str | None = None,
     ) -> list[DiagnosticInfo]:
         """Return TypeScript diagnostics for a file or whole project."""
-        params_dict: dict[str, object] = {}
-        if file_path is not None:
-            params_dict["file_path"] = file_path
         result = await self._call(
             "get_diagnostics",
-            JsonRpcParams.model_validate(params_dict),
+            JsonRpcParams.model_validate(
+                {"file_path": file_path} if file_path is not None else {}
+            ),
         )
         if not isinstance(result, list):
             return []

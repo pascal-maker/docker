@@ -2,5 +2,9 @@ packages:
   - apps/dashboard
   - apps/site
   - apps/vscode-extension
+  - functions/auth_callback
+  - functions/auth_register_device
+  - functions/github_webhook
+  - functions/shared
   - packages/design-system
   - packages/ts-morph-bridge

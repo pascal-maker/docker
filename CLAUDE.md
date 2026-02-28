@@ -2,7 +2,7 @@ You are working in a strict-typing Python codebase. These rules are absolute. Vi
 
 ### You MAY NOT do any of the following without explicit written approval in the task:
 
-- Use `Any` from typing
+- Use `Any` from typing (and `object` is not a substitute for `Any` — do not use bare `object` as a return type or to paper over untyped boundaries)
 - Add `# type: ignore` comments
 - Add `# noqa` suppressions
 - Add new entries to `pyproject.toml` per-file ignores

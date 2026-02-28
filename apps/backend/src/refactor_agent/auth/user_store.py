@@ -6,13 +6,15 @@ import asyncio
 import os
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from google.cloud.firestore import transactional
 
 from refactor_agent.auth.logger import logger
 from refactor_agent.auth.models import AuditLogEntry, GitHubUser, RepoAccess, UserRecord
 
 if TYPE_CHECKING:
-    from google.cloud.firestore_v1 import Client
+    from google.cloud.firestore_v1 import Client, DocumentSnapshot, Transaction
 
 USERS_COLLECTION = "users"
 INSTALLATION_USERS_COLLECTION = "installation_users"
@@ -26,13 +28,13 @@ DEFAULT_RATE_WINDOW_SECS = 60
 def _get_firestore_client() -> Client | None:
     """Return Firestore client if project is configured, else None."""
     try:
-        from google.cloud import firestore
+        from google.cloud.firestore import Client as FirestoreClient
     except ImportError:
         return None
     project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCLOUD_PROJECT")
     if not project:
         return None
-    return firestore.Client(project=project)
+    return FirestoreClient(project=project)
 
 
 class UserStore:
@@ -70,7 +72,7 @@ class UserStore:
         user_id = str(github_user.id)
         doc_ref = db.collection(USERS_COLLECTION).document(user_id)
 
-        def _parse_allowed_repos(data: list) -> list[RepoAccess]:
+        def _parse_allowed_repos(data: list[object]) -> list[RepoAccess]:
             return [
                 RepoAccess(full_name=item["full_name"], id=item["id"])
                 for item in data or []
@@ -78,17 +80,23 @@ class UserStore:
             ]
 
         def _get_or_create() -> UserRecord:
-            doc = doc_ref.get()
+            doc = cast("DocumentSnapshot", doc_ref.get())
             if doc.exists:
                 data = doc.to_dict() or {}
-                created = data.get("created_at")
-                if hasattr(created, "timestamp"):
-                    created = datetime.fromtimestamp(created.timestamp(), tz=UTC)
+                created_raw = data.get("created_at")
+                if (
+                    created_raw is not None
+                    and hasattr(created_raw, "timestamp")
+                    and callable(getattr(created_raw, "timestamp", None))
+                ):
+                    created_at = datetime.fromtimestamp(created_raw.timestamp(), tz=UTC)
+                else:
+                    created_at = datetime.now(UTC)
                 return UserRecord(
                     id=user_id,
                     github_login=data.get("github_login", github_user.login),
                     email=data.get("email") or github_user.email,
-                    created_at=created,
+                    created_at=created_at,
                     status=data.get("status", "active"),
                     ban_reason=data.get("ban_reason"),
                     rate_limit_override=data.get("rate_limit_override"),
@@ -103,7 +111,7 @@ class UserStore:
                 status=initial_status,
                 allowed_repos=repos,
             )
-            payload: dict = {
+            payload: dict[str, object] = {
                 "github_login": record.github_login,
                 "email": record.email,
                 "created_at": record.created_at,
@@ -152,10 +160,11 @@ class UserStore:
     async def get_installation_user_ids(self, installation_id: int) -> list[str]:
         """Get user_ids for an installation (for webhook)."""
         db = self._db()
-        doc = (
+        doc = cast(
+            "DocumentSnapshot",
             db.collection(INSTALLATION_USERS_COLLECTION)
             .document(str(installation_id))
-            .get()
+            .get(),
         )
         if not doc.exists:
             return []
@@ -172,7 +181,10 @@ class UserStore:
                 return cached
         try:
             db = self._db()
-            doc = db.collection(USERS_COLLECTION).document(user_id).get()
+            doc = cast(
+                "DocumentSnapshot",
+                db.collection(USERS_COLLECTION).document(user_id).get(),
+            )
             banned = (doc.to_dict() or {}).get("status") == "banned"
             self._ban_cache[user_id] = (banned, now + BAN_CACHE_TTL_SECS)
             return banned
@@ -193,11 +205,14 @@ class UserStore:
         doc_ref = db.collection(USAGE_WINDOWS_COLLECTION).document(doc_id)
 
         def _check_and_inc() -> bool:
-            transaction = db.transaction()
+            txn = db.transaction()
 
-            @transaction.transactional
-            def _in_transaction(trans: object) -> bool:
-                snapshot = doc_ref.get(transaction=trans)
+            @transactional
+            def _in_transaction(trans: Transaction) -> bool:
+                snapshot = cast(
+                    "DocumentSnapshot",
+                    doc_ref.get(transaction=trans),
+                )
                 data = snapshot.to_dict() or {}
                 count = data.get("count", 0)
                 if count >= limit:
@@ -210,7 +225,7 @@ class UserStore:
                 trans.set(doc_ref, payload, merge=True)
                 return True
 
-            return _in_transaction(transaction)
+            return _in_transaction(txn)
 
         try:
             return await asyncio.to_thread(_check_and_inc)
@@ -236,4 +251,4 @@ class UserStore:
                 }
             )
 
-        asyncio.create_task(asyncio.to_thread(_write))
+        _task = asyncio.create_task(asyncio.to_thread(_write))

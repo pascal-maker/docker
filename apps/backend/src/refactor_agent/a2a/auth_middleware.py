@@ -5,11 +5,12 @@ from __future__ import annotations
 import hmac
 import os
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast, override
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
 
 if TYPE_CHECKING:
     from starlette.types import Scope
@@ -23,6 +24,13 @@ ONBOARDING_MODE_ENV = "ONBOARDING_MODE"
 ACCESS_REQUEST_URL = "https://refactor-agent.dev"  # placeholder; override via env
 
 PUBLIC_PATHS = frozenset({"/.well-known/agent-card.json"})
+
+
+class AuthState(Protocol):
+    """Typed view of request.state for auth middleware."""
+
+    github_token: str
+    user_record: UserRecord
 
 
 def _extract_bearer(request: Request) -> str | None:
@@ -144,9 +152,10 @@ def _rate_limited(accept: str = "") -> JSONResponse:
 class GitHubTokenMiddleware(BaseHTTPMiddleware):
     """Validate GitHub OAuth token, check user status, rate limit, audit log."""
 
+    @override
     def __init__(
         self,
-        app: object,
+        app: ASGIApp,
         *,
         validator: GitHubTokenValidator | None = None,
         user_store: UserStore | None = None,
@@ -159,7 +168,10 @@ class GitHubTokenMiddleware(BaseHTTPMiddleware):
         self._local_dev_key = local_dev_key or os.environ.get(A2A_API_KEY_ENV)
         self._public_paths = public_paths
 
-    async def dispatch(self, request: Request, call_next: object) -> Response:
+    @override
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """Validate auth, check ban/rate limit, then call next."""
         path = request.url.path.rstrip("/") or "/"
         if path in self._public_paths:
@@ -172,8 +184,9 @@ class GitHubTokenMiddleware(BaseHTTPMiddleware):
         accept = request.headers.get("accept", "")
 
         if self._local_dev_key and hmac.compare_digest(self._local_dev_key, token):
-            request.state.github_token = token
-            request.state.user_record = UserRecord(
+            state = cast("AuthState", request.state)
+            state.github_token = token
+            state.user_record = UserRecord(
                 id="local-dev",
                 github_login="local-dev",
                 status="active",
@@ -217,14 +230,15 @@ class GitHubTokenMiddleware(BaseHTTPMiddleware):
         if not allowed:
             return _rate_limited(accept)
 
-        request.state.github_token = token
-        request.state.user_record = user_record
+        state = cast("AuthState", request.state)
+        state.github_token = token
+        state.user_record = user_record
 
         t0 = time.monotonic()
         response = await call_next(request)
         duration_ms = (time.monotonic() - t0) * 1000
 
-        status_code = getattr(response, "status_code", 200)
+        status_code = response.status_code
         await self._user_store.write_audit_log(
             AuditLogEntry(
                 user_id=user_record.id,

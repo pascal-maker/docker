@@ -1,0 +1,1033 @@
+[1mdiff --git a/.cursor/rules/python-typing.mdc b/.cursor/rules/python-typing.mdc[m
+[1mindex 7580529..205d7c1 100644[m
+[1m--- a/.cursor/rules/python-typing.mdc[m
+[1m+++ b/.cursor/rules/python-typing.mdc[m
+[36m@@ -9,6 +9,7 @@[m [malwaysApply: true[m
+ ## Forbidden patterns — never generate these:[m
+ [m
+ - `from typing import Any`[m
+[32m+[m[32m- Bare `object` as return type or to paper over untyped boundaries (object is not a substitute for Any)[m
+ - `from typing import Dict, List, Tuple, Set, Optional`[m
+ - `# type: ignore`[m
+ - `# noqa: ANN` (annotation suppression)[m
+[1mdiff --git a/CLAUDE.md b/CLAUDE.md[m
+[1mindex 246511e..e66dfbd 100644[m
+[1m--- a/CLAUDE.md[m
+[1m+++ b/CLAUDE.md[m
+[36m@@ -2,7 +2,7 @@[m [mYou are working in a strict-typing Python codebase. These rules are absolute. Vi[m
+ [m
+ ### You MAY NOT do any of the following without explicit written approval in the task:[m
+ [m
+[31m-- Use `Any` from typing[m
+[32m+[m[32m- Use `Any` from typing (and `object` is not a substitute for `Any` — do not use bare `object` as a return type or to paper over untyped boundaries)[m
+ - Add `# type: ignore` comments[m
+ - Add `# noqa` suppressions[m
+ - Add new entries to `pyproject.toml` per-file ignores[m
+[1mdiff --git a/apps/backend/pyproject.toml b/apps/backend/pyproject.toml[m
+[1mindex 180ea33..56ff11f 100644[m
+[1m--- a/apps/backend/pyproject.toml[m
+[1m+++ b/apps/backend/pyproject.toml[m
+[36m@@ -52,6 +52,7 @@[m [mbuild-backend = "uv_build"[m
+ [tool.mypy][m
+ python_version = "3.12"[m
+ strict = true[m
+[32m+[m[32mmypy_path = "stubs"[m
+ warn_return_any = true[m
+ warn_unused_configs = true[m
+ warn_unreachable = true[m
+[36m@@ -77,14 +78,6 @@[m [mmodule = ["pydantic_ai._agent_graph"][m
+ ignore_missing_imports = true[m
+ disable_error_code = ["attr-defined"][m
+ [m
+[31m-[[tool.mypy.overrides]][m
+[31m-# Auth: Firestore/Starlette have complex or missing stubs; google.cloud.firestore typing.[m
+[31m-module = ["refactor_agent.auth.*", "refactor_agent.a2a.auth_middleware"][m
+[31m-disable_error_code = [[m
+[31m-    "attr-defined", "no-any-return", "union-attr", "arg-type",[m
+[31m-    "operator", "untyped-decorator", "unused-awaitable", "type-arg",[m
+[31m-][m
+[31m-[m
+ [[tool.mypy.overrides]][m
+ # Backend + method_logging: ASGI app typing (object/callable), scope dicts.[m
+ module = ["refactor_agent.backend.*", "refactor_agent.a2a.method_logging"][m
+[1mdiff --git a/apps/backend/scripts/a2a/test_a2a_collision.py b/apps/backend/scripts/a2a/test_a2a_collision.py[m
+[1mindex 02984ce..38e8451 100644[m
+[1m--- a/apps/backend/scripts/a2a/test_a2a_collision.py[m
+[1m+++ b/apps/backend/scripts/a2a/test_a2a_collision.py[m
+[36m@@ -22,7 +22,7 @@[m [mimport sys[m
+ import uuid[m
+ from typing import TYPE_CHECKING[m
+ [m
+[31m-from refactor_agent.a2a.models import JsonRpcResponse[m
+[32m+[m[32mfrom refactor_agent.a2a.models import JsonRpcResponse, MessageResult, TaskResult[m
+ [m
+ if TYPE_CHECKING:[m
+     import types[m
+[36m@@ -96,55 +96,65 @@[m [mdef main() -> int:[m
+     print("Step 1: Sending rename greet -> main (main already exists)...")[m
+     result = send_message(base_url, json.dumps(task_payload))[m
+ [m
+[31m-    if "error" in result.root:[m
+[31m-        print("Error:", json.dumps(result.root, indent=2))[m
+[32m+[m[32m    if result.error is not None:[m
+[32m+[m[32m        print("Error:", result.error.model_dump_json(indent=2))[m
+         return 1[m
+ [m
+[31m-    res = result.root.get("result") or {}[m
+[31m-    kind = res.get("kind", "")[m
+[31m-    task_status = res.get("status") or {}[m
+[31m-    state = (task_status or {}).get("state", "")[m
+[32m+[m[32m    res = result.result[m
+[32m+[m[32m    kind = res.kind if res else ""[m
+[32m+[m[32m    task_status = res.status if isinstance(res, TaskResult) else None[m
+[32m+[m[32m    state = task_status.state if task_status else ""[m
+ [m
+     print("Response kind:", kind)[m
+     print("Status state:", state or "(none)")[m
+ [m
+[31m-    if kind == "task":[m
+[31m-        task_id = res.get("id")[m
+[31m-        context_id = res.get("contextId")[m
+[32m+[m[32m    if kind == "task" and res is not None:[m
+[32m+[m[32m        task_id = res.id[m
+[32m+[m[32m        context_id = res.context_id[m
+         print("Task ID:", task_id)[m
+         print("Context ID:", context_id)[m
+         if state == "input-required":[m
+[31m-            print("Artifacts:", len(res.get("artifacts") or []))[m
+[32m+[m[32m            print("Artifacts:", len(res.artifacts or []))[m
+             confirm = "no" if args.no else "yes"[m
+             print(f"\nStep 2: Sending '{confirm}' to confirm/cancel...")[m
+             result2 = send_message([m
+                 base_url, confirm, context_id=context_id, task_id=task_id[m
+             )[m
+[31m-            if "error" in result2.root:[m
+[31m-                print("Error:", json.dumps(result2.root, indent=2))[m
+[32m+[m[32m            if result2.error is not None:[m
+[32m+[m[32m                print("Error:", result2.error.model_dump_json(indent=2))[m
+                 return 1[m
+[31m-            res2 = result2.root.get("result") or {}[m
+[31m-            parts = (res2.get("parts") or []) if isinstance(res2, dict) else [][m
+[32m+[m[32m            res2 = result2.result[m
+[32m+[m[32m            if isinstance(res2, MessageResult):[m
+[32m+[m[32m                parts = res2.parts[m
+[32m+[m[32m            elif isinstance(res2, TaskResult) and res2.status and res2.status.message:[m
+[32m+[m[32m                parts = res2.status.message.parts[m
+[32m+[m[32m            else:[m
+[32m+[m[32m                parts = [][m
+             for p in parts:[m
+[31m-                if isinstance(p, dict) and "text" in p:[m
+[32m+[m[32m                if p.text:[m
+                     print([m
+                         "Result:",[m
+[31m-                        p["text"][:200] + ("..." if len(p["text"]) > 200 else ""),[m
+[32m+[m[32m                        p.text[:200] + ("..." if len(p.text) > 200 else ""),[m
+                     )[m
+                     break[m
+             else:[m
+[31m-                print("Result:", json.dumps(result2.root, indent=2)[:500])[m
+[32m+[m[32m                print("Result:", result2.model_dump_json(indent=2)[:500])[m
+         else:[m
+[31m-            print("Full result:", json.dumps(result.root, indent=2)[:800])[m
+[32m+[m[32m            print("Full result:", result.model_dump_json(indent=2)[:800])[m
+     else:[m
+         # Message response (no collision triggered?)[m
+[31m-        parts = res.get("parts") or [][m
+[32m+[m[32m        if isinstance(res, MessageResult):[m
+[32m+[m[32m            parts = res.parts[m
+[32m+[m[32m        elif isinstance(res, TaskResult) and res.status and res.status.message:[m
+[32m+[m[32m            parts = res.status.message.parts[m
+[32m+[m[32m        else:[m
+[32m+[m[32m            parts = [][m
+         for p in parts:[m
+[31m-            if isinstance(p, dict) and "text" in p:[m
+[31m-                print("Agent message:", p["text"][:300])[m
+[32m+[m[32m            if p.text:[m
+[32m+[m[32m                print("Agent message:", p.text[:300])[m
+                 break[m
+         else:[m
+[31m-            print("Full result:", json.dumps(result.root, indent=2)[:800])[m
+[32m+[m[32m            print("Full result:", result.model_dump_json(indent=2)[:800])[m
+     return 0[m
+ [m
+ [m
+[1mdiff --git a/apps/backend/src/refactor_agent/a2a/auth_middleware.py b/apps/backend/src/refactor_agent/a2a/auth_middleware.py[m
+[1mindex 3afb8e9..f269f3f 100644[m
+[1m--- a/apps/backend/src/refactor_agent/a2a/auth_middleware.py[m
+[1m+++ b/apps/backend/src/refactor_agent/a2a/auth_middleware.py[m
+[36m@@ -5,11 +5,12 @@[m [mfrom __future__ import annotations[m
+ import hmac[m
+ import os[m
+ import time[m
+[31m-from typing import TYPE_CHECKING[m
+[32m+[m[32mfrom typing import TYPE_CHECKING, Protocol, cast[m
+ [m
+[31m-from starlette.middleware.base import BaseHTTPMiddleware[m
+[32m+[m[32mfrom starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint[m
+ from starlette.requests import Request[m
+ from starlette.responses import JSONResponse, Response[m
+[32m+[m[32mfrom starlette.types import ASGIApp[m
+ [m
+ if TYPE_CHECKING:[m
+     from starlette.types import Scope[m
+[36m@@ -25,6 +26,13 @@[m [mACCESS_REQUEST_URL = "https://refactor-agent.dev"  # placeholder; override via e[m
+ PUBLIC_PATHS = frozenset({"/.well-known/agent-card.json"})[m
+ [m
+ [m
+[32m+[m[32mclass AuthState(Protocol):[m
+[32m+[m[32m    """Typed view of request.state for auth middleware."""[m
+[32m+[m
+[32m+[m[32m    github_token: str[m
+[32m+[m[32m    user_record: UserRecord[m
+[32m+[m
+[32m+[m
+ def _extract_bearer(request: Request) -> str | None:[m
+     """Extract Bearer token from Authorization or X-API-Key header."""[m
+     auth = request.headers.get("authorization")[m
+[36m@@ -146,7 +154,7 @@[m [mclass GitHubTokenMiddleware(BaseHTTPMiddleware):[m
+ [m
+     def __init__([m
+         self,[m
+[31m-        app: object,[m
+[32m+[m[32m        app: ASGIApp,[m
+         *,[m
+         validator: GitHubTokenValidator | None = None,[m
+         user_store: UserStore | None = None,[m
+[36m@@ -159,7 +167,9 @@[m [mclass GitHubTokenMiddleware(BaseHTTPMiddleware):[m
+         self._local_dev_key = local_dev_key or os.environ.get(A2A_API_KEY_ENV)[m
+         self._public_paths = public_paths[m
+ [m
+[31m-    async def dispatch(self, request: Request, call_next: object) -> Response:[m
+[32m+[m[32m    async def dispatch([m
+[32m+[m[32m        self, request: Request, call_next: RequestResponseEndpoint[m
+[32m+[m[32m    ) -> Response:[m
+         """Validate auth, check ban/rate limit, then call next."""[m
+         path = request.url.path.rstrip("/") or "/"[m
+         if path in self._public_paths:[m
+[36m@@ -172,8 +182,9 @@[m [mclass GitHubTokenMiddleware(BaseHTTPMiddleware):[m
+         accept = request.headers.get("accept", "")[m
+ [m
+         if self._local_dev_key and hmac.compare_digest(self._local_dev_key, token):[m
+[31m-            request.state.github_token = token[m
+[31m-            request.state.user_record = UserRecord([m
+[32m+[m[32m            state = cast("AuthState", request.state)[m
+[32m+[m[32m            state.github_token = token[m
+[32m+[m[32m            state.user_record = UserRecord([m
+                 id="local-dev",[m
+                 github_login="local-dev",[m
+                 status="active",[m
+[36m@@ -217,14 +228,15 @@[m [mclass GitHubTokenMiddleware(BaseHTTPMiddleware):[m
+         if not allowed:[m
+             return _rate_limited(accept)[m
+ [m
+[31m-        request.state.github_token = token[m
+[31m-        request.state.user_record = user_record[m
+[32m+[m[32m        state = cast("AuthState", request.state)[m
+[32m+[m[32m        state.github_token = token[m
+[32m+[m[32m        state.user_record = user_record[m
+ [m
+         t0 = time.monotonic()[m
+         response = await call_next(request)[m
+         duration_ms = (time.monotonic() - t0) * 1000[m
+ [m
+[31m-        status_code = getattr(response, "status_code", 200)[m
+[32m+[m[32m        status_code = response.status_code[m
+         await self._user_store.write_audit_log([m
+             AuditLogEntry([m
+                 user_id=user_record.id,[m
+[1mdiff --git a/apps/backend/src/refactor_agent/a2a/method_logging.py b/apps/backend/src/refactor_agent/a2a/method_logging.py[m
+[1mindex f7164e5..606e7d3 100644[m
+[1m--- a/apps/backend/src/refactor_agent/a2a/method_logging.py[m
+[1m+++ b/apps/backend/src/refactor_agent/a2a/method_logging.py[m
+[36m@@ -5,10 +5,12 @@[m [mfrom __future__ import annotations[m
+ import json[m
+ import logging[m
+ import uuid[m
+[31m-from typing import TYPE_CHECKING[m
+[32m+[m[32mfrom typing import TYPE_CHECKING, Any[m
+ [m
+ if TYPE_CHECKING:[m
+[31m-    from starlette.types import Receive, Scope, Send[m
+[32m+[m[32m    from collections.abc import MutableMapping[m
+[32m+[m
+[32m+[m[32m    from starlette.types import ASGIApp, Receive, Scope, Send[m
+ [m
+ logger = logging.getLogger(__name__)[m
+ [m
+[36m@@ -103,7 +105,7 @@[m [mdef _rewrite_bridge_methods(payload: dict) -> dict:  # no-dict-sig[m
+     return payload[m
+ [m
+ [m
+[31m-def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915[m
+[32m+[m[32mdef wrap_with_method_logging(app: ASGIApp) -> ASGIApp:  # noqa: C901, PLR0915[m
+     """Log JSON-RPC method and rewrite bridge method names for A2A compat."""[m
+ [m
+     async def middleware(scope: Scope, receive: Receive, send: Send) -> None:  # noqa: C901, PLR0915[m
+[36m@@ -132,7 +134,7 @@[m [mdef wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915[m
+             return {"type": "http.request", "body": body, "more_body": False}[m
+ [m
+         body_chunks: list[bytes] = [][m
+[31m-        pending_start: dict | None = None[m
+[32m+[m[32m        pending_start: MutableMapping[str, Any] | None = None[m
+ [m
+         def set_content_length([m
+             headers: list[list[bytes]], length: int[m
+[36m@@ -149,7 +151,9 @@[m [mdef wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915[m
+                 out.append([b"content-length", str(length).encode()])[m
+             return out[m
+ [m
+[31m-        async def intercept_send(message: dict) -> None:  # no-dict-sig: ASGI message[m
+[32m+[m[32m        async def intercept_send([m
+[32m+[m[32m            message: MutableMapping[str, Any],[m
+[32m+[m[32m        ) -> None:[m
+             nonlocal body_chunks, pending_start[m
+             if message.get("type") == "http.response.start":[m
+                 pending_start = message[m
+[1mdiff --git a/apps/backend/src/refactor_agent/a2a/models.py b/apps/backend/src/refactor_agent/a2a/models.py[m
+[1mindex 3c6016d..8260125 100644[m
+[1m--- a/apps/backend/src/refactor_agent/a2a/models.py[m
+[1m+++ b/apps/backend/src/refactor_agent/a2a/models.py[m
+[36m@@ -2,13 +2,72 @@[m
+ [m
+ from __future__ import annotations[m
+ [m
+[31m-from typing import Any, Literal[m
+[32m+[m[32mfrom typing import Literal[m
+ [m
+[31m-from pydantic import BaseModel, Field, RootModel[m
+[32m+[m[32mfrom pydantic import BaseModel, ConfigDict, Field, RootModel[m
+ [m
+ from refactor_agent.orchestrator.runner import RunState[m
+ [m
+ [m
+[32m+[m[32mclass JsonRpcError(BaseModel):[m
+[32m+[m[32m    """JSON-RPC 2.0 error object."""[m
+[32m+[m
+[32m+[m[32m    code: int[m
+[32m+[m[32m    message: str[m
+[32m+[m[32m    # JSON-RPC spec allows arbitrary data here[m
+[32m+[m[32m    data: object | None = None[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass MessagePart(BaseModel):[m
+[32m+[m[32m    """A single part of a message (e.g. text)."""[m
+[32m+[m
+[32m+[m[32m    kind: str[m
+[32m+[m[32m    text: str = ""[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass TaskStatusMessage(BaseModel):[m
+[32m+[m[32m    """Status message with parts."""[m
+[32m+[m
+[32m+[m[32m    parts: list[MessagePart] = [][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass TaskStatus(BaseModel):[m
+[32m+[m[32m    """Task status with state and optional message."""[m
+[32m+[m
+[32m+[m[32m    state: str = ""[m
+[32m+[m[32m    message: TaskStatusMessage | None = None[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass TaskResult(BaseModel):[m
+[32m+[m[32m    """Result of tasks/get (task payload)."""[m
+[32m+[m
+[32m+[m[32m    kind: str = ""[m
+[32m+[m[32m    id: str = ""[m
+[32m+[m[32m    context_id: str = Field(default="", alias="contextId")[m
+[32m+[m[32m    status: TaskStatus | None = None[m
+[32m+[m[32m    artifacts: list[object] | None = None  # expand later if needed[m
+[32m+[m
+[32m+[m[32m    model_config = ConfigDict(extra="ignore", populate_by_name=True)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass MessageResult(BaseModel):[m
+[32m+[m[32m    """Result of message/send when it returns a message (no task)."""[m
+[32m+[m
+[32m+[m[32m    kind: str = "message"[m
+[32m+[m[32m    parts: list[MessagePart] = [][m
+[32m+[m
+[32m+[m[32m    model_config = ConfigDict(extra="ignore")[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass JsonRpcResponse(BaseModel):[m
+[32m+[m[32m    """JSON-RPC 2.0 response envelope."""[m
+[32m+[m
+[32m+[m[32m    result: TaskResult | MessageResult | None = None[m
+[32m+[m[32m    error: JsonRpcError | None = None[m
+[32m+[m
+[32m+[m[32m    model_config = ConfigDict(extra="ignore")[m
+[32m+[m
+[32m+[m
+ class WorkspaceFile(BaseModel):[m
+     """Single file in a workspace: path and content. Used by UI for sync payload."""[m
+ [m
+[36m@@ -49,10 +108,6 @@[m [mclass MessageSendPayload(BaseModel):[m
+     new_name: str = ""[m
+ [m
+ [m
+[31m-class JsonRpcResponse(RootModel[dict[str, Any]]):[m
+[31m-    """JSON-RPC 2.0 response. Use .root for dict access."""[m
+[31m-[m
+[31m-[m
+ RenameParams = UseReplicaRenameParams[m
+ [m
+ [m
+[1mdiff --git a/apps/backend/src/refactor_agent/auth/github_auth.py b/apps/backend/src/refactor_agent/auth/github_auth.py[m
+[1mindex fb32238..a30399f 100644[m
+[1m--- a/apps/backend/src/refactor_agent/auth/github_auth.py[m
+[1m+++ b/apps/backend/src/refactor_agent/auth/github_auth.py[m
+[36m@@ -57,12 +57,8 @@[m [mclass GitHubTokenValidator:[m
+                 with urllib.request.urlopen(req, timeout=10) as resp:[m
+                     if resp.status != 200:[m
+                         return None[m
+[31m-                    data = json.loads(resp.read().decode())[m
+[31m-                    return GitHubUser([m
+[31m-                        id=data["id"],[m
+[31m-                        login=data["login"],[m
+[31m-                        email=data.get("email"),[m
+[31m-                    )[m
+[32m+[m[32m                    raw: object = json.loads(resp.read().decode())[m
+[32m+[m[32m                    return GitHubUser.model_validate(raw)[m
+             except Exception as e:[m
+                 logger.warning([m
+                     "GitHub user fetch failed",[m
+[1mdiff --git a/apps/backend/src/refactor_agent/auth/oauth.py b/apps/backend/src/refactor_agent/auth/oauth.py[m
+[1mindex cb7bf2a..a8f670e 100644[m
+[1m--- a/apps/backend/src/refactor_agent/auth/oauth.py[m
+[1m+++ b/apps/backend/src/refactor_agent/auth/oauth.py[m
+[36m@@ -8,12 +8,22 @@[m [mimport os[m
+ import urllib.parse[m
+ import urllib.request[m
+ [m
+[32m+[m[32mfrom pydantic import BaseModel[m
+[32m+[m
+ from refactor_agent.auth.logger import logger[m
+ [m
+ # GitHub OAuth endpoint URL; S105 false positive (URL path, not credentials)[m
+ GITHUB_OAUTH_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"  # noqa: S105[m
+ [m
+ [m
+[32m+[m[32mclass GitHubTokenResponse(BaseModel):[m
+[32m+[m[32m    """GitHub OAuth token exchange response."""[m
+[32m+[m
+[32m+[m[32m    access_token: str[m
+[32m+[m[32m    token_type: str = ""[m
+[32m+[m[32m    scope: str = ""[m
+[32m+[m
+[32m+[m
+ async def exchange_code_for_token([m
+     code: str,[m
+     *,[m
+[36m@@ -60,8 +70,9 @@[m [masync def exchange_code_for_token([m
+             with urllib.request.urlopen(req, timeout=10) as resp:[m
+                 if resp.status != 200:[m
+                     return None[m
+[31m-                payload = json.loads(resp.read().decode())[m
+[31m-                return payload.get("access_token") or None[m
+[32m+[m[32m                raw: object = json.loads(resp.read().decode())[m
+[32m+[m[32m                parsed = GitHubTokenResponse.model_validate(raw)[m
+[32m+[m[32m                return parsed.access_token[m
+         except Exception as e:[m
+             logger.warning([m
+                 "GitHub OAuth token exchange failed",[m
+[1mdiff --git a/apps/backend/src/refactor_agent/auth/user_store.py b/apps/backend/src/refactor_agent/auth/user_store.py[m
+[1mindex b8ea9f9..08d7a4e 100644[m
+[1m--- a/apps/backend/src/refactor_agent/auth/user_store.py[m
+[1m+++ b/apps/backend/src/refactor_agent/auth/user_store.py[m
+[36m@@ -6,13 +6,15 @@[m [mimport asyncio[m
+ import os[m
+ import time[m
+ from datetime import UTC, datetime[m
+[31m-from typing import TYPE_CHECKING[m
+[32m+[m[32mfrom typing import TYPE_CHECKING, cast[m
+[32m+[m
+[32m+[m[32mfrom google.cloud.firestore import transactional[m
+ [m
+ from refactor_agent.auth.logger import logger[m
+ from refactor_agent.auth.models import AuditLogEntry, GitHubUser, RepoAccess, UserRecord[m
+ [m
+ if TYPE_CHECKING:[m
+[31m-    from google.cloud.firestore_v1 import Client[m
+[32m+[m[32m    from google.cloud.firestore_v1 import Client, DocumentSnapshot, Transaction[m
+ [m
+ USERS_COLLECTION = "users"[m
+ INSTALLATION_USERS_COLLECTION = "installation_users"[m
+[36m@@ -26,13 +28,13 @@[m [mDEFAULT_RATE_WINDOW_SECS = 60[m
+ def _get_firestore_client() -> Client | None:[m
+     """Return Firestore client if project is configured, else None."""[m
+     try:[m
+[31m-        from google.cloud import firestore[m
+[32m+[m[32m        from google.cloud.firestore import Client as FirestoreClient[m
+     except ImportError:[m
+         return None[m
+     project = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCLOUD_PROJECT")[m
+     if not project:[m
+         return None[m
+[31m-    return firestore.Client(project=project)[m
+[32m+[m[32m    return FirestoreClient(project=project)[m
+ [m
+ [m
+ class UserStore:[m
+[36m@@ -70,7 +72,7 @@[m [mclass UserStore:[m
+         user_id = str(github_user.id)[m
+         doc_ref = db.collection(USERS_COLLECTION).document(user_id)[m
+ [m
+[31m-        def _parse_allowed_repos(data: list) -> list[RepoAccess]:[m
+[32m+[m[32m        def _parse_allowed_repos(data: list[object]) -> list[RepoAccess]:[m
+             return [[m
+                 RepoAccess(full_name=item["full_name"], id=item["id"])[m
+                 for item in data or [][m
+[36m@@ -78,17 +80,23 @@[m [mclass UserStore:[m
+             ][m
+ [m
+         def _get_or_create() -> UserRecord:[m
+[31m-            doc = doc_ref.get()[m
+[32m+[m[32m            doc = cast("DocumentSnapshot", doc_ref.get())[m
+             if doc.exists:[m
+                 data = doc.to_dict() or {}[m
+[31m-                created = data.get("created_at")[m
+[31m-                if hasattr(created, "timestamp"):[m
+[31m-                    created = datetime.fromtimestamp(created.timestamp(), tz=UTC)[m
+[32m+[m[32m                created_raw = data.get("created_at")[m
+[32m+[m[32m                if ([m
+[32m+[m[32m                    created_raw is not None[m
+[32m+[m[32m                    and hasattr(created_raw, "timestamp")[m
+[32m+[m[32m                    and callable(getattr(created_raw, "timestamp", None))[m
+[32m+[m[32m                ):[m
+[32m+[m[32m                    created_at = datetime.fromtimestamp(created_raw.timestamp(), tz=UTC)[m
+[32m+[m[32m                else:[m
+[32m+[m[32m                    created_at = datetime.now(UTC)[m
+                 return UserRecord([m
+                     id=user_id,[m
+                     github_login=data.get("github_login", github_user.login),[m
+                     email=data.get("email") or github_user.email,[m
+[31m-                    created_at=created,[m
+[32m+[m[32m                    created_at=created_at,[m
+                     status=data.get("status", "active"),[m
+                     ban_reason=data.get("ban_reason"),[m
+                     rate_limit_override=data.get("rate_limit_override"),[m
+[36m@@ -103,7 +111,7 @@[m [mclass UserStore:[m
+                 status=initial_status,[m
+                 allowed_repos=repos,[m
+             )[m
+[31m-            payload: dict = {[m
+[32m+[m[32m            payload: dict[str, object] = {[m
+                 "github_login": record.github_login,[m
+                 "email": record.email,[m
+                 "created_at": record.created_at,[m
+[36m@@ -152,10 +160,11 @@[m [mclass UserStore:[m
+     async def get_installation_user_ids(self, installation_id: int) -> list[str]:[m
+         """Get user_ids for an installation (for webhook)."""[m
+         db = self._db()[m
+[31m-        doc = ([m
+[32m+[m[32m        doc = cast([m
+[32m+[m[32m            "DocumentSnapshot",[m
+             db.collection(INSTALLATION_USERS_COLLECTION)[m
+             .document(str(installation_id))[m
+[31m-            .get()[m
+[32m+[m[32m            .get(),[m
+         )[m
+         if not doc.exists:[m
+             return [][m
+[36m@@ -172,7 +181,10 @@[m [mclass UserStore:[m
+                 return cached[m
+         try:[m
+             db = self._db()[m
+[31m-            doc = db.collection(USERS_COLLECTION).document(user_id).get()[m
+[32m+[m[32m            doc = cast([m
+[32m+[m[32m                "DocumentSnapshot",[m
+[32m+[m[32m                db.collection(USERS_COLLECTION).document(user_id).get(),[m
+[32m+[m[32m            )[m
+             banned = (doc.to_dict() or {}).get("status") == "banned"[m
+             self._ban_cache[user_id] = (banned, now + BAN_CACHE_TTL_SECS)[m
+             return banned[m
+[36m@@ -193,11 +205,14 @@[m [mclass UserStore:[m
+         doc_ref = db.collection(USAGE_WINDOWS_COLLECTION).document(doc_id)[m
+ [m
+         def _check_and_inc() -> bool:[m
+[31m-            transaction = db.transaction()[m
+[32m+[m[32m            txn = db.transaction()[m
+ [m
+[31m-            @transaction.transactional[m
+[31m-            def _in_transaction(trans: object) -> bool:[m
+[31m-                snapshot = doc_ref.get(transaction=trans)[m
+[32m+[m[32m            @transactional[m
+[32m+[m[32m            def _in_transaction(trans: Transaction) -> bool:[m
+[32m+[m[32m                snapshot = cast([m
+[32m+[m[32m                    "DocumentSnapshot",[m
+[32m+[m[32m                    doc_ref.get(transaction=trans),[m
+[32m+[m[32m                )[m
+                 data = snapshot.to_dict() or {}[m
+                 count = data.get("count", 0)[m
+                 if count >= limit:[m
+[36m@@ -210,7 +225,7 @@[m [mclass UserStore:[m
+                 trans.set(doc_ref, payload, merge=True)[m
+                 return True[m
+ [m
+[31m-            return _in_transaction(transaction)[m
+[32m+[m[32m            return _in_transaction(txn)[m
+ [m
+         try:[m
+             return await asyncio.to_thread(_check_and_inc)[m
+[36m@@ -236,4 +251,4 @@[m [mclass UserStore:[m
+                 }[m
+             )[m
+ [m
+[31m-        asyncio.create_task(asyncio.to_thread(_write))[m
+[32m+[m[32m        _task = asyncio.create_task(asyncio.to_thread(_write))[m
+[1mdiff --git a/apps/backend/src/refactor_agent/backend/app.py b/apps/backend/src/refactor_agent/backend/app.py[m
+[1mindex 7dd78ec..cc7449f 100644[m
+[1m--- a/apps/backend/src/refactor_agent/backend/app.py[m
+[1m+++ b/apps/backend/src/refactor_agent/backend/app.py[m
+[36m@@ -8,7 +8,7 @@[m [mimport os[m
+ from typing import TYPE_CHECKING[m
+ [m
+ if TYPE_CHECKING:[m
+[31m-    from starlette.types import Receive, Scope, Send[m
+[32m+[m[32m    from starlette.types import ASGIApp, Receive, Scope, Send[m
+ [m
+ from refactor_agent.a2a.auth_middleware import ([m
+     GitHubTokenMiddleware,[m
+[36m@@ -24,7 +24,7 @@[m [mfrom refactor_agent.sync.app import build_sync_app[m
+ from refactor_agent.sync.replica_ttl import replica_ttl_loop[m
+ [m
+ [m
+[31m-def _lifespan_wrapper(app: object) -> object:[m
+[32m+[m[32mdef _lifespan_wrapper(app: ASGIApp) -> ASGIApp:[m
+     """Wrap app with lifespan: start replica TTL cleanup task on startup."""[m
+ [m
+     async def _with_lifespan(scope: Scope, receive: Receive, send: Send) -> None:[m
+[36m@@ -46,7 +46,7 @@[m [mdef _lifespan_wrapper(app: object) -> object:[m
+     return _with_lifespan[m
+ [m
+ [m
+[31m-def _websocket_auth_middleware(app: object) -> object:[m
+[32m+[m[32mdef _websocket_auth_middleware(app: ASGIApp) -> ASGIApp:[m
+     """ASGI middleware: validate WebSocket auth before passing to app."""[m
+ [m
+     async def _ws_auth(scope: Scope, receive: Receive, send: Send) -> None:[m
+[36m@@ -88,7 +88,7 @@[m [mdef _websocket_auth_middleware(app: object) -> object:[m
+     return _ws_auth[m
+ [m
+ [m
+[31m-def build_combined_app() -> object:[m
+[32m+[m[32mdef build_combined_app() -> ASGIApp:[m
+     """Build combined A2A + sync ASGI app with routing by path and request type."""[m
+     a2a_factory = build_a2a_app()[m
+     a2a_app = wrap_with_method_logging(a2a_factory.build())[m
+[1mdiff --git a/apps/backend/src/refactor_agent/backend/router.py b/apps/backend/src/refactor_agent/backend/router.py[m
+[1mindex 035f66d..8b1d474 100644[m
+[1m--- a/apps/backend/src/refactor_agent/backend/router.py[m
+[1m+++ b/apps/backend/src/refactor_agent/backend/router.py[m
+[36m@@ -5,7 +5,7 @@[m [mfrom __future__ import annotations[m
+ from typing import TYPE_CHECKING[m
+ [m
+ if TYPE_CHECKING:[m
+[31m-    from starlette.types import Receive, Scope, Send[m
+[32m+[m[32m    from starlette.types import ASGIApp, Receive, Scope, Send[m
+ [m
+ [m
+ async def _combined_router([m
+[36m@@ -13,8 +13,8 @@[m [masync def _combined_router([m
+     receive: Receive,[m
+     send: Send,[m
+     *,[m
+[31m-    a2a_app: object,[m
+[31m-    sync_app: object,[m
+[32m+[m[32m    a2a_app: ASGIApp,[m
+[32m+[m[32m    sync_app: ASGIApp,[m
+ ) -> None:[m
+     """Route by path and request type: A2A or Sync."""[m
+     path = (scope.get("path") or "").rstrip("/") or "/"[m
+[36m@@ -57,9 +57,9 @@[m [masync def _combined_router([m
+ [m
+ def build_combined_app_impl([m
+     *,[m
+[31m-    a2a_app: object,[m
+[31m-    sync_app: object,[m
+[31m-) -> object:[m
+[32m+[m[32m    a2a_app: ASGIApp,[m
+[32m+[m[32m    sync_app: ASGIApp,[m
+[32m+[m[32m) -> ASGIApp:[m
+     """Build the raw ASGI router (no middleware)."""[m
+ [m
+     async def _app(scope: Scope, receive: Receive, send: Send) -> None:[m
+[1mdiff --git a/apps/backend/src/refactor_agent/engine/typescript/ts_morph_engine.py b/apps/backend/src/refactor_agent/engine/typescript/ts_morph_engine.py[m
+[1mindex 55eee4a..2ce25cb 100644[m
+[1m--- a/apps/backend/src/refactor_agent/engine/typescript/ts_morph_engine.py[m
+[1m+++ b/apps/backend/src/refactor_agent/engine/typescript/ts_morph_engine.py[m
+[36m@@ -79,15 +79,15 @@[m [mclass TsMorphEngine(SubprocessEngine):[m
+             new_name: Desired new name.[m
+             scope_node: Optional function/class to restrict scope.[m
+         """[m
+[31m-        params_dict: dict[str, object] = {[m
+[31m-            "old_name": old_name,[m
+[31m-            "new_name": new_name,[m
+[31m-        }[m
+[31m-        if scope_node is not None:[m
+[31m-            params_dict["scope_node"] = scope_node[m
+         result = await self._call([m
+             "rename_symbol",[m
+[31m-            JsonRpcParams.model_validate(params_dict),[m
+[32m+[m[32m            JsonRpcParams.model_validate([m
+[32m+[m[32m                {[m
+[32m+[m[32m                    "old_name": old_name,[m
+[32m+[m[32m                    "new_name": new_name,[m
+[32m+[m[32m                    **({"scope_node": scope_node} if scope_node is not None else {}),[m
+[32m+[m[32m                }[m
+[32m+[m[32m            ),[m
+         )[m
+         if isinstance(result, dict):[m
+             return str(result.get("summary", result))[m
+[36m@@ -112,12 +112,14 @@[m [mclass TsMorphEngine(SubprocessEngine):[m
+         scope_node: str | None = None,[m
+     ) -> list[CollisionInfo]:[m
+         """Check for existing definitions that would conflict with new_name."""[m
+[31m-        params_dict: dict[str, object] = {"new_name": new_name}[m
+[31m-        if scope_node is not None:[m
+[31m-            params_dict["scope_node"] = scope_node[m
+         result = await self._call([m
+             "check_name_collisions",[m
+[31m-            JsonRpcParams.model_validate(params_dict),[m
+[32m+[m[32m            JsonRpcParams.model_validate([m
+[32m+[m[32m                {[m
+[32m+[m[32m                    "new_name": new_name,[m
+[32m+[m[32m                    **({"scope_node": scope_node} if scope_node is not None else {}),[m
+[32m+[m[32m                }[m
+[32m+[m[32m            ),[m
+         )[m
+         if not isinstance(result, list):[m
+             return [][m
+[36m@@ -188,12 +190,18 @@[m [mclass TsMorphProjectEngine(SubprocessEngine):[m
+     async def __aenter__(self) -> TsMorphProjectEngine:[m
+         """Start the bridge and load the project."""[m
+         await super().__aenter__()[m
+[31m-        params_dict: dict[str, object] = {"root_dir": str(self._workspace)}[m
+[31m-        if self._tsconfig is not None:[m
+[31m-            params_dict["tsconfig_path"] = str(self._tsconfig)[m
+         result = await self._call([m
+             "init_project",[m
+[31m-            JsonRpcParams.model_validate(params_dict),[m
+[32m+[m[32m            JsonRpcParams.model_validate([m
+[32m+[m[32m                {[m
+[32m+[m[32m                    "root_dir": str(self._workspace),[m
+[32m+[m[32m                    **([m
+[32m+[m[32m                        {"tsconfig_path": str(self._tsconfig)}[m
+[32m+[m[32m                        if self._tsconfig is not None[m
+[32m+[m[32m                        else {}[m
+[32m+[m[32m                    ),[m
+[32m+[m[32m                }[m
+[32m+[m[32m            ),[m
+         )[m
+         files = result.get("files", []) if isinstance(result, dict) else [][m
+         logger.debug("Loaded files", count=len(files), workspace=str(self._workspace))[m
+[36m@@ -243,12 +251,11 @@[m [mclass TsMorphProjectEngine(SubprocessEngine):[m
+         file_path: str | None = None,[m
+     ) -> list[DiagnosticInfo]:[m
+         """Return TypeScript diagnostics for a file or whole project."""[m
+[31m-        params_dict: dict[str, object] = {}[m
+[31m-        if file_path is not None:[m
+[31m-            params_dict["file_path"] = file_path[m
+         result = await self._call([m
+             "get_diagnostics",[m
+[31m-            JsonRpcParams.model_validate(params_dict),[m
+[32m+[m[32m            JsonRpcParams.model_validate([m
+[32m+[m[32m                {"file_path": file_path} if file_path is not None else {}[m
+[32m+[m[32m            ),[m
+         )[m
+         if not isinstance(result, list):[m
+             return [][m
+[1mdiff --git a/apps/backend/src/refactor_agent/observability/langfuse_config.py b/apps/backend/src/refactor_agent/observability/langfuse_config.py[m
+[1mindex e4cfe98..dd70d3a 100644[m
+[1m--- a/apps/backend/src/refactor_agent/observability/langfuse_config.py[m
+[1m+++ b/apps/backend/src/refactor_agent/observability/langfuse_config.py[m
+[36m@@ -13,8 +13,10 @@[m [mfrom refactor_agent.models.prompt_config import PromptConfig[m
+ [m
+ [m
+ class LangfuseMetadata(BaseModel):[m
+[31m-    """Arbitrary metadata for Langfuse spans (extra keys allowed)."""[m
+[32m+[m[32m    """Metadata for Langfuse spans (prompt_name/version + extra keys allowed)."""[m
+ [m
+[32m+[m[32m    prompt_name: str[m
+[32m+[m[32m    prompt_version: str | int | None = None[m
+     model_config = ConfigDict(extra="allow")[m
+ [m
+ [m
+[1mdiff --git a/apps/backend/src/refactor_agent/schedule/planner.py b/apps/backend/src/refactor_agent/schedule/planner.py[m
+[1mindex 4ee83ff..87ca239 100644[m
+[1m--- a/apps/backend/src/refactor_agent/schedule/planner.py[m
+[1m+++ b/apps/backend/src/refactor_agent/schedule/planner.py[m
+[36m@@ -394,12 +394,10 @@[m [masync def run_planner([m
+     instructions = instructions + budget_note[m
+     planner_agent = create_planner_agent(instructions_override=instructions)[m
+     prompt_name, prompt_version = get_prompt_name_and_version(_PLANNER_PROMPT_NAME)[m
+[31m-    span_metadata_dict: dict[str, object] = {[m
+[31m-        "prompt_name": prompt_name,[m
+[31m-    }[m
+[31m-    if prompt_version is not None:[m
+[31m-        span_metadata_dict["prompt_version"] = prompt_version[m
+[31m-    span_metadata = LangfuseMetadata.model_validate(span_metadata_dict)[m
+[32m+[m[32m    span_metadata = LangfuseMetadata([m
+[32m+[m[32m        prompt_name=prompt_name,[m
+[32m+[m[32m        **({"prompt_version": prompt_version} if prompt_version is not None else {}),[m
+[32m+[m[32m    )[m
+ [m
+     budget_ref = PlannerBudgetRef()[m
+     deps.planner_budget_ref = budget_ref[m
+[1mdiff --git a/apps/backend/src/refactor_agent/sync/app.py b/apps/backend/src/refactor_agent/sync/app.py[m
+[1mindex f15a9f7..b463ebb 100644[m
+[1m--- a/apps/backend/src/refactor_agent/sync/app.py[m
+[1m+++ b/apps/backend/src/refactor_agent/sync/app.py[m
+[36m@@ -5,7 +5,7 @@[m [mfrom __future__ import annotations[m
+ import json[m
+ import os[m
+ from pathlib import Path[m
+[31m-from typing import TYPE_CHECKING[m
+[32m+[m[32mfrom typing import TYPE_CHECKING, cast[m
+ [m
+ from pydantic import ValidationError[m
+ from starlette.applications import Starlette[m
+[36m@@ -22,6 +22,7 @@[m [mfrom refactor_agent.sync.replica_ttl import update_replica_activity[m
+ from refactor_agent.sync.server import _handle_bootstrap, _handle_connection_starlette[m
+ [m
+ if TYPE_CHECKING:[m
+[32m+[m[32m    from refactor_agent.a2a.auth_middleware import AuthState[m
+     from refactor_agent.sync.server import _StarletteWebSocket[m
+ [m
+ [m
+[36m@@ -56,7 +57,8 @@[m [masync def http_sync_workspace(request: Request) -> JSONResponse:[m
+             {"error": f"invalid bootstrap payload: {e}"}, status_code=400[m
+         )[m
+     update_replica_activity()[m
+[31m-    token = getattr(request.state, "github_token", None)[m
+[32m+[m[32m    state = cast("AuthState", request.state)[m
+[32m+[m[32m    token = getattr(state, "github_token", None)[m
+     err = await _handle_bootstrap([m
+         _get_replica_root(), bootstrap_msg, github_token=token[m
+     )[m
+[1mdiff --git a/apps/backend/src/refactor_agent/sync/server.py b/apps/backend/src/refactor_agent/sync/server.py[m
+[1mindex 0c3c688..85cc85e 100644[m
+[1m--- a/apps/backend/src/refactor_agent/sync/server.py[m
+[1m+++ b/apps/backend/src/refactor_agent/sync/server.py[m
+[36m@@ -20,11 +20,14 @@[m [mfrom refactor_agent.sync.logger import logger[m
+ from refactor_agent.sync.models import BootstrapMessage, FileMessage[m
+ from refactor_agent.sync.replica_ttl import update_replica_activity[m
+ [m
+[32m+[m[32m# ASGI scope dict — structure defined by ASGI spec, not our code[m
+[32m+[m[32mtype AsgiScope = dict[str, object][m
+[32m+[m
+ [m
+ class _StarletteWebSocket(Protocol):[m
+     """Minimal protocol for Starlette WebSocket (receive_text/send_text)."""[m
+ [m
+[31m-    scope: dict[str, object][m
+[32m+[m[32m    scope: AsgiScope[m
+ [m
+     async def accept(self) -> None: ...[m
+     async def receive_text(self) -> str: ...[m
+[1mdiff --git a/apps/backend/src/refactor_agent/ui/app.py b/apps/backend/src/refactor_agent/ui/app.py[m
+[1mindex 675c896..4be6a69 100644[m
+[1m--- a/apps/backend/src/refactor_agent/ui/app.py[m
+[1m+++ b/apps/backend/src/refactor_agent/ui/app.py[m
+[36m@@ -14,10 +14,12 @@[m [mimport chainlit as cl[m
+ from chainlit.data import get_data_layer[m
+ from langfuse import get_client, propagate_attributes[m
+ from pydantic import BaseModel, ConfigDict, RootModel[m
+[32m+[m
+[32m+[m[32m# JSON-RPC request body (method, params, id) — response uses JsonRpcResponse from a2a.models[m
+ from pydantic_ai._agent_graph import End, ModelRequestNode  # type: ignore[attr-defined][m
+ [m
+ from refactor_agent._log_config import configure_logging[m
+[31m-from refactor_agent.a2a.models import WorkspaceFile[m
+[32m+[m[32mfrom refactor_agent.a2a.models import JsonRpcResponse, TaskResult, WorkspaceFile[m
+ from refactor_agent.observability.langfuse_config import init_langfuse[m
+ from refactor_agent.orchestrator import ([m
+     NeedInput,[m
+[36m@@ -33,7 +35,7 @@[m [mfrom refactor_agent.ui.logger import logger[m
+ [m
+ [m
+ class JsonRpcBody(RootModel[dict[str, object]]):[m
+[31m-    """JSON-RPC request or response body (no dict in signatures)."""[m
+[32m+[m[32m    """JSON-RPC request body (method, params, id)."""[m
+ [m
+ [m
+ class ToolCallArgs(BaseModel):[m
+[36m@@ -42,10 +44,6 @@[m [mclass ToolCallArgs(BaseModel):[m
+     model_config = ConfigDict(extra="allow")[m
+ [m
+ [m
+[31m-class GetTaskResult(RootModel[dict[str, object]]):[m
+[31m-    """Result of tasks/get (task payload; no dict in signatures)."""[m
+[31m-[m
+[31m-[m
+ _TRACE_NAME = "chat-agent"[m
+ [m
+ # ---------------------------------------------------------------------------[m
+[36m@@ -104,7 +102,7 @@[m [mdef _workspace_payload(language: str) -> list[WorkspaceFile]:[m
+     ][m
+ [m
+ [m
+[31m-def _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcBody:[m
+[32m+[m[32mdef _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcResponse:[m
+     """POST JSON-RPC to A2A server (run in thread to avoid blocking)."""[m
+     url = base_url.rstrip("/")[m
+     if not url.startswith(("http://", "https://")):[m
+[36m@@ -118,7 +116,7 @@[m [mdef _a2a_post_sync(base_url: str, body: JsonRpcBody) -> JsonRpcBody:[m
+     )[m
+     with urllib.request.urlopen(req, timeout=300) as resp:[m
+         out: object = json.loads(resp.read().decode())[m
+[31m-        return JsonRpcBody.model_validate(out if isinstance(out, dict) else {})[m
+[32m+[m[32m        return JsonRpcResponse.model_validate(out if isinstance(out, dict) else {})[m
+ [m
+ [m
+ # ---------------------------------------------------------------------------[m
+[36m@@ -462,7 +460,7 @@[m [masync def _run_request_remote(content: str, language: str, base_url: str) -> Non[m
+         }[m
+     )[m
+ [m
+[31m-    def _get_task() -> GetTaskResult:[m
+[32m+[m[32m    def _get_task() -> TaskResult | None:[m
+         get_body = JsonRpcBody.model_validate([m
+             {[m
+                 "jsonrpc": "2.0",[m
+[36m@@ -472,37 +470,28 @@[m [masync def _run_request_remote(content: str, language: str, base_url: str) -> Non[m
+             }[m
+         )[m
+         resp = _a2a_post_sync(base_url, get_body)[m
+[31m-        if "result" in resp.root:[m
+[31m-            result = resp.root["result"][m
+[31m-            return GetTaskResult.model_validate([m
+[31m-                result if isinstance(result, dict) else {}[m
+[31m-            )[m
+[31m-        return GetTaskResult.model_validate({})[m
+[32m+[m[32m        if isinstance(resp.result, TaskResult):[m
+[32m+[m[32m            return resp.result[m
+[32m+[m[32m        return None[m
+ [m
+     try:[m
+         while True:[m
+             resp = await asyncio.to_thread(_a2a_post_sync, base_url, body)[m
+[31m-            if "error" in resp.root:[m
+[31m-                err = resp.root["error"][m
+[31m-                msg = ([m
+[31m-                    err.get("message", json.dumps(err))[m
+[31m-                    if isinstance(err, dict)[m
+[31m-                    else str(err)[m
+[31m-                )[m
+[31m-                await cl.Message(content=f"A2A error: {msg}").send()[m
+[32m+[m[32m            if resp.error is not None:[m
+[32m+[m[32m                await cl.Message(content=f"A2A error: {resp.error.message}").send()[m
+                 return[m
+             await asyncio.sleep(1.0)[m
+             task = await asyncio.to_thread(_get_task)[m
+[31m-            status_raw = task.root.get("status")[m
+[31m-            status = status_raw if isinstance(status_raw, dict) else {}[m
+[31m-            state = status.get("state")[m
+[31m-            message_obj = status.get("message")[m
+[31m-            message = message_obj if isinstance(message_obj, dict) else {}[m
+[31m-            msg_parts = message.get("parts") or [][m
+[32m+[m[32m            if task is None:[m
+[32m+[m[32m                continue[m
+[32m+[m[32m            status = task.status[m
+[32m+[m[32m            state = status.state if status else ""[m
+[32m+[m[32m            message = status.message if status else None[m
+[32m+[m[32m            msg_parts = message.parts if message else [][m
+             msg_text = ""[m
+             for p in msg_parts:[m
+[31m-                if isinstance(p, dict) and "text" in p:[m
+[31m-                    msg_text = p["text"][m
+[32m+[m[32m                if p.text:[m
+[32m+[m[32m                    msg_text = p.text[m
+                     break[m
+             if state == "completed":[m
+                 await cl.Message(content=msg_text or "Done.").send()[m
+[1mdiff --git a/functions/email_notify/models.py b/functions/email_notify/models.py[m
+[1mindex b370bdf..9a4205d 100644[m
+[1m--- a/functions/email_notify/models.py[m
+[1m+++ b/functions/email_notify/models.py[m
+[36m@@ -3,10 +3,17 @@[m
+ from __future__ import annotations[m
+ [m
+ from collections.abc import Mapping[m
+[31m-from typing import Any[m
+[32m+[m[32mfrom typing import TypeAlias[m
+ [m
+ from pydantic import BaseModel, ConfigDict, model_validator[m
+ [m
+[32m+[m[32mFirestoreScalar: TypeAlias = str | int | float | bool | None[m
+[32m+[m[32mFirestoreRecursiveValue: TypeAlias = ([m
+[32m+[m[32m    FirestoreScalar[m
+[32m+[m[32m    | Mapping[str, "FirestoreRecursiveValue"][m
+[32m+[m[32m    | list["FirestoreRecursiveValue"][m
+[32m+[m[32m)[m
+[32m+[m
+ [m
+ class MapValue(BaseModel):[m
+     """Firestore MapValue: fields mapping string -> Value."""[m
+[36m@@ -44,10 +51,8 @@[m [mclass FirestoreValue(BaseModel):[m
+ [m
+     @model_validator(mode="before")[m
+     @classmethod[m
+[31m-    def _from_proto_keys(cls, data: Any) -> Any:[m
+[32m+[m[32m    def _from_proto_keys(cls, data: dict[str, object]) -> dict[str, object]:[m
+         """Convert Firestore proto keys (camelCase) to model fields."""[m
+[31m-        if not isinstance(data, dict):[m
+[31m-            return data[m
+         key_map = {[m
+             "stringValue": "string_value",[m
+             "integerValue": "integer_value",[m
+[36m@@ -62,9 +67,7 @@[m [mclass FirestoreValue(BaseModel):[m
+         return {key_map.get(k, k): v for k, v in data.items() if k in key_map}[m
+ [m
+ [m
+[31m-def parse_firestore_value([m
+[31m-    value: FirestoreValue,[m
+[31m-) -> str | int | float | bool | None | Mapping[str, Any] | list[Any]:[m
+[32m+[m[32mdef parse_firestore_value(value: FirestoreValue) -> FirestoreRecursiveValue:[m
+     """Extract scalar or nested structure from FirestoreValue."""[m
+     if value.null_value is not None:[m
+         return None[m
+[1mdiff --git a/scripts/lint/check_no_dict_sig.py b/scripts/lint/check_no_dict_sig.py[m
+[1mindex 95bff8a..b283e91 100644[m
+[1m--- a/scripts/lint/check_no_dict_sig.py[m
+[1m+++ b/scripts/lint/check_no_dict_sig.py[m
+[36m@@ -16,6 +16,29 @@[m [mfrom pathlib import Path[m
+ _BANNED_NAMES = frozenset({"dict", "Dict", "TypedDict"})[m
+ [m
+ [m
+[32m+[m[32mdef _decorator_name(decorator: ast.expr) -> str | None:[m
+[32m+[m[32m    """Return the name/id of a decorator (e.g. 'model_validator') or None."""[m
+[32m+[m[32m    if isinstance(decorator, ast.Name):[m
+[32m+[m[32m        return decorator.id[m
+[32m+[m[32m    if isinstance(decorator, ast.Attribute):[m
+[32m+[m[32m        return decorator.attr[m
+[32m+[m[32m    if isinstance(decorator, ast.Call):[m
+[32m+[m[32m        func = decorator.func[m
+[32m+[m[32m        if isinstance(func, ast.Name):[m
+[32m+[m[32m            return func.id[m
+[32m+[m[32m        if isinstance(func, ast.Attribute):[m
+[32m+[m[32m            return func.attr[m
+[32m+[m[32m    return None[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef _has_model_validator_decorator(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:[m
+[32m+[m[32m    """Return True if the function is decorated with @model_validator (Pydantic boundary)."""[m
+[32m+[m[32m    for dec in node.decorator_list:[m
+[32m+[m[32m        if _decorator_name(dec) == "model_validator":[m
+[32m+[m[32m            return True[m
+[32m+[m[32m    return False[m
+[32m+[m
+[32m+[m
+ def _is_dict_annotation(node: ast.AST | None) -> bool:[m
+     """Return True if the annotation is dict, Dict, or TypedDict (including subscripted, Union)."""[m
+     if node is None:[m
+[36m@@ -108,6 +131,8 @@[m [mdef _check_file([m
+ [m
+     for node in ast.walk(tree):[m
+         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):[m
+[32m+[m[32m            if _has_model_validator_decorator(node):[m
+[32m+[m[32m                continue[m
+             if _has_noqa_no_dict_sig(lines, node.lineno):[m
+                 continue[m
+             func_name = node.name[m

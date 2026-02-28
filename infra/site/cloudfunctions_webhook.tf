@@ -1,8 +1,9 @@
 # GitHub webhook Cloud Function: installation_repositories -> sync allowed_repos in Firestore.
+# TypeScript (nodejs24). Run `make functions-build` before terraform apply.
 
 data "archive_file" "github_webhook" {
   type        = "zip"
-  source_dir  = "${path.module}/../../functions/github_webhook"
+  source_dir  = "${path.module}/../../functions/github_webhook/.deploy"
   output_path = "${path.module}/.build/github_webhook.zip"
 }
 
@@ -18,8 +19,8 @@ resource "google_cloudfunctions2_function" "github_webhook" {
   project  = var.project_id
 
   build_config {
-    runtime     = "python312"
-    entry_point = "github_webhook"
+    runtime     = "nodejs24"
+    entry_point = "githubWebhook"
     source {
       storage_source {
         bucket = google_storage_bucket.functions_source.name

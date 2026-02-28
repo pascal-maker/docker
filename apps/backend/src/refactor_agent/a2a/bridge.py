@@ -9,7 +9,7 @@ This subclass allows that case and creates the task under the client's id.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from a2a.server.context import ServerCallContext  # noqa: TC002 — used at runtime
 from a2a.server.request_handlers.default_request_handler import (
@@ -37,6 +37,7 @@ TERMINAL_TASK_STATES = {
 class BridgeCompatibleRequestHandler(DefaultRequestHandler):
     """Allows message/send with client-provided task_id for new tasks (no raise)."""
 
+    @override
     async def _setup_message_execution(
         self,
         params: MessageSendParams,

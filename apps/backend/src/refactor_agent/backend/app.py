@@ -8,7 +8,7 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from starlette.types import Receive, Scope, Send
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 from refactor_agent.a2a.auth_middleware import (
     GitHubTokenMiddleware,
@@ -24,7 +24,7 @@ from refactor_agent.sync.app import build_sync_app
 from refactor_agent.sync.replica_ttl import replica_ttl_loop
 
 
-def _lifespan_wrapper(app: object) -> object:
+def _lifespan_wrapper(app: ASGIApp) -> ASGIApp:
     """Wrap app with lifespan: start replica TTL cleanup task on startup."""
 
     async def _with_lifespan(scope: Scope, receive: Receive, send: Send) -> None:
@@ -46,7 +46,7 @@ def _lifespan_wrapper(app: object) -> object:
     return _with_lifespan
 
 
-def _websocket_auth_middleware(app: object) -> object:
+def _websocket_auth_middleware(app: ASGIApp) -> ASGIApp:
     """ASGI middleware: validate WebSocket auth before passing to app."""
 
     async def _ws_auth(scope: Scope, receive: Receive, send: Send) -> None:
@@ -88,7 +88,7 @@ def _websocket_auth_middleware(app: object) -> object:
     return _ws_auth
 
 
-def build_combined_app() -> object:
+def build_combined_app() -> ASGIApp:
     """Build combined A2A + sync ASGI app with routing by path and request type."""
     a2a_factory = build_a2a_app()
     a2a_app = wrap_with_method_logging(a2a_factory.build())

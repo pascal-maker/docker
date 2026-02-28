@@ -111,9 +111,11 @@ jobs:
 
       - run: uv sync
 
-      - name: Type check
+      - name: Type check (mypy + pyright)
         working-directory: apps/backend
-        run: uv run mypy src
+        run: |
+          uv run mypy src
+          uv run pyright src
 
   py-backend-test:
     name: Python · Test
@@ -292,7 +294,7 @@ jobs:
         run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Format check
-        run: pnpm exec nx affected -t format-check --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t format-check --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
+        run: pnpm exec nx affected -t format-check --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-email-notify,fn-usage-digest || pnpm exec nx run-many -t format-check --all --exclude=backend,fn-email-notify,fn-usage-digest
 
   ts-lint:
     name: TS · Lint
@@ -324,7 +326,7 @@ jobs:
         run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Lint
-        run: pnpm exec nx affected -t lint --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t lint --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
+        run: pnpm exec nx affected -t lint --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-email-notify,fn-usage-digest || pnpm exec nx run-many -t lint --all --exclude=backend,fn-email-notify,fn-usage-digest
 
   ts-typecheck:
     name: TS · Typecheck
@@ -359,7 +361,7 @@ jobs:
         run: pnpm --filter @refactor-agent/design-system run build
 
       - name: Typecheck
-        run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t typecheck --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
+        run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-email-notify,fn-usage-digest || pnpm exec nx run-many -t typecheck --all --exclude=backend,fn-email-notify,fn-usage-digest
 
   ts-knip:
     name: TS · Knip (dead code)

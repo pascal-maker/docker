@@ -8,10 +8,20 @@ import os
 import urllib.parse
 import urllib.request
 
+from pydantic import BaseModel
+
 from refactor_agent.auth.logger import logger
 
 # GitHub OAuth endpoint URL; S105 false positive (URL path, not credentials)
 GITHUB_OAUTH_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"  # noqa: S105
+
+
+class GitHubTokenResponse(BaseModel):
+    """GitHub OAuth token exchange response."""
+
+    access_token: str
+    token_type: str = ""
+    scope: str = ""
 
 
 async def exchange_code_for_token(
@@ -60,8 +70,9 @@ async def exchange_code_for_token(
             with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status != 200:
                     return None
-                payload = json.loads(resp.read().decode())
-                return payload.get("access_token") or None
+                raw: object = json.loads(resp.read().decode())
+                parsed = GitHubTokenResponse.model_validate(raw)
+                return parsed.access_token
         except Exception as e:
             logger.warning(
                 "GitHub OAuth token exchange failed",

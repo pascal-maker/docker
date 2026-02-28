@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from starlette.types import Receive, Scope, Send
+    from collections.abc import MutableMapping
+
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +105,7 @@ def _rewrite_bridge_methods(payload: dict) -> dict:  # no-dict-sig
     return payload
 
 
-def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
+def wrap_with_method_logging(app: ASGIApp) -> ASGIApp:  # noqa: C901, PLR0915
     """Log JSON-RPC method and rewrite bridge method names for A2A compat."""
 
     async def middleware(scope: Scope, receive: Receive, send: Send) -> None:  # noqa: C901, PLR0915
@@ -132,7 +134,7 @@ def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
             return {"type": "http.request", "body": body, "more_body": False}
 
         body_chunks: list[bytes] = []
-        pending_start: dict | None = None
+        pending_start: MutableMapping[str, Any] | None = None
 
         def set_content_length(
             headers: list[list[bytes]], length: int
@@ -149,7 +151,9 @@ def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
                 out.append([b"content-length", str(length).encode()])
             return out
 
-        async def intercept_send(message: dict) -> None:  # no-dict-sig: ASGI message
+        async def intercept_send(
+            message: MutableMapping[str, Any],
+        ) -> None:
             nonlocal body_chunks, pending_start
             if message.get("type") == "http.response.start":
                 pending_start = message

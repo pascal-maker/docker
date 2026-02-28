@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
 from starlette.applications import Starlette
@@ -22,6 +22,7 @@ from refactor_agent.sync.replica_ttl import update_replica_activity
 from refactor_agent.sync.server import _handle_bootstrap, _handle_connection_starlette
 
 if TYPE_CHECKING:
+    from refactor_agent.a2a.auth_middleware import AuthState
     from refactor_agent.sync.server import _StarletteWebSocket
 
 
@@ -56,7 +57,8 @@ async def http_sync_workspace(request: Request) -> JSONResponse:
             {"error": f"invalid bootstrap payload: {e}"}, status_code=400
         )
     update_replica_activity()
-    token = getattr(request.state, "github_token", None)
+    state = cast("AuthState", request.state)
+    token = getattr(state, "github_token", None)
     err = await _handle_bootstrap(
         _get_replica_root(), bootstrap_msg, github_token=token
     )

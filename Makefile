@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-export infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build functions-export infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -28,8 +28,9 @@ lint: ## Run ruff linter
 fix: ## Auto-fix lint violations
 	cd apps/backend && $(RUN) ruff check --fix src tests scripts
 
-typecheck: ## Run mypy strict type checking (src only; scripts are one-off tools)
+typecheck: ## Run mypy + pyright strict type checking (src only; scripts are one-off tools)
 	cd apps/backend && $(RUN) mypy src
+	cd apps/backend && $(RUN) pyright src
 
 check-no-dict-sig: ## Check no dict/Dict/TypedDict in function signatures (CLAUDE.md)
 	$(RUN) python scripts/lint/check_no_dict_sig.py
@@ -98,27 +99,21 @@ deprecation-check: ## Flake8 deprecation plugin: flag deprecated API usage (Pyth
 pre-commit-install: ## Install pre-commit hooks (run once after clone)
 	cd apps/backend && $(RUN) pre-commit install
 
-functions-vendor-shared: ## Copy functions/shared into each function that needs it (run before functions-export)
-	rm -rf functions/auth_callback/shared functions/auth_register_device/shared \
-		functions/github_webhook/shared functions/usage_digest/shared
-	cp -r functions/shared functions/auth_callback/shared
-	cp -r functions/shared functions/auth_register_device/shared
-	cp -r functions/shared functions/github_webhook/shared
-	cp -r functions/shared functions/usage_digest/shared
+functions-build: ## Build functions/shared and functions/github_webhook (run before terraform apply for github_webhook)
+	./scripts/build-functions.sh
 
-functions-export: functions-vendor-shared ## Export requirements.txt for each Cloud Function (run before terraform apply)
-	uv export --frozen --no-dev --no-editable --no-emit-project --package auth-callback \
-	  -o functions/auth_callback/requirements.txt
-	uv export --frozen --no-dev --no-editable --no-emit-project --package auth-register-device \
-	  -o functions/auth_register_device/requirements.txt
+functions-vendor-shared: ## Copy functions/shared into each Python function that needs it (run before functions-export)
+	rm -rf functions/email_notify/shared functions/usage_digest/shared
+	rsync -a --exclude=node_modules --exclude=dist functions/shared/ functions/email_notify/shared/
+	rsync -a --exclude=node_modules --exclude=dist functions/shared/ functions/usage_digest/shared/
+
+functions-export: functions-vendor-shared ## Export requirements.txt for each Python Cloud Function (run before terraform apply)
 	uv export --frozen --no-dev --no-editable --no-emit-project --package email-notify \
 	  -o functions/email_notify/requirements.txt
-	uv export --frozen --no-dev --no-editable --no-emit-project --package github-webhook \
-	  -o functions/github_webhook/requirements.txt
 	uv export --frozen --no-dev --no-editable --no-emit-project --package usage-digest \
 	  -o functions/usage_digest/requirements.txt
 	@# Replace functions-shared path with ./shared so Cloud Functions build installs from vendored copy
-	@for f in functions/auth_callback functions/auth_register_device functions/github_webhook functions/usage_digest; do \
+	@for f in functions/email_notify functions/usage_digest; do \
 	  (grep -v 'functions/shared\|functions-shared' $$f/requirements.txt || true) > $$f/requirements.txt.tmp; \
 	  echo "./shared" | cat - $$f/requirements.txt.tmp > $$f/requirements.txt; \
 	  rm -f $$f/requirements.txt.tmp; \

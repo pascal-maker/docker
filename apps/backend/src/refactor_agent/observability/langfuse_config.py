@@ -13,8 +13,10 @@ from refactor_agent.models.prompt_config import PromptConfig
 
 
 class LangfuseMetadata(BaseModel):
-    """Arbitrary metadata for Langfuse spans (extra keys allowed)."""
+    """Metadata for Langfuse spans (prompt_name/version + extra keys allowed)."""
 
+    prompt_name: str
+    prompt_version: str | int | None = None
     model_config = ConfigDict(extra="allow")
 
 

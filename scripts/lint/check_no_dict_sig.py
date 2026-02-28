@@ -16,6 +16,31 @@ from pathlib import Path
 _BANNED_NAMES = frozenset({"dict", "Dict", "TypedDict"})
 
 
+def _decorator_name(decorator: ast.expr) -> str | None:
+    """Return the name/id of a decorator (e.g. 'model_validator') or None."""
+    if isinstance(decorator, ast.Name):
+        return decorator.id
+    if isinstance(decorator, ast.Attribute):
+        return decorator.attr
+    if isinstance(decorator, ast.Call):
+        func = decorator.func
+        if isinstance(func, ast.Name):
+            return func.id
+        if isinstance(func, ast.Attribute):
+            return func.attr
+    return None
+
+
+def _has_model_validator_decorator(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    """Return True if the function is decorated with @model_validator (Pydantic boundary)."""
+    for dec in node.decorator_list:
+        if _decorator_name(dec) == "model_validator":
+            return True
+    return False
+
+
 def _is_dict_annotation(node: ast.AST | None) -> bool:
     """Return True if the annotation is dict, Dict, or TypedDict (including subscripted, Union)."""
     if node is None:
@@ -108,6 +133,8 @@ def _check_file(
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if _has_model_validator_decorator(node):
+                continue
             if _has_noqa_no_dict_sig(lines, node.lineno):
                 continue
             func_name = node.name

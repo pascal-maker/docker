@@ -57,12 +57,8 @@ class GitHubTokenValidator:
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     if resp.status != 200:
                         return None
-                    data = json.loads(resp.read().decode())
-                    return GitHubUser(
-                        id=data["id"],
-                        login=data["login"],
-                        email=data.get("email"),
-                    )
+                    raw: object = json.loads(resp.read().decode())
+                    return GitHubUser.model_validate(raw)
             except Exception as e:
                 logger.warning(
                     "GitHub user fetch failed",

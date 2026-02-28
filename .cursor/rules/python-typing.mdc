@@ -9,6 +9,7 @@ alwaysApply: true
 ## Forbidden patterns — never generate these:
 
 - `from typing import Any`
+- Bare `object` as return type or to paper over untyped boundaries (object is not a substitute for Any)
 - `from typing import Dict, List, Tuple, Set, Optional`
 - `# type: ignore`
 - `# noqa: ANN` (annotation suppression)

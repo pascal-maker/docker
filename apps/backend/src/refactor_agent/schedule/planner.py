@@ -394,12 +394,10 @@ async def run_planner(
     instructions = instructions + budget_note
     planner_agent = create_planner_agent(instructions_override=instructions)
     prompt_name, prompt_version = get_prompt_name_and_version(_PLANNER_PROMPT_NAME)
-    span_metadata_dict: dict[str, object] = {
-        "prompt_name": prompt_name,
-    }
-    if prompt_version is not None:
-        span_metadata_dict["prompt_version"] = prompt_version
-    span_metadata = LangfuseMetadata.model_validate(span_metadata_dict)
+    span_metadata = LangfuseMetadata(
+        prompt_name=prompt_name,
+        **({"prompt_version": prompt_version} if prompt_version is not None else {}),
+    )
 
     budget_ref = PlannerBudgetRef()
     deps.planner_budget_ref = budget_ref
