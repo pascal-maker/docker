@@ -231,6 +231,13 @@ variable "firebase_service_account_json" {
   sensitive   = true
 }
 
+variable "nx_cloud_access_token" {
+  description = "Nx Cloud CI access token for remote cache. Create via 'nx connect' or Nx Cloud dashboard. Terraform syncs to GitHub secret NX_CLOUD_ACCESS_TOKEN."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # GDPR / legal (Belgium). Terraform syncs to GitHub Actions variables for site build.
 variable "vite_imprint_name" {
   description = "Imprint name (Belgium legal notice). Synced to VITE_IMPRINT_NAME for site build."

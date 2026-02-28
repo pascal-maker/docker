@@ -268,8 +268,7 @@ jobs:
     name: TS · Format check
     runs-on: ubuntu-latest
     env:
-      NX_DISABLE_DB: "true"
-      NX_DB_CACHE: "false"
+      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -283,12 +282,6 @@ jobs:
         with:
           node-version: "24"
           cache: "pnpm"
-
-      - uses: actions/cache@v5
-        with:
-          path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
-          restore-keys: nx-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -303,8 +296,7 @@ jobs:
     name: TS · Lint
     runs-on: ubuntu-latest
     env:
-      NX_DISABLE_DB: "true"
-      NX_DB_CACHE: "false"
+      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -318,12 +310,6 @@ jobs:
         with:
           node-version: "24"
           cache: "pnpm"
-
-      - uses: actions/cache@v5
-        with:
-          path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
-          restore-keys: nx-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -338,8 +324,7 @@ jobs:
     name: TS · Typecheck
     runs-on: ubuntu-latest
     env:
-      NX_DISABLE_DB: "true"
-      NX_DB_CACHE: "false"
+      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -354,12 +339,6 @@ jobs:
           node-version: "24"
           cache: "pnpm"
 
-      - uses: actions/cache@v5
-        with:
-          path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
-          restore-keys: nx-${{ runner.os }}-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -367,7 +346,7 @@ jobs:
         run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Build @refactor-agent/design-system (required by dashboard)
-        run: pnpm --filter @refactor-agent/design-system run build
+        run: pnpm exec nx run @refactor-agent/design-system:build
 
       - name: Typecheck
         run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend || pnpm exec nx run-many -t typecheck --all --exclude=backend

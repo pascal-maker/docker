@@ -19,6 +19,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
 
@@ -34,9 +36,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build @refactor-agent/design-system
-        run: pnpm --filter @refactor-agent/design-system run build
-
       - name: Build site
         env:
           VITE_GITHUB_APP_CLIENT_ID: ${{ secrets.VITE_GITHUB_APP_CLIENT_ID }}
@@ -47,7 +46,7 @@ jobs:
           VITE_PRIVACY_POLICY_URL: ${{ vars.VITE_PRIVACY_POLICY_URL }}
           VITE_TERMS_URL: ${{ vars.VITE_TERMS_URL }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
-        run: pnpm --filter site run build
+        run: pnpm exec nx run site:build
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

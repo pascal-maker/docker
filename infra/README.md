@@ -134,7 +134,7 @@ Terraform uses two var files:
 
 **Required in `secrets.tfvars` (minimal A2A):** `anthropic_api_key`.
 
-**Optional (site, Chainlit, CI):** `chainlit_auth_secret`, `github_oauth_client_id`, `github_oauth_client_secret`, `github_token`, `github_repository`, `firebase_service_account_json`, `resend_api_key`, `sentry_auth_token`, `sentry_organization`, Cloudflare vars. See `secrets.tfvars.example` for the full list.
+**Optional (site, Chainlit, CI):** `chainlit_auth_secret`, `github_oauth_client_id`, `github_oauth_client_secret`, `github_token`, `github_repository`, `firebase_service_account_json`, `nx_cloud_access_token`, `resend_api_key`, `sentry_auth_token`, `sentry_organization`, Cloudflare vars. See `secrets.tfvars.example` for the full list.
 
 **GitHub Actions secrets sync:** When `github_token`, `github_repository`, and the relevant values are set in `secrets.tfvars`, Terraform syncs them to repo secrets: `VITE_GITHUB_OAUTH_CLIENT_ID`, `VITE_AUTH_CALLBACK_URL`, `FIREBASE_SERVICE_ACCOUNT`. For Firebase, put the service account JSON in `firebase_service_account_json` (heredoc or one-line). Alternatively, pass it at apply time: `terraform apply ... -var="firebase_service_account_json=$(cat firebase-sa.json | jq -c .)"`.
 

@@ -54,6 +54,13 @@ resource "github_actions_secret" "vite_auth_callback_url" {
   plaintext_value = module.site.auth_callback_url
 }
 
+resource "github_actions_secret" "nx_cloud_access_token" {
+  count           = var.github_repository != "" && var.github_token != "" && var.nx_cloud_access_token != "" ? 1 : 0
+  repository      = local.github_repo_name
+  secret_name     = "NX_CLOUD_ACCESS_TOKEN"
+  plaintext_value = var.nx_cloud_access_token
+}
+
 # GDPR / legal (Belgium). Synced as variables for site build (non-sensitive; baked into client bundle).
 resource "github_actions_variable" "vite_imprint_name" {
   count         = var.github_repository != "" && var.github_token != "" && var.vite_imprint_name != "" ? 1 : 0
