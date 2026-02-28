@@ -1,0 +1,6 @@
+# OSV-Scanner config: ignore vulns with no fix or acceptable risk.
+# See https://google.github.io/osv-scanner/configuration/
+
+[[IgnoredVulns]]
+id = "GHSA-w8v5-vhqr-4h9v"
+reason = "diskcache: no fix released; transitive via langfuse/py-key-value-aio; requires attacker write access to cache dir"

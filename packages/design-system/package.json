@@ -35,7 +35,7 @@
     "build": "tsup",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format-check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "lint": "eslint src",
+    "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -47,18 +47,14 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "eslint": "^9.15.0",
-    "globals": "^15.12.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.14",
+    "oxlint": "^1.0.0",
+    "oxlint-tsgolint": "^0.15.0",
     "prettier": "^3.3.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tsup": "^8.3.5",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.15.0"
+    "typescript": "~5.9.3"
   }
 }

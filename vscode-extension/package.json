@@ -43,7 +43,7 @@
         "title": "Refactor Agent: Focus Refactor View"
       },
       {
-        "command":         "refactorAgent.openWebviewDevTools",
+        "command": "refactorAgent.openWebviewDevTools",
         "title": "Refactor Agent: Open Webview Developer Tools"
       }
     ],
@@ -111,17 +111,16 @@
     "watch": "tsc -watch -p ./",
     "format": "prettier --write \"src/**/*.ts\"",
     "format-check": "prettier --check \"src/**/*.ts\"",
-    "lint": "eslint src",
+    "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^22.14.0",
     "@types/vscode": "^1.90.0",
-    "eslint": "^9.15.0",
+    "oxlint": "^1.0.0",
+    "oxlint-tsgolint": "^0.15.0",
     "prettier": "^3.3.3",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.15.0"
+    "typescript": "~5.9.3"
   },
   "dependencies": {
     "@sentry/node": "^8.55.0"
