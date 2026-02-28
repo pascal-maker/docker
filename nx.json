@@ -44,5 +44,6 @@
       "default",
       "!{projectRoot}/**/*.spec.{ts,tsx}"
     ]
-  }
+  },
+  "nxCloudId": "69a322477d26481eaa28a282"
 }
