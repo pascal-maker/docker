@@ -7,6 +7,7 @@ from refactor_agent.schedule.executor import (
 from refactor_agent.schedule.models import (
     RefactorOperation,
     RefactorSchedule,
+    ScopeSpec,
 )
 from refactor_agent.schedule.planner import (
     PlannerLimitExceededError,
@@ -21,6 +22,7 @@ __all__ = [
     "RefactorOperation",
     "RefactorSchedule",
     "ScheduleResult",
+    "ScopeSpec",
     "create_planner_agent",
     "execute_schedule",
     "run_planner",

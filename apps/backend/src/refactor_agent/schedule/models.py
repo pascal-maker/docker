@@ -79,6 +79,14 @@ RefactorOperation = Annotated[
 ]
 
 
+class ScopeSpec(BaseModel):
+    """Scope constraint envelope for Judge and downstream agents."""
+
+    affected_files: list[str] = Field(default_factory=list)
+    allowed_op_types: list[str] = Field(default_factory=list)
+    forbidden_op_types: list[str] = Field(default_factory=list)
+
+
 class RefactorSchedule(BaseModel):
     """A planned set of refactor operations with an optional execution order."""
 
@@ -90,3 +98,4 @@ class RefactorSchedule(BaseModel):
         description="List of refactor operations; use [] if none. Always include this key.",
         min_length=0,
     )
+    scope_spec: ScopeSpec | None = None

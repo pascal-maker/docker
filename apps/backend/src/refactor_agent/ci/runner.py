@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path  # noqa: TC003 — Path used at runtime
 
+from refactor_agent.agentic import execute_schedule_with_agentic
 from refactor_agent.ci.config import (
     CiConfigError,
     get_language_and_ext,
@@ -16,8 +17,25 @@ from refactor_agent.ci.report import (
     PresetResult,
     operation_to_summary,
 )
+from refactor_agent.config import is_agent_v2_enabled
 from refactor_agent.orchestrator.deps import OrchestratorDeps
-from refactor_agent.schedule import create_planner_agent, execute_schedule, run_planner
+from refactor_agent.schedule import (
+    RefactorSchedule,  # noqa: TC001
+    ScheduleResult,  # noqa: TC001
+    create_planner_agent,
+    execute_schedule,
+    run_planner,
+)
+
+
+async def _run_executor(
+    schedule: RefactorSchedule,
+    deps: OrchestratorDeps,
+) -> ScheduleResult:
+    """Run executor; use agentic wrapper when AGENT_V2 enabled."""
+    if is_agent_v2_enabled():
+        return await execute_schedule_with_agentic(schedule, deps)
+    return await execute_schedule(schedule, deps)
 
 
 async def run_ci(
@@ -112,7 +130,7 @@ async def run_ci(
 
         should_auto = auto_apply and language == "typescript"
         if should_auto:
-            exec_result = await execute_schedule(schedule, deps)
+            exec_result = await _run_executor(schedule, deps)
             if exec_result.success:
                 preset_results.append(
                     PresetResult(

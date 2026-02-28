@@ -20,6 +20,8 @@ from pydantic_ai._agent_graph import End, ModelRequestNode  # type: ignore[attr-
 
 from refactor_agent._log_config import configure_logging
 from refactor_agent.a2a.models import JsonRpcResponse, TaskResult, WorkspaceFile
+from refactor_agent.agentic import execute_schedule_with_agentic
+from refactor_agent.config import is_agent_v2_enabled
 from refactor_agent.observability.langfuse_config import init_langfuse
 from refactor_agent.orchestrator import (
     NeedInput,
@@ -401,7 +403,10 @@ async def _handle_schedule_produced(
             await cl.Message(content="Execution canceled.").send()
             return
 
-    result = await execute_schedule(schedule, deps)
+    if is_agent_v2_enabled():
+        result = await execute_schedule_with_agentic(schedule, deps)
+    else:
+        result = await execute_schedule(schedule, deps)
     if result.success:
         summary = "\n".join(
             f"- {r.op_id or '?'}: {r.op_type} — {r.summary}" for r in result.results
