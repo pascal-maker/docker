@@ -294,7 +294,7 @@ jobs:
         run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Format check
-        run: pnpm exec nx affected -t format-check --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-email-notify,fn-usage-digest || pnpm exec nx run-many -t format-check --all --exclude=backend,fn-email-notify,fn-usage-digest
+        run: pnpm exec nx affected -t format-check --base=origin/${{ github.base_ref || 'main' }} --exclude=backend || pnpm exec nx run-many -t format-check --all --exclude=backend
 
   ts-lint:
     name: TS · Lint
@@ -326,7 +326,7 @@ jobs:
         run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Lint
-        run: pnpm exec nx affected -t lint --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-email-notify,fn-usage-digest || pnpm exec nx run-many -t lint --all --exclude=backend,fn-email-notify,fn-usage-digest
+        run: pnpm exec nx affected -t lint --base=origin/${{ github.base_ref || 'main' }} --exclude=backend || pnpm exec nx run-many -t lint --all --exclude=backend
 
   ts-typecheck:
     name: TS · Typecheck
@@ -361,7 +361,7 @@ jobs:
         run: pnpm --filter @refactor-agent/design-system run build
 
       - name: Typecheck
-        run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-email-notify,fn-usage-digest || pnpm exec nx run-many -t typecheck --all --exclude=backend,fn-email-notify,fn-usage-digest
+        run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend || pnpm exec nx run-many -t typecheck --all --exclude=backend
 
   ts-knip:
     name: TS · Knip (dead code)

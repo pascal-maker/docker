@@ -161,9 +161,55 @@ def other():
     assert "return x" in out
 
 
-async def test_extract_function_stub_returns_error() -> None:
-    """LibCSTEngine.extract_function returns a clear error."""
-    engine = LibCSTEngine("def f(): pass")
-    result = await engine.extract_function("f", 1, 1, "g")
+async def test_extract_function_happy_path() -> None:
+    """Extract a line range from a function into a new function."""
+    source = '''"""Sample file for testing extract_function."""
+
+
+def main():
+    x = 1
+    y = 2
+    print(x + y)
+
+
+if __name__ == "__main__":
+    main()
+'''
+    engine = LibCSTEngine(source)
+    result = await engine.extract_function(
+        scope_function="main",
+        start_line=7,
+        end_line=7,
+        new_function_name="print_sum",
+    )
+    assert "Extracted" in result
+    assert "print_sum" in result
+    assert "x" in result
+    assert "y" in result
+    out = await engine.to_source()
+    assert "def print_sum(x, y):" in out
+    assert "print(x + y)" in out
+    assert "print_sum(x, y)" in out
+    assert "def main():" in out
+
+
+async def test_extract_function_function_not_found() -> None:
+    """extract_function returns error when scope function does not exist."""
+    engine = LibCSTEngine("def foo(): pass")
+    result = await engine.extract_function("bar", 1, 1, "baz")
     assert "ERROR" in result
-    assert "not yet implemented" in result or "extract_function" in result
+    assert "not found" in result
+    assert "bar" in result
+
+
+async def test_extract_function_no_statements_in_range() -> None:
+    """extract_function returns error when no statements overlap the line range."""
+    source = """
+def main():
+    x = 1
+    return x
+"""
+    engine = LibCSTEngine(source)
+    result = await engine.extract_function("main", 10, 20, "helper")
+    assert "ERROR" in result
+    assert "no statements" in result

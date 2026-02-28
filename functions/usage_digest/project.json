@@ -2,25 +2,27 @@
   "name": "fn-usage-digest",
   "root": "functions/usage_digest",
   "projectType": "application",
-  "tags": ["scope:functions", "type:app", "lang:python"],
+  "tags": ["scope:functions", "type:app", "lang:ts"],
   "targets": {
-    "lint": {
+    "format-check": {
       "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": [
-        "{projectRoot}/**/*.py",
-        "{workspaceRoot}/pyproject.toml"
-      ],
       "options": {
-        "command": "uv run --package refactor-agent ruff check functions/usage_digest/",
-        "cwd": "{workspaceRoot}"
+        "command": "pnpm run format-check",
+        "cwd": "functions/usage_digest"
       }
     },
-    "bundle": {
+    "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv export --frozen --no-dev --no-editable --no-emit-project --package usage-digest -o functions/usage_digest/requirements.txt",
-        "cwd": "{workspaceRoot}"
+        "command": "pnpm run lint",
+        "cwd": "functions/usage_digest"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run typecheck",
+        "cwd": "functions/usage_digest"
       }
     }
   }

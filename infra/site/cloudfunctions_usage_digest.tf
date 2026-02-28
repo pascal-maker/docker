@@ -1,9 +1,10 @@
 # Usage digest Cloud Function: HTTP trigger, runs daily via Cloud Scheduler.
 # Queries Firestore + Cloud Monitoring, sends digest email via Resend.
+# TypeScript (nodejs24). Run `make functions-build` before terraform apply.
 
 data "archive_file" "usage_digest" {
   type        = "zip"
-  source_dir  = "${path.module}/../../functions/usage_digest"
+  source_dir  = "${path.module}/../../functions/usage_digest/.deploy"
   output_path = "${path.module}/.build/usage_digest.zip"
 }
 
@@ -19,8 +20,8 @@ resource "google_cloudfunctions2_function" "usage_digest" {
   project  = var.project_id
 
   build_config {
-    runtime     = "python312"
-    entry_point = "usage_digest"
+    runtime     = "nodejs24"
+    entry_point = "usageDigest"
     source {
       storage_source {
         bucket = google_storage_bucket.functions_source.name

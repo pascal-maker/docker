@@ -2,25 +2,27 @@
   "name": "fn-email-notify",
   "root": "functions/email_notify",
   "projectType": "application",
-  "tags": ["scope:functions", "type:app", "lang:python"],
+  "tags": ["scope:functions", "type:app", "lang:ts"],
   "targets": {
-    "lint": {
+    "format-check": {
       "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": [
-        "{projectRoot}/**/*.py",
-        "{workspaceRoot}/pyproject.toml"
-      ],
       "options": {
-        "command": "uv run --package refactor-agent ruff check functions/email_notify/",
-        "cwd": "{workspaceRoot}"
+        "command": "pnpm run format-check",
+        "cwd": "functions/email_notify"
       }
     },
-    "bundle": {
+    "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv export --frozen --no-dev --no-editable --no-emit-project --package email-notify -o functions/email_notify/requirements.txt",
-        "cwd": "{workspaceRoot}"
+        "command": "pnpm run lint",
+        "cwd": "functions/email_notify"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run typecheck",
+        "cwd": "functions/email_notify"
       }
     }
   }

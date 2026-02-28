@@ -1,27 +1,19 @@
 {
-  "name": "@refactor-agent/functions-shared",
+  "name": "email-notify",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
-  },
   "scripts": {
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\"",
     "format-check": "prettier --check \"src/**/*.ts\"",
     "lint": "oxlint --type-aware src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "functions-framework --target=onUserCreated"
   },
   "dependencies": {
-    "@google-cloud/firestore": "^8.0.0",
-    "zod": "^3.24.0"
+    "@google-cloud/functions-framework": "^5.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

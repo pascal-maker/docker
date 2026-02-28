@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from refactor_agent.agent.deps import ASTDeps
 from refactor_agent.agent.factory import create_ast_refactor_agent
-from refactor_agent.engine.python.ast_engine import ASTEngine
 from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 from refactor_agent.observability.langfuse_config import init_langfuse
 
@@ -60,8 +59,7 @@ async def run_ast_extract_function(
     """
     init_langfuse()
 
-    # extract_function not yet implemented on LibCSTEngine; use deprecated ASTEngine
-    engine = ASTEngine(source)
+    engine = LibCSTEngine(source)
     deps = ASTDeps(engine=engine, target_rename=("", ""))
     agent = create_ast_refactor_agent()
 

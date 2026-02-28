@@ -7,9 +7,7 @@ description = "Refactor Agent monorepo workspace root"
 [tool.uv.workspace]
 members = [
   "apps/backend",
-  "functions/email_notify",
   "functions/shared",
-  "functions/usage_digest",
 ]
 
 [build-system]
@@ -175,5 +173,3 @@ ban-relative-imports = "all"
     "TC001", "TC002", "TC003", "PLR0913", "S104", "PLC0415", "S608", "ARG001",
 ]
 "functions/**/http_response.py" = ["TC003", "UP047"]
-"functions/email_notify/main.py" = ["FBT001"]
-"functions/email_notify/models.py" = ["PLR0911", "TC003"]

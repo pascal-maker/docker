@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build functions-export infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build infra-bootstrap infra-validate infra-fmt image-push infra-plan infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -99,25 +99,8 @@ deprecation-check: ## Flake8 deprecation plugin: flag deprecated API usage (Pyth
 pre-commit-install: ## Install pre-commit hooks (run once after clone)
 	cd apps/backend && $(RUN) pre-commit install
 
-functions-build: ## Build functions/shared and functions/github_webhook (run before terraform apply for github_webhook)
+functions-build: ## Build all TypeScript Cloud Functions (run before terraform apply)
 	./scripts/build-functions.sh
-
-functions-vendor-shared: ## Copy functions/shared into each Python function that needs it (run before functions-export)
-	rm -rf functions/email_notify/shared functions/usage_digest/shared
-	rsync -a --exclude=node_modules --exclude=dist functions/shared/ functions/email_notify/shared/
-	rsync -a --exclude=node_modules --exclude=dist functions/shared/ functions/usage_digest/shared/
-
-functions-export: functions-vendor-shared ## Export requirements.txt for each Python Cloud Function (run before terraform apply)
-	uv export --frozen --no-dev --no-editable --no-emit-project --package email-notify \
-	  -o functions/email_notify/requirements.txt
-	uv export --frozen --no-dev --no-editable --no-emit-project --package usage-digest \
-	  -o functions/usage_digest/requirements.txt
-	@# Replace functions-shared path with ./shared so Cloud Functions build installs from vendored copy
-	@for f in functions/email_notify functions/usage_digest; do \
-	  (grep -v 'functions/shared\|functions-shared' $$f/requirements.txt || true) > $$f/requirements.txt.tmp; \
-	  echo "./shared" | cat - $$f/requirements.txt.tmp > $$f/requirements.txt; \
-	  rm -f $$f/requirements.txt.tmp; \
-	done
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info
@@ -147,6 +130,15 @@ image-push: ## 2) Build and push A2A image to Artifact Registry (uses Docker lay
 	gcloud builds submit --config=cloudbuild.yaml \
 		--substitutions=_IMAGE_URL=europe-west1-docker.pkg.dev/$(GCP_PROJECT_ID)/refactor-agent/a2a-server:$(A2A_IMAGE_TAG) \
 		. --project=$(GCP_PROJECT_ID)
+
+infra-plan: ## Terraform plan (same vars as infra-apply; use firebase-sa.json when present)
+	@cd infra && \
+	if [ -f firebase-sa.json ]; then \
+		terraform plan -var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars \
+			-var="firebase_service_account_json=$$(cat firebase-sa.json | jq -c .)"; \
+	else \
+		terraform plan -var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars; \
+	fi
 
 infra-apply: ## 3) Full Terraform apply – APIs, secrets, SA, Cloud Run (requires infra/secrets.tfvars)
 	@cd infra && \

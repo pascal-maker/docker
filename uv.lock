@@ -9,11 +9,9 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "email-notify",
     "functions-shared",
     "refactor-agent",
     "refactor-agent-workspace",
-    "usage-digest",
 ]
 
 [[package]]
@@ -378,15 +376,6 @@ wheels = [
 ]
 
 [[package]]
-name = "blinker"
-version = "1.9.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/21/28/9b3f50ce0e048515135495f198351908d99540d69bfdc8c1d15b73dc55ce/blinker-1.9.0.tar.gz", hash = "sha256:b4ce2265a7abece45e7cc896e98dbebe6cead56bcf805a3d23136d145f5445bf", size = 22460, upload-time = "2024-11-08T17:25:47.436Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/cb/f2ad4230dc2eb1a74edf38f1a38b9b52277f75bef262d8908e60d957e13c/blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc", size = 8458, upload-time = "2024-11-08T17:25:46.184Z" },
-]
-
-[[package]]
 name = "boto3"
 version = "1.42.59"
 source = { registry = "https://pypi.org/simple" }
@@ -612,18 +601,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cloudevents"
-version = "1.12.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "deprecation" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7a/aa/804bdb5f2f021fcc887eeabfa24bad0ffd4b150f60850ae88faa51d393a5/cloudevents-1.12.0.tar.gz", hash = "sha256:ebd5544ceb58c8378a0787b657a2ae895e929b80a82d6675cba63f0e8c5539e0", size = 34494, upload-time = "2025-06-02T18:58:45.104Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/b6/4e29b74bb40daa7580310a5ff0df5f121a08ce98340e01a960b668468aab/cloudevents-1.12.0-py3-none-any.whl", hash = "sha256:49196267f5f963d87ae156f93fc0fa32f4af69485f2c8e62e0db8b0b4b8b8921", size = 55762, upload-time = "2025-06-02T18:58:44.013Z" },
-]
-
-[[package]]
 name = "cloudpickle"
 version = "3.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -773,18 +750,6 @@ wheels = [
 ]
 
 [[package]]
-name = "deprecation"
-version = "2.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
-]
-
-[[package]]
 name = "diskcache"
 version = "5.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -836,21 +801,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ae/b6/03bb70946330e88ffec97aefd3ea75ba575cb2e762061e0e62a213befee8/docutils-0.22.4.tar.gz", hash = "sha256:4db53b1fde9abecbb74d91230d32ab626d94f6badfc575d6db9194a49df29968", size = 2291750, upload-time = "2025-12-18T19:00:26.443Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/10/5da547df7a391dcde17f59520a231527b8571e6f46fc8efb02ccb370ab12/docutils-0.22.4-py3-none-any.whl", hash = "sha256:d0013f540772d1420576855455d050a2180186c91c15779301ac2ccb3eeb68de", size = 633196, upload-time = "2025-12-18T19:00:18.077Z" },
-]
-
-[[package]]
-name = "email-notify"
-version = "0.1.0"
-source = { editable = "functions/email_notify" }
-dependencies = [
-    { name = "functions-framework" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "functions-framework", specifier = ">=3.0,<5" },
-    { name = "pydantic", specifier = ">=2" },
 ]
 
 [[package]]
@@ -1039,23 +989,6 @@ wheels = [
 ]
 
 [[package]]
-name = "flask"
-version = "3.1.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "blinker" },
-    { name = "click" },
-    { name = "itsdangerous" },
-    { name = "jinja2" },
-    { name = "markupsafe" },
-    { name = "werkzeug" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/26/00/35d85dcce6c57fdc871f3867d465d780f302a175ea360f62533f12b27e2b/flask-3.1.3.tar.gz", hash = "sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb", size = 759004, upload-time = "2026-02-19T05:00:57.678Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/9c/34f6962f9b9e9c71f6e5ed806e0d0ff03c9d1b0b2340088a0cf4bce09b18/flask-3.1.3-py3-none-any.whl", hash = "sha256:f4bcbefc124291925f1a26446da31a5178f9483862233b23c0c96a20701f670c", size = 103424, upload-time = "2026-02-19T05:00:56.027Z" },
-]
-
-[[package]]
 name = "frozenlist"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1154,26 +1087,6 @@ wheels = [
 ]
 
 [[package]]
-name = "functions-framework"
-version = "3.10.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "cloudevents" },
-    { name = "flask" },
-    { name = "gunicorn", marker = "sys_platform != 'win32'" },
-    { name = "starlette" },
-    { name = "uvicorn" },
-    { name = "uvicorn-worker" },
-    { name = "watchdog" },
-    { name = "werkzeug" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/4e/63875081ead5db522d33d05fcc5bafad73944da841755ef8a1dc5d872b80/functions_framework-3.10.1.tar.gz", hash = "sha256:e60174022fc1b293dd0a33f1c6894dabd44852c0d440a51e7defd198e8d05ca5", size = 54148, upload-time = "2026-02-17T20:39:43.308Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/0e/f2cbbd4eb81646b3e09093b4df903c4df60c4791f2a4c6d41e5f3a56b491/functions_framework-3.10.1-py3-none-any.whl", hash = "sha256:48e7fd752d32dfeb528d1c9bf5d95960b6f0bb392f2a4da689f4d3c7a82c1230", size = 41406, upload-time = "2026-02-17T20:39:41.455Z" },
-]
-
-[[package]]
 name = "functions-shared"
 version = "0.1.0"
 source = { editable = "functions/shared" }
@@ -1265,22 +1178,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7c/9c/ec28ca4ec88fa89e41366316cf92c037feaa2c4200aa5d9da69fe011d2f6/google_cloud_firestore-2.23.0.tar.gz", hash = "sha256:a9cffba7cdc6101111d6d54cde22d521c98f9e7d415e67486b137fa16f06aa03", size = 615238, upload-time = "2026-01-14T23:50:54.574Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/99/2a627c8ea7ae72a686dda8bf2b79747362b425c237d2729eb76bcee55a25/google_cloud_firestore-2.23.0-py3-none-any.whl", hash = "sha256:19f2326cb466b0d52aed9fabbd89758be431f6ce18c422966cfdb8326b424314", size = 411195, upload-time = "2026-01-14T23:50:52.825Z" },
-]
-
-[[package]]
-name = "google-cloud-monitoring"
-version = "2.29.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-api-core", extra = ["grpc"] },
-    { name = "google-auth" },
-    { name = "grpcio" },
-    { name = "proto-plus" },
-    { name = "protobuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/97/06/9fc0a34bed4221a68eef3e0373ae054de367dc42c0b689d5d917587ef61b/google_cloud_monitoring-2.29.1.tar.gz", hash = "sha256:86cac55cdd2608561819d19544fb3c129bbb7dcecc445d8de426e34cd6fa8e49", size = 404383, upload-time = "2026-02-05T18:59:13.026Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/97/7c27aa95eccf8b62b066295a7c4ad04284364b696d3e7d9d47152b255a24/google_cloud_monitoring-2.29.1-py3-none-any.whl", hash = "sha256:944a57031f20da38617d184d5658c1f938e019e8061f27fd944584831a1b9d5a", size = 387922, upload-time = "2026-02-05T18:58:54.964Z" },
 ]
 
 [[package]]
@@ -1418,18 +1315,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8a/cd/89ce482a931b543b92cdd9b2888805518c4620e0094409acb8c81dd4610a/grpcio_status-1.78.0.tar.gz", hash = "sha256:a34cfd28101bfea84b5aa0f936b4b423019e9213882907166af6b3bddc59e189", size = 13808, upload-time = "2026-02-06T10:01:48.034Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/83/8a/1241ec22c41028bddd4a052ae9369267b4475265ad0ce7140974548dc3fa/grpcio_status-1.78.0-py3-none-any.whl", hash = "sha256:b492b693d4bf27b47a6c32590701724f1d3b9444b36491878fb71f6208857f34", size = 14523, upload-time = "2026-02-06T10:01:32.584Z" },
-]
-
-[[package]]
-name = "gunicorn"
-version = "25.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/13/ef67f59f6a7896fdc2c1d62b5665c5219d6b0a9a1784938eb9a28e55e128/gunicorn-25.1.0.tar.gz", hash = "sha256:1426611d959fa77e7de89f8c0f32eed6aa03ee735f98c01efba3e281b1c47616", size = 594377, upload-time = "2026-02-13T11:09:58.989Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/73/4ad5b1f6a2e21cf1e85afdaad2b7b1a933985e2f5d679147a1953aaa192c/gunicorn-25.1.0-py3-none-any.whl", hash = "sha256:d0b1236ccf27f72cfe14bce7caadf467186f19e865094ca84221424e839b8b8b", size = 197067, upload-time = "2026-02-13T11:09:57.146Z" },
 ]
 
 [[package]]
@@ -1618,15 +1503,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/de/bd/b461d3424a24c80490313fd77feeb666ca4f6a28c7e72713e3d9095719b4/invoke-2.2.1.tar.gz", hash = "sha256:515bf49b4a48932b79b024590348da22f39c4942dff991ad1fb8b8baea1be707", size = 304762, upload-time = "2025-10-11T00:36:35.172Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/4b/b99e37f88336009971405cbb7630610322ed6fbfa31e1d7ab3fbf3049a2d/invoke-2.2.1-py3-none-any.whl", hash = "sha256:2413bc441b376e5cd3f55bb5d364f973ad8bdd7bf87e53c79de3c11bf3feecc8", size = 160287, upload-time = "2025-10-11T00:36:33.703Z" },
-]
-
-[[package]]
-name = "itsdangerous"
-version = "2.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9c/cb/8ac0172223afbccb63986cc25049b154ecfb5e85932587206f42317be31d/itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173", size = 54410, upload-time = "2024-04-16T21:28:15.614Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/96/92447566d16df59b2a776c0fb82dbc4d9e07cd95062562af01e408583fc4/itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef", size = 16234, upload-time = "2024-04-16T21:28:14.499Z" },
 ]
 
 [[package]]
@@ -4734,25 +4610,6 @@ wheels = [
 ]
 
 [[package]]
-name = "usage-digest"
-version = "0.1.0"
-source = { editable = "functions/usage_digest" }
-dependencies = [
-    { name = "functions-framework" },
-    { name = "functions-shared" },
-    { name = "google-cloud-firestore" },
-    { name = "google-cloud-monitoring" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "functions-framework", specifier = ">=3.0,<5" },
-    { name = "functions-shared", editable = "functions/shared" },
-    { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
-    { name = "google-cloud-monitoring", specifier = ">=2.0,<4" },
-]
-
-[[package]]
 name = "uvicorn"
 version = "0.41.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4774,19 +4631,6 @@ standard = [
     { name = "uvloop", marker = "platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
     { name = "watchfiles" },
     { name = "websockets" },
-]
-
-[[package]]
-name = "uvicorn-worker"
-version = "0.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "gunicorn" },
-    { name = "uvicorn" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/80/59/9101b9c0680fd80e9d26c07deb822a5d18a324339fcf9cd017885ee808ad/uvicorn_worker-0.4.0.tar.gz", hash = "sha256:8ee5306070d8f38dce124adce488c3c0b50f20cf0c0222b12c66188da7214493", size = 9361, upload-time = "2025-09-20T10:47:01.218Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/90/25/09cd7a90c8bb7fb693be0d6704fccd5f9778d5513214b7a01cc4a94ff314/uvicorn_worker-0.4.0-py3-none-any.whl", hash = "sha256:e2ed952cef976f5e9e429d7269640bbcafbd36c80aa80f1003c8c77a6797abde", size = 5364, upload-time = "2025-09-20T10:46:59.776Z" },
 ]
 
 [[package]]
@@ -4991,18 +4835,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/b6/b9afed2afadddaf5ebb2afa801abf4b0868f42f8539bfe4b071b5266c9fe/websockets-16.0-cp314-cp314t-win32.whl", hash = "sha256:5a4b4cc550cb665dd8a47f868c8d04c8230f857363ad3c9caf7a0c3bf8c61ca6", size = 178085, upload-time = "2026-01-10T09:23:33.816Z" },
     { url = "https://files.pythonhosted.org/packages/9f/3e/28135a24e384493fa804216b79a6a6759a38cc4ff59118787b9fb693df93/websockets-16.0-cp314-cp314t-win_amd64.whl", hash = "sha256:b14dc141ed6d2dde437cddb216004bcac6a1df0935d79656387bd41632ba0bbd", size = 178531, upload-time = "2026-01-10T09:23:35.016Z" },
     { url = "https://files.pythonhosted.org/packages/6f/28/258ebab549c2bf3e64d2b0217b973467394a9cea8c42f70418ca2c5d0d2e/websockets-16.0-py3-none-any.whl", hash = "sha256:1637db62fad1dc833276dded54215f2c7fa46912301a24bd94d45d46a011ceec", size = 171598, upload-time = "2026-01-10T09:23:45.395Z" },
-]
-
-[[package]]
-name = "werkzeug"
-version = "3.1.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markupsafe" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/61/f1/ee81806690a87dab5f5653c1f146c92bc066d7f4cebc603ef88eb9e13957/werkzeug-3.1.6.tar.gz", hash = "sha256:210c6bede5a420a913956b4791a7f4d6843a43b6fcee4dfa08a65e93007d0d25", size = 864736, upload-time = "2026-02-19T15:17:18.884Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/ec/d58832f89ede95652fd01f4f24236af7d32b70cab2196dfcc2d2fd13c5c2/werkzeug-3.1.6-py3-none-any.whl", hash = "sha256:7ddf3357bb9564e407607f988f683d72038551200c704012bb9a4c523d42f131", size = 225166, upload-time = "2026-02-19T15:17:17.475Z" },
 ]
 
 [[package]]

@@ -1,8 +1,9 @@
 # Email notify Cloud Function: Firestore onCreate users/{userId} -> Resend admin email.
+# TypeScript (nodejs24). Run `make functions-build` before terraform apply.
 
 data "archive_file" "email_notify" {
   type        = "zip"
-  source_dir  = "${path.module}/../../functions/email_notify"
+  source_dir  = "${path.module}/../../functions/email_notify/.deploy"
   output_path = "${path.module}/.build/email_notify.zip"
 }
 
@@ -18,8 +19,8 @@ resource "google_cloudfunctions2_function" "email_notify" {
   project  = var.project_id
 
   build_config {
-    runtime     = "python312"
-    entry_point = "on_user_created"
+    runtime     = "nodejs24"
+    entry_point = "onUserCreated"
     source {
       storage_source {
         bucket = google_storage_bucket.functions_source.name

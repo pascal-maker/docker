@@ -5,7 +5,6 @@ from refactor_agent.engine.base import (
     RefactorEngine,
     ReferenceLocation,
 )
-from refactor_agent.engine.python.ast_engine import ASTEngine
 from refactor_agent.engine.python.libcst_engine import LibCSTEngine
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.subprocess_engine import SubprocessEngine
@@ -15,7 +14,6 @@ from refactor_agent.engine.typescript.ts_morph_engine import (
 )
 
 __all__ = [
-    "ASTEngine",
     "CollisionInfo",
     "DiagnosticInfo",
     "EngineRegistry",

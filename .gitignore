@@ -40,7 +40,9 @@ functions/*/requirements.txt
 # TypeScript function deploy output (from make functions-build)
 functions/auth_callback/.deploy/
 functions/auth_register_device/.deploy/
+functions/email_notify/.deploy/
 functions/github_webhook/.deploy/
+functions/usage_digest/.deploy/
 
 # Terraform (infra/). Commit .terraform.lock.hcl for consistent provider versions.
 # Run terraform from infra/ (GCS backend); never from infra/site/ (that creates local state).

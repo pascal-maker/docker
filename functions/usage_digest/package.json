@@ -1,27 +1,22 @@
 {
-  "name": "@refactor-agent/functions-shared",
+  "name": "usage-digest",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
-  },
   "scripts": {
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\"",
     "format-check": "prettier --check \"src/**/*.ts\"",
     "lint": "oxlint --type-aware src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "functions-framework --target=usageDigest"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.0.0",
-    "zod": "^3.24.0"
+    "@google-cloud/functions-framework": "^5.0.0",
+    "@google-cloud/monitoring": "^4.0.0",
+    "@refactor-agent/functions-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

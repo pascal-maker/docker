@@ -4,7 +4,9 @@ packages:
   - apps/vscode-extension
   - functions/auth_callback
   - functions/auth_register_device
+  - functions/email_notify
   - functions/github_webhook
   - functions/shared
+  - functions/usage_digest
   - packages/design-system
   - packages/ts-morph-bridge
