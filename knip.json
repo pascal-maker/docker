@@ -24,4 +24,5 @@
   },
   "ignore": ["**/dist/**", "**/out/**", "**/node_modules/**", "playground/**"],
   "ignoreDependencies": ["@types/react-dom", "react-dom"],
+  "ignoreBinaries": ["uv"]
 }

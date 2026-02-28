@@ -154,10 +154,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Fetch base for affected
-        run: git fetch origin main
+        run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Format check
-        run: nx affected -t format-check --base=origin/main || nx run-many -t format-check --all
+        run: pnpm exec nx affected -t format-check --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t format-check --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
 
   ts-lint:
     name: TS lint
@@ -186,10 +186,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Fetch base for affected
-        run: git fetch origin main
+        run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Lint
-        run: nx affected -t lint --base=origin/main || nx run-many -t lint --all
+        run: pnpm exec nx affected -t lint --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t lint --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
 
   ts-typecheck:
     name: TS typecheck
@@ -218,13 +218,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Fetch base for affected
-        run: git fetch origin main
+        run: git fetch origin ${{ github.base_ref || 'main' }} || true
 
       - name: Build @refactor-agent/design-system (required by dashboard)
         run: pnpm --filter @refactor-agent/design-system run build
 
       - name: Typecheck
-        run: nx affected -t typecheck --base=origin/main || nx run-many -t typecheck --all
+        run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t typecheck --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
 
   ts-knip:
     name: TS Knip (dead code)

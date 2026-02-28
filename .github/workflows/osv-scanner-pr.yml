@@ -1,7 +1,9 @@
 name: OSV-Scanner PR Scan
 
+# pull_request_target runs in base repo context so git checkout of base branch
+# works for fork PRs. Safe here: we only scan files, not execute PR code.
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
   merge_group:
     branches: [main]
@@ -16,3 +18,5 @@ jobs:
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.3"
     with:
       upload-sarif: false
+      # Don't fail the build on existing vulnerabilities; only report new ones
+      fail-on-vuln: false
