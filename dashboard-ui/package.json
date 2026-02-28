@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@refactor-agent/design-system": "workspace:*",
-    "@sentry/react": "^8.55.0",
+    "@sentry/react": "^10.40.0",
     "@tanstack/react-query": "^5.62.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
