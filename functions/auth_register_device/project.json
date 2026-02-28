@@ -1,0 +1,27 @@
+{
+  "name": "fn-auth-register-device",
+  "root": "functions/auth_register_device",
+  "projectType": "application",
+  "tags": ["scope:functions", "type:app", "lang:python"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*.py",
+        "{workspaceRoot}/pyproject.toml"
+      ],
+      "options": {
+        "command": "uv run --package refactor-agent ruff check functions/auth_register_device/",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "bundle": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv export --frozen --no-dev --no-editable --package auth-register-device -o functions/auth_register_device/requirements.txt",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

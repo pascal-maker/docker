@@ -1,5 +1,5 @@
 # Build and deploy the marketing site to Firebase Hosting.
-# Trigger: push to main when site/ or functions/ change, or manual.
+# Trigger: push to main when site/ change, or manual. Cloud Functions deploy via Terraform.
 # Requires: FIREBASE_SERVICE_ACCOUNT, VITE_GITHUB_APP_CLIENT_ID (or VITE_GITHUB_OAUTH_CLIENT_ID), VITE_AUTH_CALLBACK_URL.
 # Optional (Terraform sync): VITE_IMPRINT_NAME, VITE_IMPRINT_EMAIL, VITE_PRIVACY_POLICY_URL,
 # VITE_TERMS_URL, VITE_FIREBASE_MEASUREMENT_ID.
@@ -11,7 +11,6 @@ on:
     branches: [main]
     paths:
       - "apps/site/**"
-      - "functions/**"
       - "packages/design-system/**"
       - "firebase.json"
       - ".firebaserc"

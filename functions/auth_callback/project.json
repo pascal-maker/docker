@@ -1,0 +1,27 @@
+{
+  "name": "fn-auth-callback",
+  "root": "functions/auth_callback",
+  "projectType": "application",
+  "tags": ["scope:functions", "type:app", "lang:python"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*.py",
+        "{workspaceRoot}/pyproject.toml"
+      ],
+      "options": {
+        "command": "uv run --package refactor-agent ruff check functions/auth_callback/",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "bundle": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv export --frozen --no-dev --no-editable --package auth-callback -o functions/auth_callback/requirements.txt",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

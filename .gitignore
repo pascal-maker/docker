@@ -34,6 +34,9 @@ playground/nestjs-layered-architecture/
 # CI report
 report.md
 
+# Generated Cloud Function requirements (from make functions-export)
+functions/*/requirements.txt
+
 # Terraform (infra/). Commit .terraform.lock.hcl for consistent provider versions.
 infra/.terraform/
 infra/site/.build/

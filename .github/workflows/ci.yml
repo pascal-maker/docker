@@ -21,7 +21,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: cd apps/backend && uv sync
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
 
       - name: Format check
         working-directory: apps/backend
@@ -41,7 +48,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: cd apps/backend && uv sync
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
 
       - name: Lint
         working-directory: apps/backend
@@ -61,7 +75,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: cd apps/backend && uv sync
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
 
       - name: Type check
         working-directory: apps/backend
@@ -81,7 +102,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: cd apps/backend && uv sync
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
 
       - uses: pnpm/action-setup@v4
         with:
@@ -119,7 +147,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
           restore-keys: nx-${{ runner.os }}-
 
       - name: Install dependencies
@@ -151,7 +179,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
           restore-keys: nx-${{ runner.os }}-
 
       - name: Install dependencies
@@ -183,7 +211,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
           restore-keys: nx-${{ runner.os }}-
 
       - name: Install dependencies
@@ -233,7 +261,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: cd apps/backend && uv sync
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
 
       - name: Vulture (dead code)
         working-directory: apps/backend
@@ -253,11 +288,70 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: cd apps/backend && uv sync
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
 
       - name: Flake8 deprecation
         working-directory: apps/backend
         run: uv run flake8 --select=D src tests scripts
+
+  functions-format-check:
+    name: Functions format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: Format check
+        run: uv run --package refactor-agent ruff format --check functions/
+
+  functions-lint:
+    name: Functions lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: Lint
+        run: uv run --package refactor-agent ruff check functions/
 
   terraform-validate:
     name: Terraform validate

@@ -4,12 +4,57 @@
   "sourceRoot": "apps/backend/src",
   "projectType": "application",
   "implicitDependencies": ["ts-morph-bridge"],
+  "tags": ["scope:backend", "type:app", "lang:python"],
   "targets": {
-    "install": { "executor": "@nxlv/python:install", "options": { "silent": false } },
-    "test": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run pytest tests/", "cwd": "apps/backend" } },
-    "lint": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run ruff check src tests scripts", "cwd": "apps/backend" } },
-    "format-check": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run ruff format --check --diff src tests scripts", "cwd": "apps/backend" } },
-    "typecheck": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run mypy src", "cwd": "apps/backend" } }
-  },
-  "tags": ["scope:backend", "type:app", "lang:python"]
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv sync",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.py",
+        "{projectRoot}/tests/**/*.py",
+        "{workspaceRoot}/uv.lock"
+      ],
+      "options": {
+        "command": "uv run pytest",
+        "cwd": "apps/backend"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.py",
+        "{projectRoot}/tests/**/*.py",
+        "{projectRoot}/scripts/**/*.py",
+        "{workspaceRoot}/pyproject.toml"
+      ],
+      "options": {
+        "command": "uv run ruff check src tests scripts",
+        "cwd": "apps/backend"
+      }
+    },
+    "format-check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "uv run ruff format --check --diff src tests scripts",
+        "cwd": "apps/backend"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "uv run mypy src",
+        "cwd": "apps/backend"
+      }
+    }
+  }
 }

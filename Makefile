@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := help
 
-RUN := uv run --directory apps/backend
+RUN := uv run
 TS_BRIDGE := packages/ts-morph-bridge
-TS_PACKAGES := dashboard $(TS_BRIDGE) vscode-extension
+TS_PACKAGES := dashboard site $(TS_BRIDGE) vscode-extension
 # Workspace package names (for pnpm --filter)
 TS_FILTERS := dashboard site @refactor-agent/design-system ts-morph-bridge refactor-agent
 
@@ -10,29 +10,29 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-export infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 format: ## Auto-format code
-	$(RUN) ruff format src tests scripts
+	cd apps/backend && $(RUN) ruff format src tests scripts
 
 format-check: ## Check formatting (no changes)
-	$(RUN) ruff format --check --diff src tests scripts
+	cd apps/backend && $(RUN) ruff format --check --diff src tests scripts
 
 lint: ## Run ruff linter
-	$(RUN) ruff check src tests scripts
+	cd apps/backend && $(RUN) ruff check src tests scripts
 
 fix: ## Auto-fix lint violations
-	$(RUN) ruff check --fix src tests scripts
+	cd apps/backend && $(RUN) ruff check --fix src tests scripts
 
 typecheck: ## Run mypy strict type checking (src only; scripts are one-off tools)
-	$(RUN) mypy src
+	cd apps/backend && $(RUN) mypy src
 
 test: ## Run pytest
-	$(RUN) pytest
+	cd apps/backend && $(RUN) pytest
 
 check: ## Run all checks (format-check + lint + typecheck + test)
 	@echo "=== Format Check ==="
@@ -49,16 +49,16 @@ ci: ## Alias for check (CI usage)
 	$(MAKE) check
 
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
-	CHAINLIT_APP_ROOT=apps/backend $(RUN) chainlit run src/refactor_agent/ui/app.py -w
+	cd apps/backend && CHAINLIT_APP_ROOT=apps/backend $(RUN) chainlit run src/refactor_agent/ui/app.py -w
 
 dashboard: ## Run refactor-issues dashboard backend (API; serves SPA if apps/dashboard/dist exists)
-	$(RUN) python -m refactor_agent.dashboard
+	cd apps/backend && $(RUN) python -m refactor_agent.dashboard
 
 dashboard-dev: ## Run dashboard React UI dev server (proxy to backend on :8000)
 	cd apps/dashboard && pnpm dev
 
 dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
-	$(RUN) python scripts/seed/seed_dashboard.py
+	cd apps/backend && $(RUN) python scripts/seed/seed_dashboard.py
 
 reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
 	./scripts/dev/reset-playground.sh
@@ -85,13 +85,25 @@ ts-knip: ## Knip: find dead code, unused exports, unused deps (TS)
 	pnpm run knip
 
 dead-code: ## Vulture: find dead code in Python (run after uv sync)
-	$(RUN) vulture src tests scripts
+	cd apps/backend && $(RUN) vulture src tests scripts
 
 deprecation-check: ## Flake8 deprecation plugin: flag deprecated API usage (Python)
-	$(RUN) flake8 --select=D src tests scripts
+	cd apps/backend && $(RUN) flake8 --select=D src tests scripts
 
 pre-commit-install: ## Install pre-commit hooks (run once after clone)
-	$(RUN) pre-commit install
+	cd apps/backend && $(RUN) pre-commit install
+
+functions-export: ## Export requirements.txt for each Cloud Function (run before terraform apply)
+	uv export --frozen --no-dev --no-editable --package auth-callback \
+	  -o functions/auth_callback/requirements.txt
+	uv export --frozen --no-dev --no-editable --package auth-register-device \
+	  -o functions/auth_register_device/requirements.txt
+	uv export --frozen --no-dev --no-editable --package email-notify \
+	  -o functions/email_notify/requirements.txt
+	uv export --frozen --no-dev --no-editable --package github-webhook \
+	  -o functions/github_webhook/requirements.txt
+	uv export --frozen --no-dev --no-editable --package usage-digest \
+	  -o functions/usage_digest/requirements.txt
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info
@@ -161,7 +173,7 @@ sync-sentry-dsns: ## Sync Sentry DSNs from Terraform into .env files (run after 
 # A2A staging/prod probe and security check (override A2A_URL or use .refactor-agent-a2a-url)
 A2A_URL ?= $(shell test -f .refactor-agent-a2a-url && cat .refactor-agent-a2a-url || echo "http://localhost:9999")
 probe-a2a: ## Probe A2A endpoint: what is reachable with/without auth
-	$(RUN) python scripts/a2a/probe_a2a.py "$(A2A_URL)"
+	cd apps/backend && $(RUN) python scripts/a2a/probe_a2a.py "$(A2A_URL)"
 
 check-a2a-security: ## Programmatic A2A security check; REQUIRE_AUTH_FOR_SEND=1 to fail if POST without auth succeeds
-	$(RUN) python scripts/a2a/check_a2a_security.py --base-url "$(A2A_URL)" $(if $(REQUIRE_AUTH_FOR_SEND),--require-auth-for-send,)
+	cd apps/backend && $(RUN) python scripts/a2a/check_a2a_security.py --base-url "$(A2A_URL)" $(if $(REQUIRE_AUTH_FOR_SEND),--require-auth-for-send,)
