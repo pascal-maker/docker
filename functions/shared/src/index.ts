@@ -35,7 +35,7 @@ export {
 } from "./github_api.js";
 
 export { httpHandler } from "./http.js";
-export type { HttpHandlerFn, HttpResponse } from "./http.js";
+export type { HttpHandler, HttpHandlerFn, HttpResponse } from "./http.js";
 
 export {
   getInstallationUserIds,

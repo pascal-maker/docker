@@ -9,6 +9,7 @@ import { http } from "@google-cloud/functions-framework";
 import { MetricServiceClient } from "@google-cloud/monitoring";
 import {
   httpHandler,
+  type HttpHandler,
   type HttpResponse,
 } from "@refactor-agent/functions-shared";
 
@@ -95,75 +96,77 @@ async function sendDigestEmail(
   console.log("Resend sent digest to=%s id=%s", adminEmail, result.id);
 }
 
-const handler = httpHandler(async (_req, _res): Promise<HttpResponse> => {
-  const adminEmail = process.env["ADMIN_EMAIL"];
-  const apiKey = process.env["RESEND_API_KEY"];
-  const projectId =
-    process.env["GOOGLE_CLOUD_PROJECT"] ?? process.env["GCP_PROJECT"];
-  const fromEmail =
-    process.env["FROM_EMAIL"] ?? "Refactor Agent <noreply@refactorum.com>";
+const handler: HttpHandler = httpHandler(
+  async (_req, _res): Promise<HttpResponse> => {
+    const adminEmail = process.env["ADMIN_EMAIL"];
+    const apiKey = process.env["RESEND_API_KEY"];
+    const projectId =
+      process.env["GOOGLE_CLOUD_PROJECT"] ?? process.env["GCP_PROJECT"];
+    const fromEmail =
+      process.env["FROM_EMAIL"] ?? "Refactor Agent <noreply@refactorum.com>";
 
-  console.log(
-    "usage_digest started admin=%s project=%s",
-    adminEmail ?? "(unset)",
-    projectId ?? "(unset)",
-  );
-
-  if (!adminEmail || !apiKey || !projectId) {
-    console.error(
-      "Missing config: admin=%s api_key=%s project=%s",
-      Boolean(adminEmail),
-      Boolean(apiKey),
-      Boolean(projectId),
+    console.log(
+      "usage_digest started admin=%s project=%s",
+      adminEmail ?? "(unset)",
+      projectId ?? "(unset)",
     );
+
+    if (!adminEmail || !apiKey || !projectId) {
+      console.error(
+        "Missing config: admin=%s api_key=%s project=%s",
+        Boolean(adminEmail),
+        Boolean(apiKey),
+        Boolean(projectId),
+      );
+      return {
+        body: "Missing ADMIN_EMAIL, RESEND_API_KEY, or project",
+        status: 500,
+      };
+    }
+
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+    const newUsers = await countNewUsers(projectId);
+    const client = new MetricServiceClient();
+    const authCallbacks = await getRequestCount(
+      projectId,
+      client,
+      "auth-github-callback",
+      startTime,
+      endTime,
+    );
+    const emailNotifies = await getRequestCount(
+      projectId,
+      client,
+      "email-notify-pending-user",
+      startTime,
+      endTime,
+    );
+
+    console.log(
+      "Sending digest: users=%s auth=%s emails=%s",
+      newUsers,
+      authCallbacks,
+      emailNotifies,
+    );
+
+    await sendDigestEmail(
+      adminEmail,
+      apiKey,
+      newUsers,
+      authCallbacks,
+      emailNotifies,
+      fromEmail,
+    );
+
     return {
-      body: "Missing ADMIN_EMAIL, RESEND_API_KEY, or project",
-      status: 500,
+      body: "OK",
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
     };
-  }
-
-  const endTime = new Date();
-  const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
-
-  const newUsers = await countNewUsers(projectId);
-  const client = new MetricServiceClient();
-  const authCallbacks = await getRequestCount(
-    projectId,
-    client,
-    "auth-github-callback",
-    startTime,
-    endTime,
-  );
-  const emailNotifies = await getRequestCount(
-    projectId,
-    client,
-    "email-notify-pending-user",
-    startTime,
-    endTime,
-  );
-
-  console.log(
-    "Sending digest: users=%s auth=%s emails=%s",
-    newUsers,
-    authCallbacks,
-    emailNotifies,
-  );
-
-  await sendDigestEmail(
-    adminEmail,
-    apiKey,
-    newUsers,
-    authCallbacks,
-    emailNotifies,
-    fromEmail,
-  );
-
-  return {
-    body: "OK",
-    status: 200,
-    headers: { "Content-Type": "text/plain" },
-  };
-});
+  },
+);
 
 http("usageDigest", handler);
 

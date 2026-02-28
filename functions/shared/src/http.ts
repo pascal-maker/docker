@@ -15,6 +15,9 @@ export type HttpHandlerFn = (
   res: Response,
 ) => Promise<HttpResponse> | HttpResponse;
 
+/** Wrapped handler type returned by httpHandler. Use for explicit annotations. */
+export type HttpHandler = (req: Request, res: Response) => void | Promise<void>;
+
 /**
  * Wraps a handler that returns HttpResponse and sends it via Express res.
  * Use this instead of writing to res directly for consistent response handling.
