@@ -109,7 +109,16 @@ variable "resend_dkim_type" {
   default     = "CNAME"
 }
 
-# Firebase Hosting DNS (add custom domain in Firebase Console first, then add values here).
+# Firebase Hosting custom domains (Terraform-managed). When set, registers each domain in Firebase
+# and creates DNS records in Cloudflare from Firebase's required_dns_updates. Empty to use
+# manual firebase_hosting_* variables instead.
+variable "firebase_custom_domains" {
+  description = "Custom domains for Firebase Hosting (e.g. [\"refactorum.com\", \"www.refactorum.com\"]). Terraform registers each and creates DNS."
+  type        = list(string)
+  default     = []
+}
+
+# Firebase Hosting DNS (manual fallback when firebase_custom_domain is empty).
 variable "firebase_hosting_target" {
   description = "Firebase Hosting A/CNAME target for root or www. From Firebase Console after adding custom domain."
   type        = string

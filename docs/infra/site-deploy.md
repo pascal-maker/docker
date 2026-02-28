@@ -114,6 +114,15 @@ Secrets (`refactor-agent-github-oauth-client-secret`, `refactor-agent-resend-api
 - **Domain:** refactorum.com (Cloudflare). DNS and Email Routing in `infra/cloudflare/` module.
 - **Email:** noreply@ and admin@refactorum.com forward via Cloudflare Email Routing. Sending via Resend (verify domain in Resend Dashboard).
 
+### Firebase Hosting custom domains (Terraform-managed)
+
+Set `firebase_custom_domains = ["refactorum.com", "www.refactorum.com"]` in `secrets.tfvars`. Terraform will:
+
+1. Register each domain with Firebase Hosting (`google_firebase_hosting_custom_domain`)
+2. Create the required DNS records in Cloudflare from Firebase's `required_dns_updates`
+
+**Two-phase apply:** Because Firebase returns the required DNS records only after each custom domain is created, `make infra-apply` runs a targeted apply first (creates the custom domains), then a full apply (creates the Cloudflare records). No manual steps in Firebase Console needed.
+
 ## Local testing
 
 1. Copy `functions/auth_callback/.env.example` to `functions/auth_callback/.env`.

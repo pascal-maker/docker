@@ -3,6 +3,11 @@ variable "zone_id" {
   type        = string
 }
 
+variable "zone_name" {
+  description = "Zone name (e.g. refactorum.com). Used to derive record names from Firebase DNS updates."
+  type        = string
+}
+
 variable "account_id" {
   description = "Cloudflare account ID."
   type        = string
@@ -48,4 +53,10 @@ variable "firebase_hosting_name" {
   description = "DNS record name for Firebase: @ for root, www for www subdomain."
   type        = string
   default     = "www"
+}
+
+variable "firebase_custom_domain_dns_updates" {
+  description = "Required DNS updates from Firebase custom domain. When non-empty, creates records here instead of using firebase_hosting_*."
+  type        = list(any)
+  default     = []
 }

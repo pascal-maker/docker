@@ -22,3 +22,8 @@ output "firebase_measurement_id" {
   description = "Firebase Analytics Measurement ID (G-...) for consent-gated analytics."
   value       = try(data.google_firebase_web_app_config.site.measurement_id, "")
 }
+
+output "firebase_custom_domain_dns_updates" {
+  description = "Required DNS updates from Firebase custom domains. Pass to Cloudflare module to create records."
+  value       = flatten([for r in google_firebase_hosting_custom_domain.site : r.required_dns_updates])
+}

@@ -147,6 +147,7 @@ module "site" {
   github_app_webhook_secret_name     = module.shared.github_app_webhook_secret_name
   resend_api_key_secret_name         = module.shared.resend_api_key_secret_name
   admin_email                        = var.site_admin_email
+  firebase_custom_domains            = var.firebase_custom_domains
 }
 
 # Cloudflare: DNS and Email Routing for refactorum.com.
@@ -155,13 +156,15 @@ module "cloudflare" {
 
   count = var.cloudflare_api_token != "" ? 1 : 0
 
-  zone_id                 = data.cloudflare_zone.refactorum[0].id
-  account_id              = data.cloudflare_zone.refactorum[0].account_id
-  email_destination       = var.cloudflare_email_destination
-  resend_dkim_name        = var.resend_dkim_name
-  resend_dkim_target      = var.resend_dkim_target
-  resend_dkim_type        = var.resend_dkim_type
-  firebase_hosting_target = var.firebase_hosting_target
-  firebase_hosting_type   = var.firebase_hosting_type
-  firebase_hosting_name   = var.firebase_hosting_name
+  zone_id                            = data.cloudflare_zone.refactorum[0].id
+  account_id                         = data.cloudflare_zone.refactorum[0].account_id
+  zone_name                          = data.cloudflare_zone.refactorum[0].name
+  email_destination                  = var.cloudflare_email_destination
+  resend_dkim_name                   = var.resend_dkim_name
+  resend_dkim_target                 = var.resend_dkim_target
+  resend_dkim_type                   = var.resend_dkim_type
+  firebase_hosting_target            = var.firebase_hosting_target
+  firebase_hosting_type              = var.firebase_hosting_type
+  firebase_hosting_name              = var.firebase_hosting_name
+  firebase_custom_domain_dns_updates = module.site.firebase_custom_domain_dns_updates
 }

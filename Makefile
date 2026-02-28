@@ -124,6 +124,17 @@ image-push: ## 2) Build and push A2A image to Artifact Registry (uses Docker lay
 
 infra-apply: ## 3) Full Terraform apply – APIs, secrets, SA, Cloud Run (requires infra/secrets.tfvars)
 	@cd infra && \
+	if grep -qE 'firebase_custom_domains\s*=' secrets.tfvars 2>/dev/null; then \
+		echo "Firebase custom domain set: applying custom domain first (two-phase)..."; \
+		if [ -f firebase-sa.json ]; then \
+			terraform apply -target=module.site.google_firebase_hosting_custom_domain.site \
+				-var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars \
+				-var="firebase_service_account_json=$$(cat firebase-sa.json | jq -c .)" -auto-approve; \
+		else \
+			terraform apply -target=module.site.google_firebase_hosting_custom_domain.site \
+				-var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars -auto-approve; \
+		fi; \
+	fi && \
 	if [ -f firebase-sa.json ]; then \
 		terraform apply -var-file=$(INFRA_VAR_FILE) -var-file=secrets.tfvars \
 			-var="firebase_service_account_json=$$(cat firebase-sa.json | jq -c .)"; \

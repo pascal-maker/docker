@@ -65,3 +65,9 @@ variable "github_oauth_client_id" {
   description = "GitHub OAuth App Client ID (from GitHub Developer Settings)."
   type        = string
 }
+
+variable "firebase_custom_domains" {
+  description = "Custom domains for Firebase Hosting (e.g. [\"refactorum.com\", \"www.refactorum.com\"]). Empty to skip Terraform-managed custom domains."
+  type        = list(string)
+  default     = []
+}
