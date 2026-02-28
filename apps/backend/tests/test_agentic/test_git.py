@@ -32,6 +32,18 @@ def git_repo(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],  # noqa: S607
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],  # noqa: S607
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
     (tmp_path / "README").write_text("initial")
     subprocess.run(
         ["git", "add", "README"],  # noqa: S607

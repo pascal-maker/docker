@@ -27,6 +27,16 @@ PROMPT_CONFIGS: dict[str, PromptConfig] = {
         temperature=0,
         max_tokens=PLANNER_MAX_TOKENS,
     ),
+    "refactor-triage": PromptConfig(
+        model="anthropic:claude-sonnet-4-6",
+        temperature=0,
+        max_tokens=4096,
+    ),
+    "refactor-router": PromptConfig(
+        model="anthropic:claude-sonnet-4-6",
+        temperature=0,
+        max_tokens=1024,
+    ),
 }
 
 

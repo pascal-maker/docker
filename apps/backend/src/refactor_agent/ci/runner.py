@@ -5,7 +5,11 @@ from __future__ import annotations
 import os
 from pathlib import Path  # noqa: TC003 — Path used at runtime
 
-from refactor_agent.agentic import execute_schedule_with_agentic
+from refactor_agent.agentic import (
+    execute_schedule_with_agentic,
+    run_triage,
+    validate_schedule,
+)
 from refactor_agent.ci.config import (
     CiConfigError,
     get_language_and_ext,
@@ -38,7 +42,7 @@ async def _run_executor(
     return await execute_schedule(schedule, deps)
 
 
-async def run_ci(
+async def run_ci(  # noqa: C901 — preset loop with triage/planner/validator/executor branches
     workspace: Path,
     config_path: Path | None = None,
     *,
@@ -93,6 +97,41 @@ async def run_ci(
             schedule_output_ref=None,
             schedule_partial_ref=None,
         )
+        triage_result = None
+        if is_agent_v2_enabled():
+            try:
+                triage_result = await run_triage(preset.goal, deps)
+            except Exception as e:
+                logger.exception("Triage failed for preset", preset_id=preset.id)
+                preset_results.append(
+                    PresetResult(
+                        preset_id=preset.id,
+                        goal=preset.goal,
+                        operation_count=0,
+                        auto_applied=False,
+                        operations=[],
+                        error=f"Triage failed: {e}",
+                    ),
+                )
+                any_failed = True
+                continue
+            if triage_result.category in ("paradigm_shift", "ambiguous"):
+                preset_results.append(
+                    PresetResult(
+                        preset_id=preset.id,
+                        goal=preset.goal,
+                        operation_count=0,
+                        auto_applied=False,
+                        operations=[],
+                        error=(
+                            f"Refactor type '{triage_result.category}' not supported "
+                            "in Phase 1"
+                        ),
+                    ),
+                )
+                any_failed = True
+                continue
+
         agent = create_planner_agent()
 
         try:
@@ -113,6 +152,33 @@ async def run_ci(
             continue
 
         schedule = planner_result.schedule
+
+        if is_agent_v2_enabled() and triage_result is not None:
+            schedule = schedule.model_copy(
+                update={"scope_spec": triage_result.scope_spec},
+            )
+            if triage_result.category == "structural":
+                validation = validate_schedule(
+                    schedule,
+                    triage_result.scope_spec,
+                    deps,
+                )
+                if not validation.approved:
+                    preset_results.append(
+                        PresetResult(
+                            preset_id=preset.id,
+                            goal=preset.goal,
+                            operation_count=len(schedule.operations),
+                            auto_applied=False,
+                            operations=[
+                                operation_to_summary(op) for op in schedule.operations
+                            ],
+                            error=f"Validation failed: {validation.reason}",
+                        ),
+                    )
+                    any_failed = True
+                    continue
+
         op_count = len(schedule.operations)
         summaries = [operation_to_summary(op) for op in schedule.operations]
 

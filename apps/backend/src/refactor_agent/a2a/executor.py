@@ -32,6 +32,7 @@ from refactor_agent.a2a.models import (
     StateStore,
     UseReplicaRenameParams,
 )
+from refactor_agent.config import is_agent_v2_enabled
 from refactor_agent.orchestrator import (
     NeedInputResult,
     OrchestratorDeps,
@@ -387,7 +388,25 @@ class ASTRefactorAgentExecutor(AgentExecutor):
                 file_ext=file_ext,
                 get_user_input=None,
             )
-            internal_message = _prompt
+            if is_agent_v2_enabled():
+                from refactor_agent.agentic.router import (  # noqa: PLC0415
+                    route_intent,
+                )
+
+                router_confidence = 0.6
+                route_result = await route_intent(_prompt)
+                if (
+                    route_result.intent == "refactor"
+                    and route_result.goal
+                    and route_result.confidence >= router_confidence
+                ):
+                    internal_message = (
+                        f"Please create a refactor schedule for: {route_result.goal}"
+                    )
+                else:
+                    internal_message = _prompt
+            else:
+                internal_message = _prompt
         else:
             lang, file_ext = _language_and_ext(parsed)
             deps = OrchestratorDeps(

@@ -18,6 +18,7 @@ from refactor_agent.config import (
     AGENT_REQUEST_TIMEOUT,
     DEFAULT_AGENT_MAX_TOKENS,
     DEFAULT_MODEL,
+    is_agent_v2_enabled,
 )
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.subprocess_engine import SubprocessError
@@ -516,11 +517,45 @@ def _register_schedule_tool(agent: Agent[OrchestratorDeps, str]) -> None:
         planner to get a RefactorSchedule; it is stored for the app to execute by mode.
         """
         # Lazy import to break cycle: schedule -> executor -> orchestrator -> agent.
-        from refactor_agent.schedule import create_planner_agent, run_planner  # noqa: I001, PLC0415 — lazy import to avoid circular deps
+        from refactor_agent.agentic import (  # noqa: PLC0415 — lazy import
+            run_triage,
+            validate_schedule,
+        )
+        from refactor_agent.schedule import (  # noqa: PLC0415 — lazy import
+            create_planner_agent,
+            run_planner,
+        )
+
+        triage_result = None
+        if is_agent_v2_enabled():
+            triage_result = await run_triage(goal, ctx.deps)
+            if triage_result.category in ("paradigm_shift", "ambiguous"):
+                return (
+                    f"Refactor type '{triage_result.category}' is not supported in "
+                    "Phase 1. Try breaking into smaller structural refactors or "
+                    "rephrase the goal."
+                )
 
         planner_agent = create_planner_agent()
         result = await run_planner(planner_agent, ctx.deps, goal)
         schedule = result.schedule
+
+        if is_agent_v2_enabled() and triage_result is not None:
+            schedule = schedule.model_copy(
+                update={"scope_spec": triage_result.scope_spec},
+            )
+            if triage_result.category == "structural":
+                validation = validate_schedule(
+                    schedule,
+                    triage_result.scope_spec,
+                    ctx.deps,
+                )
+                if not validation.approved:
+                    return (
+                        f"Schedule validation failed: {validation.reason}. "
+                        "Revise the plan and try again."
+                    )
+
         if ctx.deps.schedule_output_ref is not None:
             ctx.deps.schedule_output_ref.append(schedule.model_dump_json())
         if ctx.deps.schedule_partial_ref is not None:
