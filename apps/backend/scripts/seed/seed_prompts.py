@@ -13,7 +13,9 @@ from refactor_agent.models.prompt_config import PromptConfig
 # Must match refactor_agent.schedule.limits.DEFAULT_PLANNER_MAX_TOKENS (avoids circular import).
 PLANNER_MAX_TOKENS = 32_768
 
-PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+# Prompts live at repo root (refactor-agent/prompts)
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent  # apps/backend
+PROMPTS_DIR = _BACKEND_ROOT.parent.parent / "prompts"  # repo root / prompts
 
 PROMPT_CONFIGS: dict[str, PromptConfig] = {
     "ast-refactor-agent": PromptConfig(
@@ -44,7 +46,7 @@ def seed() -> None:
     """Seed all prompt templates from the prompts/ directory into Langfuse."""
     from dotenv import load_dotenv
 
-    load_dotenv()
+    load_dotenv(_BACKEND_ROOT.parent.parent / ".env")  # Repo root .env
 
     from langfuse import get_client
 

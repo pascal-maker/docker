@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build infra-bootstrap infra-validate infra-fmt image-push infra-plan infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground triage-dataset triage-experiment ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build infra-bootstrap infra-validate infra-fmt image-push infra-plan infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -68,6 +68,12 @@ dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
 
 reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
 	./scripts/dev/reset-playground.sh
+
+triage-dataset: ## Create triage validation dataset from goals.txt (apps/backend/goals.txt)
+	cd apps/backend && $(RUN) python scripts/langfuse/create_triage_dataset.py --goals-file goals.txt
+
+triage-experiment: ## Run triage experiment on Langfuse dataset refactor/triage-validation
+	cd apps/backend && $(RUN) python scripts/langfuse/run_triage_experiment.py --dataset refactor/triage-validation
 
 ts-engine-install: ## Install TS workspace deps (bridge + dashboard + vscode-extension). Use from repo root.
 	pnpm install

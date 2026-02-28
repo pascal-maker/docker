@@ -1,0 +1,9 @@
+# Triage validation goals (one per line)
+# Optional second column (tab-separated) = expected_category for evaluator scoring
+# Example: move module to feature slice	structural
+
+rename X to Y
+move module to feature slice	structural
+organize imports in src/	trivial
+Refactor toward vertical slices	paradigm_shift
+Enforce frontend/backend boundary	structural
