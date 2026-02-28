@@ -27,7 +27,7 @@ def _verify_signature(payload_body: bytes, signature: str | None, secret: str) -
     return hmac.compare_digest(sig_hex, expected)
 
 
-def _update_user_repos(
+def _update_user_repos(  # noqa: no-dict-sig  # GitHub API repo list[dict]
     project: str,
     user_id: str,
     to_add: list[dict],
@@ -58,7 +58,7 @@ def _update_user_repos(
     doc_ref.update({"allowed_repos": current})
 
 
-def _validate_request(
+def _validate_request(  # noqa: no-dict-sig  # GitHub webhook payload dict
     request,
 ) -> tuple[tuple[str, dict, str] | None, tuple[str, int] | None]:
     """Validate request; return ((project, payload, action), None) or (None, error)."""

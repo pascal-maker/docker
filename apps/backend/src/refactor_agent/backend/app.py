@@ -5,6 +5,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from starlette.types import Receive, Scope, Send
 
 from refactor_agent.a2a.auth_middleware import (
     GitHubTokenMiddleware,
@@ -23,7 +27,7 @@ from refactor_agent.sync.replica_ttl import replica_ttl_loop
 def _lifespan_wrapper(app: object) -> object:
     """Wrap app with lifespan: start replica TTL cleanup task on startup."""
 
-    async def _with_lifespan(scope: dict, receive: object, send: object) -> None:
+    async def _with_lifespan(scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "lifespan":
             await app(scope, receive, send)
             return
@@ -45,7 +49,7 @@ def _lifespan_wrapper(app: object) -> object:
 def _websocket_auth_middleware(app: object) -> object:
     """ASGI middleware: validate WebSocket auth before passing to app."""
 
-    async def _ws_auth(scope: dict, receive: object, send: object) -> None:
+    async def _ws_auth(scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "websocket":
             await app(scope, receive, send)
             return

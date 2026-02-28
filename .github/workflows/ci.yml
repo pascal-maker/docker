@@ -35,6 +35,32 @@ jobs:
         working-directory: apps/backend
         run: uv run ruff format --check --diff src tests scripts
 
+  py-backend-no-dict-sig:
+    name: Python · No dict in function signatures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v5
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: No dict in function signatures
+        run: uv run python scripts/lint/check_no_dict_sig.py
+
   py-backend-lint:
     name: Python · Lint
     runs-on: ubuntu-latest

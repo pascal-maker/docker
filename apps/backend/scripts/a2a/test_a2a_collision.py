@@ -22,6 +22,8 @@ import sys
 import uuid
 from typing import TYPE_CHECKING
 
+from refactor_agent.a2a.models import JsonRpcResponse
+
 if TYPE_CHECKING:
     import types
 
@@ -38,7 +40,7 @@ def send_message(
     *,
     context_id: str | None = None,
     task_id: str | None = None,
-) -> dict:
+) -> JsonRpcResponse:
     """POST message/send and return the parsed JSON response."""
     if _urllib_request is None:
         sys.exit("Need urllib (standard library)")
@@ -66,7 +68,7 @@ def send_message(
         headers={"Content-Type": "application/json"},
     )
     with _urllib_request.urlopen(req, timeout=10) as resp:
-        return json.loads(resp.read().decode())
+        return JsonRpcResponse.model_validate(json.loads(resp.read().decode()))
 
 
 def main() -> int:
@@ -94,11 +96,11 @@ def main() -> int:
     print("Step 1: Sending rename greet -> main (main already exists)...")
     result = send_message(base_url, json.dumps(task_payload))
 
-    if "error" in result:
-        print("Error:", json.dumps(result, indent=2))
+    if "error" in result.root:
+        print("Error:", json.dumps(result.root, indent=2))
         return 1
 
-    res = result.get("result") or {}
+    res = result.root.get("result") or {}
     kind = res.get("kind", "")
     task_status = res.get("status") or {}
     state = (task_status or {}).get("state", "")
@@ -118,10 +120,10 @@ def main() -> int:
             result2 = send_message(
                 base_url, confirm, context_id=context_id, task_id=task_id
             )
-            if "error" in result2:
-                print("Error:", json.dumps(result2, indent=2))
+            if "error" in result2.root:
+                print("Error:", json.dumps(result2.root, indent=2))
                 return 1
-            res2 = result2.get("result") or {}
+            res2 = result2.root.get("result") or {}
             parts = (res2.get("parts") or []) if isinstance(res2, dict) else []
             for p in parts:
                 if isinstance(p, dict) and "text" in p:
@@ -131,9 +133,9 @@ def main() -> int:
                     )
                     break
             else:
-                print("Result:", json.dumps(result2, indent=2)[:500])
+                print("Result:", json.dumps(result2.root, indent=2)[:500])
         else:
-            print("Full result:", json.dumps(result, indent=2)[:800])
+            print("Full result:", json.dumps(result.root, indent=2)[:800])
     else:
         # Message response (no collision triggered?)
         parts = res.get("parts") or []
@@ -142,7 +144,7 @@ def main() -> int:
                 print("Agent message:", p["text"][:300])
                 break
         else:
-            print("Full result:", json.dumps(result, indent=2)[:800])
+            print("Full result:", json.dumps(result.root, indent=2)[:800])
     return 0
 
 

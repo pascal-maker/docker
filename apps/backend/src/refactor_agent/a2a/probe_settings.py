@@ -51,7 +51,7 @@ class A2aUrlFileSource(PydanticBaseSettingsSource):
             return None, field_name, False
         return value, field_name, False
 
-    def __call__(self) -> dict[str, Any]:
+    def __call__(self) -> dict[str, Any]:  # no-dict-sig: PydanticBaseSettingsSource API
         """Return dict of field values read from the dot file."""
         out: dict[str, Any] = {}
         for field_name, field in self.settings_cls.model_fields.items():

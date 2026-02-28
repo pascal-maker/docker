@@ -5,10 +5,14 @@ from __future__ import annotations
 import hmac
 import os
 import time
+from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+if TYPE_CHECKING:
+    from starlette.types import Scope
 
 from refactor_agent.auth.github_auth import GitHubTokenValidator
 from refactor_agent.auth.models import AuditLogEntry, UserRecord
@@ -32,7 +36,7 @@ def _extract_bearer(request: Request) -> str | None:
     return None
 
 
-def _extract_bearer_from_scope(scope: dict) -> str | None:
+def _extract_bearer_from_scope(scope: Scope) -> str | None:
     """Extract Bearer token from ASGI scope headers (for WebSocket)."""
     headers = scope.get("headers") or []
     auth_val: bytes | None = None
@@ -51,7 +55,7 @@ def _extract_bearer_from_scope(scope: dict) -> str | None:
 
 
 async def validate_token_for_scope(
-    scope: dict,
+    scope: Scope,
     *,
     validator: GitHubTokenValidator,
     user_store: UserStore,

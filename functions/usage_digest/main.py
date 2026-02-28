@@ -121,7 +121,7 @@ def _send_digest_email(
 
 
 @functions_framework.http
-def usage_digest(request) -> tuple[str, int, dict[str, str]]:
+def usage_digest(request) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-sig  # Flask response headers
     """HTTP handler: gather usage metrics and send digest email."""
     admin_email = os.environ.get("ADMIN_EMAIL")
     api_key = os.environ.get("RESEND_API_KEY")

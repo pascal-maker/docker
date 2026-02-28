@@ -98,3 +98,15 @@ Audit of the repository against **CLAUDE.md** (and `.cursor/rules/coding-guideli
 - **One documented exception**: `dict` in/out in `_compat._patched` for the pydantic_ai callback; guideline and code both explain it.
 - **No new violations** introduced; all suppressions reviewed and given short explanations where missing.
 - **Guidelines** are reflected in CLAUDE.md and the Cursor rule; audit is recorded in this file for future reference.
+
+---
+
+## Dict-in-signatures migration (2025)
+
+Enforcement and migration completed per [docs/plans/remove-dicts-from-signatures.md](../../plans/remove-dicts-from-signatures.md):
+
+1. **Enforcement:** Ruff `banned-api` for `typing.Dict` and `typing.TypedDict`; custom AST checker `scripts/lint/check_no_dict_sig.py`; `make check-no-dict-sig`; pre-commit hook; CI job.
+2. **Allowlist:** `# no-dict-sig` on def line (or line before); path allowlist for `_compat._patched`.
+3. **Migrated:** executor (`PromptOnlyPayload`), scripts (`HttpHeaders`, `MessageSendPayload`, `JsonRpcResponse`), ASGI (`Scope`, `Receive`, `Send`).
+4. **Documented exceptions:** A2A method_logging (SDK/ASGI), probe_settings (Pydantic API), functions (GitHub/Firestore/Flask).
+5. **Docs:** [types-and-pydantic.md](../../reference/types-and-pydantic.md), [no-dict-signatures.mdc](../../../.cursor/rules/no-dict-signatures.mdc), CLAUDE.md and coding-guidelines.mdc updated.

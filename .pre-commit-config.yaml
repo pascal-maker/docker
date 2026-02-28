@@ -22,9 +22,14 @@ repos:
         pass_filenames: false
         files: ^infra/.*\.(tf|tfvars)$
 
-  # Local: Python typecheck, TS format/lint/typecheck
+  # Local: no-dict-sig, Python typecheck, TS format/lint/typecheck
   - repo: local
     hooks:
+      - id: check-no-dict-sig
+        name: No dict in function signatures
+        entry: make check-no-dict-sig
+        language: system
+        pass_filenames: false
       - id: ts-format
         name: TS format check
         entry: make ts-format-check

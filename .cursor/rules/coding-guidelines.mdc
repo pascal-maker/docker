@@ -25,7 +25,8 @@ Follow these rules for all code in this repo. Canonical source: **CLAUDE.md** in
 
 * Python ≥ 3.12; use modern syntax: `X | Y` unions, `list[...]` not `List[...]`, `dict[...]` not `Dict[...]` in annotations.
 * All code is mypy-strict. No `Any` without justification.
-* Do not use `dict`, `Dict`, or `TypedDict` in function signatures (parameters or return types). Use Pydantic models instead: `BaseModel` for structured data, `RootModel` for wrapper types (e.g. a thin wrapper around a dict for JSON-RPC). Exception: when implementing a callback required by a third-party API that dictates dict in/out (e.g. a monkey-patched function), document the exception in code.
+* **No dict in signatures:** Do not use `dict`, `Dict`, or `TypedDict` in function parameters or return types. Use Pydantic `BaseModel` for structured data; `RootModel[dict[str, X]]` for JSON-RPC–style payloads. Exception: third-party callbacks that require dict in/out (e.g. ASGI messages, monkey-patches, Pydantic settings sources)—add `# no-dict-sig` and a short comment. Enforcement: `make check-no-dict-sig` and ruff `banned-api`; CI fails on violations.
+* **Common pitfall:** When adding new functions, never use `dict`/`Dict`/`TypedDict` in params or return types; use Pydantic models instead.
 * Prefer proper type narrowing or refactors over `cast()` or `as Type` assertions; avoid `cast` and `as ...` except where required by context managers or exception handling.
 * Pydantic: use `ConfigDict(extra="allow")` only when needed for open-ended payloads; document why.
 * Prefer strict typing over `getattr`, `hasattr`, `setattr`, `delattr`: use Pydantic model attributes and explicit types. Use `getattr`/`hasattr` only when accessing untyped third-party objects (e.g. SDKs without stubs); add a short comment in that case.

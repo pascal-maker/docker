@@ -20,7 +20,7 @@ USERS_COLLECTION = "users"
 INSTALLATION_USERS_COLLECTION = "installation_users"
 
 
-def _fetch_github_user(token: str) -> dict | None:
+def _fetch_github_user(token: str) -> dict | None:  # noqa: no-dict-sig  # GitHub API returns JSON
     """Fetch GitHub user via API."""
     req = urllib.request.Request(
         GITHUB_USER_URL,
@@ -65,7 +65,7 @@ def _fetch_primary_email(token: str) -> str | None:
         return None
 
 
-def _fetch_installations(token: str) -> list[dict]:
+def _fetch_installations(token: str) -> list[dict]:  # noqa: no-dict-sig  # GitHub API returns JSON
     """Fetch user installations."""
     req = urllib.request.Request(
         f"{GITHUB_INSTALLATIONS_URL}?per_page=100",
@@ -85,7 +85,7 @@ def _fetch_installations(token: str) -> list[dict]:
         return []
 
 
-def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:
+def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  # noqa: no-dict-sig  # GitHub API
     """Fetch repos for an installation."""
     url = f"https://api.github.com/user/installations/{installation_id}/repositories"
     req = urllib.request.Request(
@@ -111,7 +111,7 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:
         return []
 
 
-def _collect_repos_and_installation_ids(
+def _collect_repos_and_installation_ids(  # noqa: no-dict-sig  # GitHub API list[dict]
     token: str, installations: list[dict]
 ) -> tuple[list[dict], list[int]]:
     """Collect allowed_repos and installation_ids from installations."""
@@ -134,7 +134,7 @@ def _collect_repos_and_installation_ids(
     return allowed_repos_list, installation_ids_list
 
 
-def _write_user_to_firestore(
+def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of dicts
     user_id: str,
     login: str,
     email: str | None,
@@ -175,7 +175,7 @@ def _write_user_to_firestore(
         inst_ref.set({"user_ids": existing})
 
 
-def _json_response(body: str, status: int) -> tuple[str, int, dict[str, str]]:
+def _json_response(body: str, status: int) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-sig  # Flask response
     """Return JSON response with Content-Type header."""
     return (body, status, {"Content-Type": "application/json"})
 
@@ -199,7 +199,7 @@ def _validate_register_request(request) -> tuple[str | None, tuple[str, int] | N
     return token, None
 
 
-def _filter_our_installations(
+def _filter_our_installations(  # noqa: no-dict-sig  # GitHub API list[dict]
     installations: list[dict], app_id_str: str
 ) -> tuple[list[dict] | None, tuple[str, int] | None]:
     """Filter to our app's installations. Return (our_installations, None) or (None, error)."""

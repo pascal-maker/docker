@@ -33,6 +33,7 @@ src = [
   "apps/backend/scripts",
   "apps/backend/playground",
   "functions",
+  "scripts",
 ]
 
 [tool.ruff.format]
@@ -119,6 +120,8 @@ ban-relative-imports = "all"
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sentry".msg = "Use sentry-sdk for Python. The 'sentry' package is the legacy Sentry server, not the client SDK."
+"typing.Dict" = { msg = "Use Pydantic BaseModel for structured data; see CLAUDE.md." }
+"typing.TypedDict" = { msg = "Use Pydantic BaseModel for structured data; see CLAUDE.md." }
 
 [tool.ruff.lint.per-file-ignores]
 "apps/backend/tests/**/*.py" = [
@@ -134,6 +137,12 @@ ban-relative-imports = "all"
     "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
     "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
     "E501", "E402", "PTH123", "UP017", "S310", "S110",
+]
+"scripts/**/*.py" = [
+    "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
+    "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+    "E501", "E402", "PTH123", "S310", "S110", "PERF401",
+    "SIM102", "ARG001",
 ]
 "apps/backend/src/**/_compat.py" = ["PLC0415", "ANN", "F401"]
 "apps/backend/playground/**/*.py" = ["T20", "D", "TC001"]

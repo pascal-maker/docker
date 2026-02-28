@@ -14,7 +14,7 @@ import urllib.request
 import functions_framework
 
 
-def _parse_firestore_value(value: dict) -> str | int | float | bool | None:
+def _parse_firestore_value(value: dict) -> str | int | float | bool | None:  # noqa: no-dict-sig  # Firestore Value
     """Extract scalar from Firestore Value message."""
     parsers: dict[str, object] = {
         "stringValue": lambda: value["stringValue"],
@@ -29,7 +29,7 @@ def _parse_firestore_value(value: dict) -> str | int | float | bool | None:
     return None
 
 
-def _parse_firestore_document(data: dict) -> dict:
+def _parse_firestore_document(data: dict) -> dict:  # noqa: no-dict-sig  # Firestore CloudEvent payload
     """Parse Firestore Document from CloudEvent data.value."""
     value = data.get("value") or {}
     fields = value.get("fields") or {}

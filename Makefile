@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-export infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-export infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -31,12 +31,17 @@ fix: ## Auto-fix lint violations
 typecheck: ## Run mypy strict type checking (src only; scripts are one-off tools)
 	cd apps/backend && $(RUN) mypy src
 
+check-no-dict-sig: ## Check no dict/Dict/TypedDict in function signatures (CLAUDE.md)
+	$(RUN) python scripts/lint/check_no_dict_sig.py
+
 test: ## Run pytest
 	cd apps/backend && $(RUN) pytest
 
-check: ## Run all checks (format-check + lint + typecheck + test)
+check: ## Run all checks (format-check + no-dict-sig + lint + typecheck + test)
 	@echo "=== Format Check ==="
 	$(MAKE) format-check
+	@echo "\n=== No dict in function signatures ==="
+	$(MAKE) check-no-dict-sig
 	@echo "\n=== Lint ==="
 	$(MAKE) lint
 	@echo "\n=== Type Check ==="

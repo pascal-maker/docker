@@ -22,7 +22,7 @@ USERS_COLLECTION = "users"
 INSTALLATION_USERS_COLLECTION = "installation_users"
 
 
-def _exchange_code(code: str) -> dict | None:
+def _exchange_code(code: str) -> dict | None:  # noqa: no-dict-sig  # GitHub OAuth API returns JSON
     """Exchange GitHub App OAuth code for access token. Returns full response."""
     client_id = os.environ.get("GITHUB_APP_CLIENT_ID")
     client_secret = os.environ.get("GITHUB_APP_CLIENT_SECRET")
@@ -54,7 +54,7 @@ def _exchange_code(code: str) -> dict | None:
         return None
 
 
-def _fetch_github_user(token: str) -> dict | None:
+def _fetch_github_user(token: str) -> dict | None:  # noqa: no-dict-sig  # GitHub API returns JSON
     """Fetch GitHub user via API."""
     req = urllib.request.Request(
         GITHUB_USER_URL,
@@ -99,7 +99,7 @@ def _fetch_primary_email(token: str) -> str | None:
         return None
 
 
-def _fetch_installations(token: str) -> list[dict]:
+def _fetch_installations(token: str) -> list[dict]:  # noqa: no-dict-sig  # GitHub API returns JSON
     """Fetch user installations. Returns list of {id, ...}."""
     req = urllib.request.Request(
         f"{GITHUB_INSTALLATIONS_URL}?per_page=100",
@@ -119,7 +119,7 @@ def _fetch_installations(token: str) -> list[dict]:
         return []
 
 
-def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:
+def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  # noqa: no-dict-sig  # GitHub API
     """Fetch repos for an installation. Returns list of {full_name, id}."""
     url = f"https://api.github.com/user/installations/{installation_id}/repositories"
     req = urllib.request.Request(
@@ -145,12 +145,12 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:
         return []
 
 
-def _redirect_to(url: str, status: int = 302) -> tuple[str, int, dict[str, str]]:
+def _redirect_to(url: str, status: int = 302) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-sig  # Flask response
     """Return HTTP redirect response."""
     return ("", status, {"Location": url})
 
 
-def _collect_repos_and_installation_ids(
+def _collect_repos_and_installation_ids(  # noqa: no-dict-sig  # GitHub API list[dict]
     token: str, installations: list[dict]
 ) -> tuple[list[dict], list[int]]:
     """Collect allowed_repos and installation_ids from installations."""
@@ -173,7 +173,7 @@ def _collect_repos_and_installation_ids(
     return allowed_repos_list, installation_ids_list
 
 
-def _write_user_to_firestore(
+def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of dicts
     user_id: str,
     login: str,
     email: str | None,

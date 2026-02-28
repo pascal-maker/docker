@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, RootModel
 
@@ -25,6 +25,32 @@ class UseReplicaRenameParams(BaseModel):
     use_replica: Literal[True] = True
     language: Literal["python", "typescript"] = "python"
     prompt: str | None = None
+
+
+class PromptOnlyPayload(BaseModel):
+    """Prompt-only payload: use_replica, prompt/user_message/text, language."""
+
+    use_replica: bool = False
+    prompt: str | None = None
+    user_message: str | None = None
+    text: str | None = None
+    language: str | None = None
+
+
+class HttpHeaders(RootModel[dict[str, str]]):
+    """HTTP headers dict for request/response. Use .root for dict access."""
+
+
+class MessageSendPayload(BaseModel):
+    """Payload for A2A message/send (rename task)."""
+
+    source: str = ""
+    old_name: str = ""
+    new_name: str = ""
+
+
+class JsonRpcResponse(RootModel[dict[str, Any]]):
+    """JSON-RPC 2.0 response. Use .root for dict access."""
 
 
 RenameParams = UseReplicaRenameParams

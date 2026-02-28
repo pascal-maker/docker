@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from starlette.types import Receive, Scope, Send
+
 
 async def _combined_router(
-    scope: dict,
-    receive: object,
-    send: object,
+    scope: Scope,
+    receive: Receive,
+    send: Send,
     *,
     a2a_app: object,
     sync_app: object,
@@ -57,7 +62,7 @@ def build_combined_app_impl(
 ) -> object:
     """Build the raw ASGI router (no middleware)."""
 
-    async def _app(scope: dict, receive: object, send: object) -> None:
+    async def _app(scope: Scope, receive: Receive, send: Send) -> None:
         await _combined_router(
             scope,
             receive,

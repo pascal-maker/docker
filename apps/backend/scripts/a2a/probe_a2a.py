@@ -24,6 +24,7 @@ import json
 import sys
 import uuid
 
+from refactor_agent.a2a.models import HttpHeaders
 from refactor_agent.a2a.probe_settings import A2aProbeSettings
 
 
@@ -31,22 +32,30 @@ def _request(
     url: str,
     method: str = "GET",
     data: bytes | None = None,
-    headers: dict[str, str] | None = None,
+    headers: HttpHeaders | None = None,
     timeout: float = 10.0,
-) -> tuple[int, bytes, dict[str, str]]:
+) -> tuple[int, bytes, HttpHeaders]:
     """Perform HTTP request; return (status_code, body_bytes, response_headers)."""
     import urllib.error
     import urllib.request
 
-    h = dict(headers) if headers else {}
+    h = dict(headers.root) if headers else {}
     if data and "Content-Type" not in h:
         h["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, method=method, headers=h)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return (resp.status, resp.read(), dict(resp.headers))
+            return (
+                resp.status,
+                resp.read(),
+                HttpHeaders.model_validate(dict(resp.headers)),
+            )
     except urllib.error.HTTPError as e:
-        return (e.code, e.read() if e.fp else b"", dict(e.headers) if e.headers else {})
+        return (
+            e.code,
+            e.read() if e.fp else b"",
+            HttpHeaders.model_validate(dict(e.headers) if e.headers else {}),
+        )
 
 
 def main() -> int:
@@ -125,9 +134,11 @@ def main() -> int:
             },
         },
     }
-    post_headers: dict[str, str] = {}
-    if api_key:
-        post_headers["Authorization"] = f"Bearer {api_key}"
+    post_headers: HttpHeaders | None = (
+        HttpHeaders.model_validate({"Authorization": f"Bearer {api_key}"})
+        if api_key
+        else None
+    )
     status_post, body_post, _ = _request(
         base,
         method="POST",

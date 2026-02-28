@@ -23,13 +23,14 @@ import json
 import sys
 import uuid
 
+from refactor_agent.a2a.models import HttpHeaders, MessageSendPayload  # noqa: TC001
 from refactor_agent.a2a.probe_settings import A2aProbeSettings
 
 
 def _post_message_send(
     base_url: str,
-    payload: dict,
-    headers: dict[str, str] | None = None,
+    payload: MessageSendPayload,
+    headers: HttpHeaders | None = None,
     timeout: float = 15.0,
 ) -> int:
     """POST message/send; return HTTP status code."""
@@ -45,13 +46,13 @@ def _post_message_send(
                 "kind": "message",
                 "role": "user",
                 "messageId": uuid.uuid4().hex,
-                "parts": [{"kind": "text", "text": json.dumps(payload)}],
+                "parts": [{"kind": "text", "text": json.dumps(payload.model_dump())}],
             },
         },
     }
-    h = {"Content-Type": "application/json"}
+    h: dict[str, str] = {"Content-Type": "application/json"}
     if headers:
-        h.update(headers)
+        h.update(headers.root)
     req = urllib.request.Request(
         base_url,
         data=json.dumps(body).encode(),
@@ -91,11 +92,11 @@ def main() -> int:
     timeout = args.timeout if args.timeout is not None else settings.timeout
 
     # Minimal refactor payload
-    payload = {
-        "source": "def x(): pass\n",
-        "old_name": "x",
-        "new_name": "y",
-    }
+    payload = MessageSendPayload(
+        source="def x(): pass\n",
+        old_name="x",
+        new_name="y",
+    )
 
     status_no_auth = _post_message_send(base, payload, timeout=timeout)
 

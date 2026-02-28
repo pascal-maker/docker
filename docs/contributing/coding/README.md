@@ -63,7 +63,10 @@ These are intentional exceptions or necessary relaxations; each is documented in
 
 | Rule | Where | Why |
 |------|--------|-----|
-| **No dict in function signatures** | `_compat._patched(schema: dict[str, object]) -> dict[str, object]` | The patched function replaces pydantic_ai’s `check_object_json_schema`; the library passes and expects a dict. The callback contract is fixed by the third party. Comment in code and exception in CLAUDE.md. |
+| **No dict in function signatures** | `_compat._patched` | pydantic_ai monkey-patch requires dict in/out. Path allowlisted. |
+| **No dict in function signatures** | `a2a/method_logging` | A2A SDK expects dict in/out; ASGI messages. `# no-dict-sig` on each. |
+| **No dict in function signatures** | `a2a/probe_settings` | PydanticBaseSettingsSource `__call__` API. `# no-dict-sig`. |
+| **No dict in function signatures** | `functions/*` | GitHub API, Firestore, Flask—third-party contracts. `# no-dict-sig` on each. |
 | **No getattr/hasattr** | A2A executor, sync server, observability/langfuse_config, schedule/planner, orchestrator/runner, ui/app, dashboard/auth, engine/python/libcst_engine, tests (A2A event) | Accessing **untyped third-party** objects (A2A RequestContext, websockets/Starlette, Langfuse prompt/observation, PydanticAI messages/run/span, Chainlit session, Starlette `app.state`, LibCST scope metadata). Each use has a short comment (e.g. “A2A RequestContext has no typed stub”). |
 | **Suppressions without comment** | (None) | All `# noqa` and `# type: ignore` have a brief explanation (e.g. “signature required by Chainlit”, “lazy optional dep”, “used at runtime”). |
 | **Per-file lint ignores** | `pyproject.toml` → `[tool.ruff.lint.per-file-ignores]` | **Tests:** assert (S101), fixtures (ARG), docstrings (D), etc., as per pytest/convention. **Scripts/playground:** relaxed docs and complexity for one-off tools. **Specific modules:** TC001/TC002/TC003 for runtime imports (Pydantic, FastAPI, A2A SDK); C901/PLR0911/PLR0912 where dispatch or language guards add branches; ASYNC240 for acceptable sync I/O; FBT001/FBT002 for boolean tool flags; N802 for LibCST callback names; etc. All documented in pyproject comments. |

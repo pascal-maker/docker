@@ -5,6 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from starlette.types import Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +18,8 @@ BRIDGE_SEND_STREAM = "tasks/sendSubscribe"
 BRIDGE_GET_TASK = "tasks/getResult"
 
 
-def _bridge_params_to_sdk(params: dict) -> dict:
+# A2A SDK expects dict in/out; third-party callback. See CLAUDE.md exception.
+def _bridge_params_to_sdk(params: dict) -> dict:  # no-dict-sig
     """Map bridge TaskSendParams-like params to SDK MessageSendParams (snake_case)."""
     message = params.get("message")
     if isinstance(message, dict):
@@ -45,7 +50,7 @@ def _bridge_params_to_sdk(params: dict) -> dict:
     return out
 
 
-def _bridge_get_task_params_to_sdk(params: dict) -> dict:
+def _bridge_get_task_params_to_sdk(params: dict) -> dict:  # no-dict-sig
     """Map bridge task-get params (camelCase) to SDK TaskQueryParams (snake_case)."""
     out = dict(params)
     if "taskId" in out and "id" not in out:
@@ -55,7 +60,7 @@ def _bridge_get_task_params_to_sdk(params: dict) -> dict:
     return out
 
 
-def _add_type_from_kind(obj: dict | list) -> dict | list:
+def _add_type_from_kind(obj: dict | list) -> dict | list:  # no-dict-sig
     """Recursively add "type" key (copy of "kind") so bridge accepts Part/Message."""
     if isinstance(obj, dict):
         out = dict(obj)
@@ -69,7 +74,7 @@ def _add_type_from_kind(obj: dict | list) -> dict | list:
     return obj
 
 
-def _rewrite_bridge_methods(payload: dict) -> dict:
+def _rewrite_bridge_methods(payload: dict) -> dict:  # no-dict-sig
     """Rewrite GongRzhe bridge method names to A2A spec so the SDK accepts them."""
     method = payload.get("method")
     if method == BRIDGE_SEND:
@@ -101,7 +106,7 @@ def _rewrite_bridge_methods(payload: dict) -> dict:
 def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
     """Log JSON-RPC method and rewrite bridge method names for A2A compat."""
 
-    async def middleware(scope: dict, receive: object, send: object) -> None:  # noqa: C901, PLR0915
+    async def middleware(scope: Scope, receive: Receive, send: Send) -> None:  # noqa: C901, PLR0915
         if scope.get("type") != "http" or scope.get("method") != "POST":
             await app(scope, receive, send)
             return
@@ -123,7 +128,7 @@ def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
         except (json.JSONDecodeError, TypeError):
             pass
 
-        async def replay_receive() -> dict:
+        async def replay_receive() -> dict:  # no-dict-sig: ASGI message
             return {"type": "http.request", "body": body, "more_body": False}
 
         body_chunks: list[bytes] = []
@@ -144,7 +149,7 @@ def wrap_with_method_logging(app: object) -> object:  # noqa: C901, PLR0915
                 out.append([b"content-length", str(length).encode()])
             return out
 
-        async def intercept_send(message: dict) -> None:
+        async def intercept_send(message: dict) -> None:  # no-dict-sig: ASGI message
             nonlocal body_chunks, pending_start
             if message.get("type") == "http.response.start":
                 pending_start = message

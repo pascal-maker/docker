@@ -27,6 +27,7 @@ from pydantic_ai import Agent
 
 from refactor_agent.a2a.models import (
     OrchestratorStateEntry,
+    PromptOnlyPayload,
     StateStore,
     UseReplicaRenameParams,
 )
@@ -78,16 +79,16 @@ def _status_event(
     )
 
 
-def _parse_prompt_only(data: dict[str, object]) -> tuple[str, str] | str:
+def _parse_prompt_only(data: PromptOnlyPayload) -> tuple[str, str] | str:
     """Parse prompt-only payload. Returns (prompt, lang) or error string."""
-    if data.get("use_replica") is not True:
+    if data.use_replica is not True:
         return "ERROR: use_replica must be true. Push workspace via sync service first."
-    prompt_val = data.get("prompt") or data.get("user_message") or data.get("text")
-    if not isinstance(prompt_val, str) or not prompt_val.strip():
+    prompt_val = data.prompt or data.user_message or data.text
+    if not prompt_val or not str(prompt_val).strip():
         return "ERROR: missing or empty 'prompt' (required for free-form requests)"
-    lang_val = data.get("language")
+    lang_val = data.language
     lang: str = "python" if lang_val not in ("python", "typescript") else str(lang_val)
-    return (prompt_val.strip(), lang)
+    return (str(prompt_val).strip(), lang)
 
 
 ParseResult = UseReplicaRenameParams | tuple[str, str, str] | str
@@ -109,7 +110,8 @@ def _parse_rename_params(user_input: str) -> ParseResult:
     new_name = data.get("new_name")
     # Prompt-only: no old_name/new_name required
     if not isinstance(old_name, str) or not isinstance(new_name, str):
-        prompt_result = _parse_prompt_only(data)
+        payload_data = PromptOnlyPayload.model_validate(data)
+        prompt_result = _parse_prompt_only(payload_data)
         if isinstance(prompt_result, str):
             return prompt_result
         # Return a special marker that executor handles as prompt-only
