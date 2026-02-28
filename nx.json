@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "plugins": [
+    { "plugin": "@nxlv/python", "options": { "packageManager": "uv" } }
+  ],
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": ["{projectRoot}/dist", "{projectRoot}/out"]
+    },
+    "format-check": { "cache": true },
+    "lint": { "cache": true },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "cache": true
+    }
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "!{projectRoot}/**/*.md"],
+    "production": ["default", "!{projectRoot}/**/*.spec.{ts,tsx}"]
+  }
+}

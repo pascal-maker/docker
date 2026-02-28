@@ -7,7 +7,7 @@ Centralized dashboard (Sentry/Aikido-style) for refactor/architecture check resu
 - **Ingestion**: CI jobs `POST` check results to `POST /api/ingest/check-result` (optional when env vars are set).
 - **Persistence**: SQLite (default `dashboard.db`); schema: organizations, repositories, check_runs, check_run_operations.
 - **Query API**: `GET /api/orgs/{org_id}/issues` (list with filters), `GET /api/orgs/{org_id}/issues/{run_id}` (detail).
-- **UI**: React + Vite + TypeScript SPA in `dashboard-ui/` (TanStack Query, Tailwind). List and detail at `/` and `/orgs/{org_id}/issues`.
+- **UI**: React + Vite + TypeScript SPA in `apps/dashboard/` (TanStack Query, Tailwind). List and detail at `/` and `/orgs/{org_id}/issues`.
 
 ## Running the dashboard
 
@@ -25,7 +25,7 @@ Centralized dashboard (Sentry/Aikido-style) for refactor/architecture check resu
 2. **Frontend** (Vite dev server, port 5173; proxies `/api` to backend):
 
    ```bash
-   cd dashboard
+   cd apps/dashboard
    pnpm install
    pnpm dev
    ```
@@ -48,12 +48,12 @@ Uses `REFACTOR_AGENT_DASHBOARD_DB` if set, otherwise `dashboard.db` in the curre
 1. Build the SPA:
 
    ```bash
-   cd dashboard
+   cd apps/dashboard
    pnpm install
    pnpm build
    ```
 
-2. Run the backend from repo root. If `dashboard-ui/dist` exists, the app serves the built SPA at `/` and `/orgs/...` and the API at `/api/...`:
+2. Run the backend from repo root. If `apps/dashboard/dist` exists, the app serves the built SPA at `/` and `/orgs/...` and the API at `/api/...`:
 
    ```bash
    uv run python -m refactor_agent.dashboard
@@ -61,7 +61,7 @@ Uses `REFACTOR_AGENT_DASHBOARD_DB` if set, otherwise `dashboard.db` in the curre
 
    Open http://localhost:8000 (or your port).
 
-### Frontend scripts (dashboard-ui)
+### Frontend scripts (apps/dashboard)
 
 | Script        | Description              |
 |---------------|--------------------------|

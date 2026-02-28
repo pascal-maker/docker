@@ -12,6 +12,7 @@ apps/backend/.venv/
 *.pyc
 dist/
 node_modules/
+.nx/
 
 # VS Code extension build output
 apps/vscode-extension/out/

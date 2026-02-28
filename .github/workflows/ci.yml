@@ -104,6 +104,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -114,17 +116,28 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
+      - uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          restore-keys: nx-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Fetch base for affected
+        run: git fetch origin main
+
       - name: Format check
-        run: pnpm --filter dashboard-ui run format-check && pnpm --filter site run format-check && pnpm --filter @refactor-agent/design-system run format-check && pnpm --filter ts-morph-bridge run format-check && pnpm --filter refactor-agent run format-check
+        run: nx affected -t format-check --base=origin/main || nx run-many -t format-check --all
 
   ts-lint:
     name: TS lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -135,17 +148,28 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
+      - uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          restore-keys: nx-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Fetch base for affected
+        run: git fetch origin main
+
       - name: Lint
-        run: pnpm --filter dashboard-ui run lint && pnpm --filter site run lint && pnpm --filter @refactor-agent/design-system run lint && pnpm --filter ts-morph-bridge run lint && pnpm --filter refactor-agent run lint
+        run: nx affected -t lint --base=origin/main || nx run-many -t lint --all
 
   ts-typecheck:
     name: TS typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -156,14 +180,23 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
+      - uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx') }}
+          restore-keys: nx-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build @refactor-agent/design-system (required by dashboard-ui)
+      - name: Fetch base for affected
+        run: git fetch origin main
+
+      - name: Build @refactor-agent/design-system (required by dashboard)
         run: pnpm --filter @refactor-agent/design-system run build
 
       - name: Typecheck
-        run: pnpm --filter dashboard-ui run typecheck && pnpm --filter site run typecheck && pnpm --filter @refactor-agent/design-system run typecheck && pnpm --filter ts-morph-bridge run typecheck && pnpm --filter refactor-agent run typecheck
+        run: nx affected -t typecheck --base=origin/main || nx run-many -t typecheck --all
 
   ts-knip:
     name: TS Knip (dead code)

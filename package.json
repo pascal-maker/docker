@@ -3,10 +3,23 @@
   "private": true,
   "description": "Refactor Agent monorepo (Python backend + TS packages)",
   "scripts": {
-    "knip": "knip"
+    "preinstall": "npx only-allow pnpm",
+    "knip": "knip",
+    "build": "nx run-many -t build --all",
+    "format-check": "nx run-many -t format-check --all",
+    "lint": "nx run-many -t lint --all",
+    "typecheck": "nx run-many -t typecheck --all",
+    "test": "nx run-many -t test --all",
+    "affected:build": "nx affected -t build",
+    "affected:format-check": "nx affected -t format-check",
+    "affected:lint": "nx affected -t lint",
+    "affected:typecheck": "nx affected -t typecheck"
   },
   "devDependencies": {
-    "knip": "^5.0.0"
+    "@nxlv/python": "^22.1.1",
+    "knip": "^5.0.0",
+    "nx": "^22.5.3",
+    "only-allow": "^1.1.1"
   },
   "pnpm": {
     "overrides": {

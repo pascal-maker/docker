@@ -1,0 +1,15 @@
+{
+  "name": "backend",
+  "root": "apps/backend",
+  "sourceRoot": "apps/backend/src",
+  "projectType": "application",
+  "implicitDependencies": ["ts-morph-bridge"],
+  "targets": {
+    "install": { "executor": "@nxlv/python:install", "options": { "silent": false } },
+    "test": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run pytest tests/", "cwd": "apps/backend" } },
+    "lint": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run ruff check src tests scripts", "cwd": "apps/backend" } },
+    "format-check": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run ruff format --check --diff src tests scripts", "cwd": "apps/backend" } },
+    "typecheck": { "executor": "@nxlv/python:run-commands", "options": { "command": "uv run mypy src", "cwd": "apps/backend" } }
+  },
+  "tags": ["scope:backend", "type:app", "lang:python"]
+}

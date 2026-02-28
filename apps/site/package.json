@@ -16,12 +16,12 @@
     "@refactor-agent/design-system": "workspace:*",
     "@sentry/react": "^10.40.0",
     "react": "^19.2.4",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.4",
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^18.3.1",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "oxlint": "^1.0.0",

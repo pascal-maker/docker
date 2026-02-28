@@ -2,15 +2,15 @@
 
 RUN := uv run --directory apps/backend
 TS_BRIDGE := packages/ts-morph-bridge
-TS_PACKAGES := dashboard-ui $(TS_BRIDGE) vscode-extension
+TS_PACKAGES := dashboard $(TS_BRIDGE) vscode-extension
 # Workspace package names (for pnpm --filter)
-TS_FILTERS := dashboard-ui site @refactor-agent/design-system ts-morph-bridge refactor-agent
+TS_FILTERS := dashboard site @refactor-agent/design-system ts-morph-bridge refactor-agent
 
 INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-ui reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check ci clean ui dashboard dashboard-dev reset-playground ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install infra-bootstrap infra-validate infra-fmt image-push infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -51,10 +51,10 @@ ci: ## Alias for check (CI usage)
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
 	CHAINLIT_APP_ROOT=apps/backend $(RUN) chainlit run src/refactor_agent/ui/app.py -w
 
-dashboard: ## Run refactor-issues dashboard backend (API; serves SPA if dashboard-ui/dist exists)
+dashboard: ## Run refactor-issues dashboard backend (API; serves SPA if apps/dashboard/dist exists)
 	$(RUN) python -m refactor_agent.dashboard
 
-dashboard-ui: ## Run dashboard React UI dev server (proxy to backend on :8000)
+dashboard-dev: ## Run dashboard React UI dev server (proxy to backend on :8000)
 	cd apps/dashboard && pnpm dev
 
 dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
@@ -63,7 +63,7 @@ dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
 reset-playground: ## Reset playground/nestjs-layered-architecture to origin/main (clean state)
 	./scripts/dev/reset-playground.sh
 
-ts-engine-install: ## Install TS workspace deps (bridge + dashboard-ui + vscode-extension). Use from repo root.
+ts-engine-install: ## Install TS workspace deps (bridge + dashboard + vscode-extension). Use from repo root.
 	pnpm install
 
 ts-install: ## Install all TS workspace dependencies (single lockfile at root)
@@ -73,13 +73,13 @@ ts-engine-check: ## Typecheck the ts-morph bridge
 	cd $(TS_BRIDGE) && pnpm exec tsc --noEmit
 
 ts-format-check: ## TypeScript format check (all TS packages except playground)
-	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run format-check; done
+	pnpm exec nx run-many -t format-check --all
 
 ts-lint: ## TypeScript lint (all TS packages except playground)
-	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run lint; done
+	pnpm exec nx run-many -t lint --all
 
 ts-typecheck: ## TypeScript typecheck (all TS packages except playground)
-	@for pkg in $(TS_FILTERS); do echo "=== $$pkg ==="; pnpm --filter $$pkg run typecheck; done
+	pnpm exec nx run-many -t typecheck --all
 
 ts-knip: ## Knip: find dead code, unused exports, unused deps (TS)
 	pnpm run knip
