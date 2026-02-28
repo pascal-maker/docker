@@ -7,8 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  format-check:
-    name: Format check
+  # --- Python backend ---
+  py-backend-format-check:
+    name: Python · Format check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,8 +35,8 @@ jobs:
         working-directory: apps/backend
         run: uv run ruff format --check --diff src tests scripts
 
-  lint:
-    name: Lint
+  py-backend-lint:
+    name: Python · Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,8 +62,8 @@ jobs:
         working-directory: apps/backend
         run: uv run ruff check src tests scripts
 
-  typecheck:
-    name: Type check
+  py-backend-typecheck:
+    name: Python · Type check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,8 +89,8 @@ jobs:
         working-directory: apps/backend
         run: uv run mypy src
 
-  test:
-    name: Test
+  py-backend-test:
+    name: Python · Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -127,8 +128,116 @@ jobs:
         working-directory: apps/backend
         run: uv run pytest
 
+  py-backend-dead-code:
+    name: Python · Dead code (Vulture)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: Vulture (dead code)
+        working-directory: apps/backend
+        run: uv run vulture src tests scripts
+
+  py-backend-deprecation:
+    name: Python · Deprecation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: Flake8 deprecation
+        working-directory: apps/backend
+        run: uv run flake8 --select=D src tests scripts
+
+  # --- Python functions ---
+  py-functions-format-check:
+    name: Functions · Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: Format check
+        run: uv run --package refactor-agent ruff format --check functions/
+
+  py-functions-lint:
+    name: Functions · Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-venv-${{ runner.os }}-
+
+      - run: uv sync
+
+      - name: Lint
+        run: uv run --package refactor-agent ruff check functions/
+
+  # --- TypeScript ---
   ts-format-check:
-    name: TS format check
+    name: TS · Format check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -160,7 +269,7 @@ jobs:
         run: pnpm exec nx affected -t format-check --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t format-check --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
 
   ts-lint:
-    name: TS lint
+    name: TS · Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -192,7 +301,7 @@ jobs:
         run: pnpm exec nx affected -t lint --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t lint --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
 
   ts-typecheck:
-    name: TS typecheck
+    name: TS · Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -227,7 +336,7 @@ jobs:
         run: pnpm exec nx affected -t typecheck --base=origin/${{ github.base_ref || 'main' }} --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest || pnpm exec nx run-many -t typecheck --all --exclude=backend,fn-auth-callback,fn-auth-register-device,fn-email-notify,fn-github-webhook,fn-usage-digest
 
   ts-knip:
-    name: TS Knip (dead code)
+    name: TS · Knip (dead code)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -247,114 +356,9 @@ jobs:
       - name: Knip (dead code, unused exports)
         run: pnpm run knip
 
-  dead-code:
-    name: Python dead code (Vulture)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - uses: actions/cache@v4
-        with:
-          path: .venv
-          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            uv-venv-${{ runner.os }}-
-
-      - run: uv sync
-
-      - name: Vulture (dead code)
-        working-directory: apps/backend
-        run: uv run vulture src tests scripts
-
-  deprecation-check:
-    name: Python deprecation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - uses: actions/cache@v4
-        with:
-          path: .venv
-          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            uv-venv-${{ runner.os }}-
-
-      - run: uv sync
-
-      - name: Flake8 deprecation
-        working-directory: apps/backend
-        run: uv run flake8 --select=D src tests scripts
-
-  functions-format-check:
-    name: Functions format check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - uses: actions/cache@v4
-        with:
-          path: .venv
-          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            uv-venv-${{ runner.os }}-
-
-      - run: uv sync
-
-      - name: Format check
-        run: uv run --package refactor-agent ruff format --check functions/
-
-  functions-lint:
-    name: Functions lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - uses: actions/cache@v4
-        with:
-          path: .venv
-          key: uv-venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            uv-venv-${{ runner.os }}-
-
-      - run: uv sync
-
-      - name: Lint
-        run: uv run --package refactor-agent ruff check functions/
-
-  terraform-validate:
-    name: Terraform validate
+  # --- Infrastructure ---
+  infra-terraform:
+    name: Infra · Terraform validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
