@@ -380,3 +380,6 @@ jobs:
       - name: Terraform validate
         working-directory: infra
         run: terraform validate
+
+      - run: npx nx fix-ci
+      if: always()
