@@ -50,6 +50,18 @@ interface ParsedUser {
   email?: string | null;
 }
 
+function toStrOrNull(v: unknown): string | null {
+  if (v == null) return null;
+  if (
+    typeof v === "string" ||
+    typeof v === "number" ||
+    typeof v === "boolean"
+  ) {
+    return String(v);
+  }
+  return null;
+}
+
 function parseFirestoreDocument(data: DocumentEventData): ParsedUser {
   const fields = data.value?.fields ?? {};
   const result: Record<string, unknown> = {};
@@ -65,10 +77,9 @@ function parseFirestoreDocument(data: DocumentEventData): ParsedUser {
     }
   }
   return {
-    status: result["status"] != null ? String(result["status"]) : null,
-    github_login:
-      result["github_login"] != null ? String(result["github_login"]) : null,
-    email: result["email"] != null ? String(result["email"]) : null,
+    status: toStrOrNull(result["status"]),
+    github_login: toStrOrNull(result["github_login"]),
+    email: toStrOrNull(result["email"]),
   };
 }
 

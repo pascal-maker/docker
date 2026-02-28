@@ -2,27 +2,45 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     "apps/dashboard": {
-      "entry": ["src/main.tsx", "vite.config.ts"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "entry": [
+        "src/main.tsx"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
     },
     "apps/site": {
-      "entry": ["src/main.tsx", "vite.config.ts"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "entry": [
+        "src/main.tsx"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
     },
     "packages/design-system": {
-      "entry": ["src/index.ts", "src/button.tsx", "src/button-link.tsx", "src/card.tsx", "src/input.tsx", "src/utils.ts"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
     },
     "packages/ts-morph-bridge": {
-      "entry": ["src/index.ts"],
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     },
     "apps/vscode-extension": {
-      "entry": ["src/extension.ts"],
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     }
   },
-  "ignore": ["**/dist/**", "**/out/**", "**/node_modules/**", "playground/**"],
-  "ignoreDependencies": ["@types/react-dom", "react-dom"],
-  "ignoreBinaries": ["uv"]
+  "ignore": [
+    "playground/**"
+  ],
+  "ignoreDependencies": [
+    "@types/react-dom",
+    "react-dom"
+  ],
+  "ignoreBinaries": [
+    "uv"
+  ]
 }

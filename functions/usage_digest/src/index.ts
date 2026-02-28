@@ -95,7 +95,7 @@ async function sendDigestEmail(
   console.log("Resend sent digest to=%s id=%s", adminEmail, result.id);
 }
 
-const handler = httpHandler(async (req, _res): Promise<HttpResponse> => {
+const handler = httpHandler(async (_req, _res): Promise<HttpResponse> => {
   const adminEmail = process.env["ADMIN_EMAIL"];
   const apiKey = process.env["RESEND_API_KEY"];
   const projectId =

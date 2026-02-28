@@ -16,7 +16,6 @@
     "@google-cloud/functions-framework": "^5.0.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
     "@types/node": "^22.14.0",
     "oxlint": "^1.0.0",
     "prettier": "^3.3.3",
