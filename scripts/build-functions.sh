@@ -48,6 +48,26 @@ deploy_function() {
   }
 }
 EOF
+  elif [ "$name" = "usage_digest" ]; then
+    cat > "$deploy_dir/package.json" << EOF
+{
+  "name": "${pkg_name}",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@google-cloud/firestore": "^8.0.0",
+    "@google-cloud/functions-framework": "^5.0.0",
+    "@google-cloud/monitoring": "^4.0.0",
+    "@refactor-agent/functions-shared": "file:./shared"
+  }
+}
+EOF
+    mkdir -p "$deploy_dir/shared"
+    cp functions/shared/package.json "$deploy_dir/shared/"
+    cp -r functions/shared/dist "$deploy_dir/shared/"
   else
     cat > "$deploy_dir/package.json" << EOF
 {

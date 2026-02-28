@@ -148,13 +148,19 @@ disallow_untyped_defs = false
 module = ["refactor_agent.engine.python.libcst_engine"]
 disable_error_code = ["override"]
 
+[[tool.mypy.overrides]]
+# anthropic.types.beta.beta_user_location_param exists only in anthropic >= 0.80; we pin <0.80.
+# The import is in an except block for future compatibility; mypy still type-checks it.
+module = ["anthropic.types.beta.beta_user_location_param"]
+ignore_missing_imports = true
+
 # ---------------------------------------------------------------------------
 # Vulture – dead code detection
 # ---------------------------------------------------------------------------
 [tool.vulture]
 min_confidence = 80
 paths = ["src", "tests", "scripts"]
-ignore_names = ["_", "logger", "app", "router", "client", "rest", "current_user", "UserLocation", "FieldInfo"]
+ignore_names = ["_", "logger", "app", "router", "client", "rest", "current_user", "UserLocation", "FieldInfo", "DocumentSnapshot", "AuthState"]
 exclude = ["*/node_modules/*", "*/__pycache__/*", "*.pyc"]
 
 # ---------------------------------------------------------------------------
