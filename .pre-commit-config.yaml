@@ -32,7 +32,7 @@ repos:
         pass_filenames: false
       - id: python-typecheck
         name: Python typecheck (mypy)
-        entry: uv run mypy src
+        entry: uv run --directory apps/backend mypy src
         language: system
         pass_filenames: false
       - id: ts-checks

@@ -38,8 +38,8 @@ _update_env() {
 
 echo "Syncing Sentry DSNs..."
 _update_env "$REPO_ROOT/.env" "SENTRY_DSN" "$BACKEND"
-_update_env "$REPO_ROOT/dashboard-ui/.env" "VITE_SENTRY_DSN" "$FRONTEND"
-_update_env "$REPO_ROOT/site/.env" "VITE_SENTRY_DSN" "$FRONTEND"
+_update_env "$REPO_ROOT/apps/dashboard/.env" "VITE_SENTRY_DSN" "$FRONTEND"
+_update_env "$REPO_ROOT/apps/site/.env" "VITE_SENTRY_DSN" "$FRONTEND"
 
 echo ""
 echo "VS Code extension: add to .vscode/settings.json or User Settings:"

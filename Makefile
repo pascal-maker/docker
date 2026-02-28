@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
-RUN := uv run
-TS_BRIDGE := src/refactor_agent/engine/typescript/bridge
+RUN := uv run --directory apps/backend
+TS_BRIDGE := packages/ts-morph-bridge
 TS_PACKAGES := dashboard-ui $(TS_BRIDGE) vscode-extension
 # Workspace package names (for pnpm --filter)
 TS_FILTERS := dashboard-ui site @refactor-agent/design-system ts-morph-bridge refactor-agent
@@ -49,13 +49,13 @@ ci: ## Alias for check (CI usage)
 	$(MAKE) check
 
 ui: ## Launch Chainlit dev UI (reads playground/ directly)
-	CHAINLIT_APP_ROOT=src $(RUN) chainlit run src/refactor_agent/ui/app.py -w
+	CHAINLIT_APP_ROOT=apps/backend $(RUN) chainlit run src/refactor_agent/ui/app.py -w
 
 dashboard: ## Run refactor-issues dashboard backend (API; serves SPA if dashboard-ui/dist exists)
 	$(RUN) python -m refactor_agent.dashboard
 
 dashboard-ui: ## Run dashboard React UI dev server (proxy to backend on :8000)
-	cd dashboard-ui && pnpm dev
+	cd apps/dashboard && pnpm dev
 
 dashboard-seed: ## Seed local dashboard DB with example check runs (for preview)
 	$(RUN) python scripts/seed/seed_dashboard.py

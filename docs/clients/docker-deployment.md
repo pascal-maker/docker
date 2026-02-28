@@ -43,7 +43,7 @@ The A2A server in Docker runs both the **WebSocket sync server** and the **A2A H
    Listens on port 8765 by default (`POC_SYNC_PORT`).
 
 2. **A2A HTTP server**:  
-   `uv run python scripts/a2a/run_ast_refactor_a2a.py`  
+   `uv run --directory apps/backend python scripts/a2a/run_ast_refactor_a2a.py`  
    Listens on port 9999. The sync server must be running (and the client must have synced a workspace) if you use `use_replica`.
 
 ## MCP bridge

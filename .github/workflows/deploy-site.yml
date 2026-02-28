@@ -10,7 +10,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "site/**"
+      - "apps/site/**"
       - "functions/**"
       - "packages/design-system/**"
       - "firebase.json"

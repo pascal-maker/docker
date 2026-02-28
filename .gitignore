@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+apps/backend/.venv/
 *.code-workspace
 *.egg-info/
 *.pyc
@@ -13,7 +14,7 @@ dist/
 node_modules/
 
 # VS Code extension build output
-vscode-extension/out/
+apps/vscode-extension/out/
 
 # Tool runtime state
 registered_agents.json
@@ -24,7 +25,7 @@ dashboard.db
 
 .chainlit
 chainlit.md
-src/.files
+apps/backend/src/.files
 
 # Cloned playgrounds (third-party)
 playground/nestjs-layered-architecture/

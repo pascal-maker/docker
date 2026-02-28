@@ -1,0 +1,26 @@
+{
+  "name": "ts-morph-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JSON-RPC bridge exposing ts-morph operations over stdin/stdout",
+  "type": "module",
+  "scripts": {
+    "start": "node_modules/.bin/tsx src/index.ts",
+    "format": "node_modules/.bin/prettier --write \"src/**/*.ts\"",
+    "format-check": "node_modules/.bin/prettier --check \"src/**/*.ts\"",
+    "lint": "node_modules/.bin/oxlint --type-aware",
+    "typecheck": "node_modules/.bin/tsc --noEmit"
+  },
+  "dependencies": {
+    "@sentry/node": "^8.55.0",
+    "ts-morph": "^25.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "oxlint": "^1.0.0",
+    "oxlint-tsgolint": "^0.15.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.3"
+  }
+}

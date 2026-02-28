@@ -17,11 +17,11 @@ importers:
         specifier: ^5.0.0
         version: 5.85.0(@types/node@22.19.11)(typescript@5.9.3)
 
-  dashboard-ui:
+  apps/dashboard:
     dependencies:
       '@refactor-agent/design-system':
         specifier: workspace:*
-        version: link:../packages/design-system
+        version: link:../../packages/design-system
       '@sentry/react':
         specifier: ^10.40.0
         version: 10.40.0(react@19.2.4)
@@ -72,48 +72,11 @@ importers:
         specifier: ^6.0.1
         version: 6.4.1(@types/node@22.19.11)(jiti@1.21.7)(tsx@4.21.0)
 
-  packages/design-system:
-    dependencies:
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      tailwind-merge:
-        specifier: ^3.5.0
-        version: 3.5.0
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.14
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^18.3.1
-        version: 18.3.7(@types/react@19.2.14)
-      oxlint:
-        specifier: ^1.0.0
-        version: 1.50.0(oxlint-tsgolint@0.15.0)
-      oxlint-tsgolint:
-        specifier: ^0.15.0
-        version: 0.15.0
-      prettier:
-        specifier: ^3.3.3
-        version: 3.8.1
-      react:
-        specifier: ^19.2.4
-        version: 19.2.4
-      react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@19.2.4)
-      tsup:
-        specifier: ^8.3.5
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-
-  site:
+  apps/site:
     dependencies:
       '@refactor-agent/design-system':
         specifier: workspace:*
-        version: link:../packages/design-system
+        version: link:../../packages/design-system
       '@sentry/react':
         specifier: ^10.40.0
         version: 10.40.0(react@19.2.4)
@@ -161,7 +124,69 @@ importers:
         specifier: ^6.0.1
         version: 6.4.1(@types/node@22.19.11)(jiti@2.6.1)(tsx@4.21.0)
 
-  src/refactor_agent/engine/typescript/bridge:
+  apps/vscode-extension:
+    dependencies:
+      '@sentry/node':
+        specifier: ^8.55.0
+        version: 8.55.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.14.0
+        version: 22.19.11
+      '@types/vscode':
+        specifier: ^1.90.0
+        version: 1.109.0
+      oxlint:
+        specifier: ^1.0.0
+        version: 1.50.0(oxlint-tsgolint@0.15.0)
+      oxlint-tsgolint:
+        specifier: ^0.15.0
+        version: 0.15.0
+      prettier:
+        specifier: ^3.3.3
+        version: 3.8.1
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
+  packages/design-system:
+    dependencies:
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      tailwind-merge:
+        specifier: ^3.5.0
+        version: 3.5.0
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^18.3.1
+        version: 18.3.7(@types/react@19.2.14)
+      oxlint:
+        specifier: ^1.0.0
+        version: 1.50.0(oxlint-tsgolint@0.15.0)
+      oxlint-tsgolint:
+        specifier: ^0.15.0
+        version: 0.15.0
+      prettier:
+        specifier: ^3.3.3
+        version: 3.8.1
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@19.2.4)
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
+  packages/ts-morph-bridge:
     dependencies:
       '@sentry/node':
         specifier: ^8.55.0
@@ -185,31 +210,6 @@ importers:
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-
-  vscode-extension:
-    dependencies:
-      '@sentry/node':
-        specifier: ^8.55.0
-        version: 8.55.0
-    devDependencies:
-      '@types/node':
-        specifier: ^22.14.0
-        version: 22.19.11
-      '@types/vscode':
-        specifier: ^1.90.0
-        version: 1.109.0
-      oxlint:
-        specifier: ^1.0.0
-        version: 1.50.0(oxlint-tsgolint@0.15.0)
-      oxlint-tsgolint:
-        specifier: ^0.15.0
-        version: 0.15.0
-      prettier:
-        specifier: ^3.3.3
-        version: 3.8.1
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

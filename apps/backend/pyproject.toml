@@ -1,0 +1,298 @@
+[project]
+name = "refactor-agent"
+version = "0.1.0"
+description = "Agentic refactoring"
+readme = "../../README.md"
+authors = [
+    { name = "Thomas Decloedt", email = "thomas.r.decloedt@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic-ai>=1.59.0",
+    "pydantic-settings>=2.0.0",
+    "anthropic>=0.78.0,<0.80.0",  # >=0.78 needed for Claude 4.6; <0.80 avoids UserLocation import break in pydantic-ai (PR #4345 pending)
+    "langfuse",
+    "python-dotenv",
+    "libcst>=1.0.0",
+    "fastmcp>=2.14.0,<3",
+    "a2a-sdk>=0.3.0",
+    "uvicorn[standard]>=0.32.0",
+    "starlette>=0.38.0",
+    "websockets>=14.0",
+    "watchdog>=4.0",
+    "chainlit",
+    "asyncpg",
+    "pyyaml>=6.0",
+    "structlog>=24.1.0",
+    "sentry-sdk>=2.0.0",
+    "google-cloud-firestore>=2.19.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+    "chainlit",
+    "types-PyYAML",
+    "vulture>=2.11",
+    "flake8>=7.0",
+    "flake8-deprecated>=2.3",
+    "pre-commit>=4.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------------------
+# Ruff – linting & formatting
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests", "scripts", "playground"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "F",      # pyflakes
+    "E", "W", # pycodestyle
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "ANN",    # flake8-annotations
+    "ASYNC",  # flake8-async
+    "S",      # bandit (security)
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EM",     # flake8-errmsg
+    "FBT",    # flake8-boolean-trap
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "INP",    # flake8-no-pep420
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "TC",     # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "FIX",    # flake8-fixme
+    "ERA",    # eradicate
+    "PGH",    # pygrep-hooks
+    "PL",     # pylint (PLC, PLE, PLR, PLW)
+    "TRY",    # tryceratops
+    "FLY",    # flynt
+    "PERF",   # perflint
+    "FURB",   # refurb
+    "LOG",    # flake8-logging
+    "RUF",    # ruff-specific
+    "C90",    # mccabe complexity
+    "D",      # pydocstyle
+]
+# Global: docstring convention (D), formatter conflicts (COM812, ISC001), exception style
+ignore = [
+    "D100", "D104", "D105", "D106", "D107", "D203", "D213",
+    "COM812", "ISC001", "TRY003", "EM101", "EM102",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-branches = 10
+max-returns = 5
+max-statements = 40
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["refactor_agent", "playground"]
+combine-as-imports = true
+
+[tool.ruff.lint.flake8-type-checking]
+strict = true
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sentry".msg = "Use sentry-sdk for Python. The 'sentry' package is the legacy Sentry server, not the client SDK."
+
+# Per-file ignores: only where framework/convention requires it. Prefer fixing code.
+# Tests: assert (S101), fixtures (ARG), docstrings (D), annotations (ANN), magic values
+# (PLR2004), self (SLF001), booleans (FBT), pytest params (PT006), test secrets (S105/S106).
+# Scripts/playground: relaxed docs and complexity for one-off or experimental code.
+# TC001/TC002/TC003: runtime imports (Pydantic, FastAPI, third-party); not TYPE_CHECKING.
+[tool.ruff.lint.per-file-ignores]
+# Tests: standard pytest/fixture and test-data allowances (S101 assert, ARG fixtures, etc.)
+"tests/**/*.py" = [
+    "S101",   # assert in tests
+    "S105",   # hardcoded password in test data
+    "S106",   # hardcoded password / credentials in test data
+    "PLR2004", "ARG", "D", "ANN", "SLF001", "FBT", "PT006",
+    "PLC0415", "E501", "TC003", "PTH123", "SIM117", "INP001",
+]
+# Security tests: HTTP requests to configured URL and subprocess run of own script
+"tests/security/**/*.py" = ["S310", "S603"]
+# Cloud Functions: Flask request, minimal deps
+"functions/**/*.py" = [
+    "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
+    "E501", "S310", "S110", "ARG001", "S105", "SIM105",
+]
+# Scripts: one-off CLI/seed tools
+"scripts/**/*.py" = [
+    "T20", "INP001", "D", "PLC0415", "PLR2004", "ANN",
+    "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+    "E501", "E402", "PTH123", "UP017", "S310", "S110",
+]
+"src/**/_compat.py" = ["PLC0415", "ANN", "F401"]
+"playground/**/*.py" = ["T20", "D", "TC001"]
+
+"src/refactor_agent/schedule/executor.py" = ["C901", "PLR0911", "TC001", "TC003"]
+"src/refactor_agent/schedule/planner.py" = ["C901", "TC002", "PLC0415", "E501"]
+"src/refactor_agent/ci/runner.py" = ["PLR0912", "PLR0915", "E501"]
+"src/refactor_agent/ci/config.py" = ["E501"]
+"src/refactor_agent/a2a/auth_middleware.py" = ["TC002", "PLR0911"]
+"src/refactor_agent/a2a/executor.py" = [
+    "E501", "PLR0911", "PLR0915",
+    "TC001", "TC002",
+]
+"src/refactor_agent/agent/factory.py" = ["E501"]
+"src/refactor_agent/agent/tools.py" = ["TC001", "TC002", "ARG001"]
+"src/refactor_agent/engine/subprocess_engine.py" = ["TC003"]
+"src/refactor_agent/engine/typescript/ts_morph_engine.py" = ["E501"]
+"src/refactor_agent/schedule/models.py" = ["E501"]
+"src/refactor_agent/orchestrator/agent.py" = ["E501"]
+"src/refactor_agent/auth/**/*.py" = [
+    "TC001", "TC002", "PLC0415", "S310", "PLR2004", "PLR0911", "TRY300",
+    "E501", "RUF006",
+]
+"src/refactor_agent/sync/**/*.py" = [
+    "TC002", "TC003", "E501", "ASYNC240", "PLR0911", "PLR0912", "PLR0915",
+    "C901", "S104", "S603", "S607", "D301", "TRY300",
+]
+"src/refactor_agent/ui/**/*.py" = [
+    "D", "ANN", "T20", "ASYNC240", "TC001", "E501", "S310", "PLR2004",
+    "LOG015", "C901", "PLR0912", "PLR0915",
+]
+# Dashboard: FastAPI runtime imports; S104=0.0.0.0 bind; S608=fixed-condition SQL
+"src/refactor_agent/dashboard/**/*.py" = [
+    "TC001", "TC002", "TC003", "PLR0913", "S104", "PLC0415", "S608", "ARG001",
+]
+
+# ---------------------------------------------------------------------------
+# Mypy – static type checking
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unreachable = true
+extra_checks = true
+enable_error_code = [
+    "ignore-without-code",
+    "redundant-cast",
+    "truthy-bool",
+    "truthy-iterable",
+    "unused-awaitable",
+]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[[tool.mypy.overrides]]
+# pydantic_ai._agent_graph has End, ModelRequestNode at runtime but not in __all__.
+module = ["pydantic_ai._agent_graph"]
+ignore_missing_imports = true
+disable_error_code = ["attr-defined"]
+
+[[tool.mypy.overrides]]
+# Auth: Firestore/Starlette have complex or missing stubs; google.cloud.firestore typing.
+module = ["refactor_agent.auth.*", "refactor_agent.a2a.auth_middleware"]
+disable_error_code = [
+    "attr-defined", "no-any-return", "union-attr", "arg-type",
+    "operator", "untyped-decorator", "unused-awaitable", "type-arg",
+]
+
+[[tool.mypy.overrides]]
+# Backend + method_logging: ASGI app typing (object/callable), scope dicts.
+module = ["refactor_agent.backend.*", "refactor_agent.a2a.method_logging"]
+disable_error_code = ["operator", "type-arg", "unreachable"]
+
+[[tool.mypy.overrides]]
+module = [
+    "langfuse.*",
+    "pydantic_ai.*",
+    "pydantic_ai._utils",
+    "dotenv.*",
+    "anthropic.*",
+    "libcst.*",
+    "fastmcp.*",
+    "a2a.*",
+    "chainlit.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Chainlit has no type stubs; strict untyped-call/def checks are unworkable.
+module = ["refactor_agent.ui.*"]
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# LibCST typed transformer return type is narrower (FlattenSentinel/RemovalSentinel); we return node.
+module = ["refactor_agent.engine.python.libcst_engine"]
+disable_error_code = ["override"]
+
+# ---------------------------------------------------------------------------
+# Vulture – dead code detection
+# ---------------------------------------------------------------------------
+[tool.vulture]
+min_confidence = 80
+paths = ["src", "tests", "scripts"]
+ignore_names = ["_", "logger", "app", "router", "client", "rest", "current_user", "UserLocation", "FieldInfo"]
+exclude = ["*/node_modules/*", "*/__pycache__/*", "*.pyc"]
+
+# ---------------------------------------------------------------------------
+# Flake8 (deprecation only; ruff handles other linting)
+# ---------------------------------------------------------------------------
+[tool.flake8]
+select = ["D"]
+extend-ignore = ["E", "F", "W"]
+exclude = [".git", "__pycache__", "node_modules", ".venv", "venv"]
+max-line-length = 88
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+strict_markers = true
+filterwarnings = ["error"]

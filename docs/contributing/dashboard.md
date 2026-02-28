@@ -25,7 +25,7 @@ Centralized dashboard (Sentry/Aikido-style) for refactor/architecture check resu
 2. **Frontend** (Vite dev server, port 5173; proxies `/api` to backend):
 
    ```bash
-   cd dashboard-ui
+   cd dashboard
    pnpm install
    pnpm dev
    ```
@@ -38,7 +38,7 @@ To populate the local DB with example check runs (so you can see the list and de
 
 ```bash
 make dashboard-seed
-# or: uv run python scripts/seed/seed_dashboard.py
+# or: uv run --directory apps/backend python scripts/seed/seed_dashboard.py
 ```
 
 Uses `REFACTOR_AGENT_DASHBOARD_DB` if set, otherwise `dashboard.db` in the current directory. Then open the UI and select org **demo** or **acme**.
@@ -48,7 +48,7 @@ Uses `REFACTOR_AGENT_DASHBOARD_DB` if set, otherwise `dashboard.db` in the curre
 1. Build the SPA:
 
    ```bash
-   cd dashboard-ui
+   cd dashboard
    pnpm install
    pnpm build
    ```

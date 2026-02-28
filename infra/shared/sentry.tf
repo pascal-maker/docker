@@ -24,7 +24,7 @@ resource "sentry_project" "backend" {
   default_rules = false
 }
 
-# Frontend project (React: dashboard-ui, site).
+# Frontend project (React: dashboard, site).
 resource "sentry_project" "frontend" {
   count         = local.sentry_enabled ? 1 : 0
   organization  = var.sentry_organization

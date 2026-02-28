@@ -1,6 +1,6 @@
 packages:
-  - "dashboard-ui"
-  - "site"
-  - "packages/*"
-  - "src/refactor_agent/engine/typescript/bridge"
-  - "vscode-extension"
+  - apps/dashboard
+  - apps/site
+  - apps/vscode-extension
+  - packages/design-system
+  - packages/ts-morph-bridge

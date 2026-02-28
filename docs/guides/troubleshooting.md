@@ -33,4 +33,4 @@ See [Scaling refactor pipeline](../reference/scaling-refactor-pipeline.md).
 ## Other
 
 - **Sync client not connecting:** Check `POC_SYNC_WS_URL` (default `ws://localhost:8765`) and that the sync server is running ([Docker deployment](../clients/docker-deployment.md), [Sync service](../clients/sync-service.md)).
-- **A2A server not responding:** Ensure the server is running (e.g. `uv run python scripts/a2a/run_ast_refactor_a2a.py`) and the URL in your client matches (default port 9999).
+- **A2A server not responding:** Ensure the server is running (e.g. `uv run --directory apps/backend python scripts/a2a/run_ast_refactor_a2a.py`) and the URL in your client matches (default port 9999).

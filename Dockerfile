@@ -13,20 +13,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 # 1. Install dependencies only (layer cached when pyproject.toml/uv.lock unchanged)
 # (No BuildKit --mount here so Cloud Build and plain docker build work.)
-COPY pyproject.toml uv.lock README.md ./
+COPY apps/backend/pyproject.toml apps/backend/uv.lock README.md ./
 RUN pip install --no-cache-dir uv \
     && uv sync --frozen --no-dev --no-install-project
 
 # 2. Copy app source and install project (layer cached when src/ unchanged)
-COPY src ./src
+COPY apps/backend/src ./src
 RUN uv sync --frozen --no-dev
 
 # 2b. Install TypeScript bridge deps with pnpm (workspace) so A2A can run ts-morph subprocess
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/ts-morph-bridge ./packages/ts-morph-bridge
 RUN pnpm install --frozen-lockfile --filter ts-morph-bridge
 
 # 3. Copy runtime assets (scripts, prompts, entrypoint)
-COPY scripts ./scripts
+COPY apps/backend/scripts ./scripts
 COPY prompts ./prompts
 COPY docker ./docker
 

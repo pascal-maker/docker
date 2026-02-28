@@ -28,7 +28,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      CHAINLIT_APP_ROOT: /app/src
+      CHAINLIT_APP_ROOT: /app/apps/backend
       DATABASE_URL: postgresql://${POSTGRES_USER:-chainlit}:${POSTGRES_PASSWORD:-chainlit}@postgres:5432/${POSTGRES_DB:-chainlit}
       CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET}
       CHAINLIT_ENVIRONMENT: ${CHAINLIT_ENVIRONMENT:-dev}
@@ -40,7 +40,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - ./playground:/app/playground
-      - ./src:/app/src
+      - ./apps/backend/src:/app/apps/backend/src
       - ./prompts:/app/prompts:ro
     depends_on:
       postgres:

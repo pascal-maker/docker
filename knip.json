@@ -1,11 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
-    "dashboard-ui": {
+    "apps/dashboard": {
       "entry": ["src/main.tsx", "vite.config.ts"],
       "project": ["src/**/*.{ts,tsx}"]
     },
-    "site": {
+    "apps/site": {
       "entry": ["src/main.tsx", "vite.config.ts"],
       "project": ["src/**/*.{ts,tsx}"]
     },
@@ -13,11 +13,11 @@
       "entry": ["src/index.ts", "src/button.tsx", "src/button-link.tsx", "src/card.tsx", "src/input.tsx", "src/utils.ts"],
       "project": ["src/**/*.{ts,tsx}"]
     },
-    "src/refactor_agent/engine/typescript/bridge": {
+    "packages/ts-morph-bridge": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
     },
-    "vscode-extension": {
+    "apps/vscode-extension": {
       "entry": ["src/extension.ts"],
       "project": ["src/**/*.ts"]
     }

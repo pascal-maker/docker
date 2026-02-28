@@ -1,0 +1,128 @@
+{
+  "name": "refactor-agent",
+  "displayName": "Refactor Agent",
+  "description": "Refactor Agent – rename symbols via A2A (Python or TypeScript). Standalone sidebar panel.",
+  "version": "0.1.0",
+  "publisher": "refactor-agent",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:refactorAgent-refactorView",
+    "onCommand:refactorAgent.focusView",
+    "onCommand:refactorAgent.openWebviewDevTools",
+    "onAuthenticationRequest:refactor-agent.auth"
+  ],
+  "main": "out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "refactorAgent-sidebar",
+          "title": "Refactor Agent",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "refactorAgent-sidebar": [
+        {
+          "type": "webview",
+          "id": "refactorAgent-refactorView",
+          "name": "Refactor",
+          "contextTitle": "Refactor Agent"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "refactorAgent.focusView",
+        "title": "Refactor Agent: Focus Refactor View"
+      },
+      {
+        "command": "refactorAgent.openWebviewDevTools",
+        "title": "Refactor Agent: Open Webview Developer Tools"
+      }
+    ],
+    "authentication": [
+      {
+        "id": "refactor-agent.auth",
+        "label": "Refactor Agent",
+        "description": "Sign in with Refactor Agent (GitHub App)"
+      }
+    ],
+    "configuration": {
+      "title": "Refactor Agent",
+      "properties": {
+        "refactorAgent.a2aBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:9999",
+          "description": "A2A server base URL (e.g. http://localhost:9999 or https://refactor-agent.example.com)"
+        },
+        "refactorAgent.syncUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Sync service URL. When empty, uses A2A base URL (same for hosted Cloud Run)."
+        },
+        "refactorAgent.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional API key for hosted A2A (sent as Authorization: Bearer <key>)",
+          "secret": true
+        },
+        "refactorAgent.engine": {
+          "type": "string",
+          "default": "python",
+          "enum": [
+            "python",
+            "typescript"
+          ],
+          "description": "Language engine (must match opened workspace; set by try_extension.sh <playground>)."
+        },
+        "refactorAgent.accessRequestUrl": {
+          "type": "string",
+          "default": "https://refactor-agent.dev",
+          "description": "URL for requesting access when status is pending (shown in onboarding message)."
+        },
+        "refactorAgent.authSignInUrl": {
+          "type": "string",
+          "default": "",
+          "description": "URL for signing in (e.g. https://refactorum.com/auth/signin). When empty, derived from accessRequestUrl."
+        },
+        "refactorAgent.sentryDsn": {
+          "type": "string",
+          "default": "",
+          "description": "Sentry DSN for error reporting. Leave empty to disable."
+        },
+        "refactorAgent.authRegisterDeviceUrl": {
+          "type": "string",
+          "default": "https://europe-west1-refactor-agent.cloudfunctions.net/auth-register-device",
+          "description": "URL for device flow registration. Used when signing in with device code."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "node_modules/.bin/tsc -p ./",
+    "watch": "node_modules/.bin/tsc -watch -p ./",
+    "format": "node_modules/.bin/prettier --write \"src/**/*.ts\"",
+    "format-check": "node_modules/.bin/prettier --check \"src/**/*.ts\"",
+    "lint": "node_modules/.bin/oxlint --type-aware",
+    "typecheck": "node_modules/.bin/tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/vscode": "^1.90.0",
+    "oxlint": "^1.0.0",
+    "oxlint-tsgolint": "^0.15.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "@sentry/node": "^8.55.0"
+  }
+}
