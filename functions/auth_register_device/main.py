@@ -13,6 +13,15 @@ import urllib.request
 
 import functions_framework
 
+from functions_shared import (
+    GitHubInstallation,
+    GitHubUser,
+    HttpHeaders,
+    HttpResponse,
+    RepoAccess,
+    http_handler,
+)
+
 GITHUB_USER_URL = "https://api.github.com/user"
 GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
 GITHUB_INSTALLATIONS_URL = "https://api.github.com/user/installations"
@@ -20,7 +29,7 @@ USERS_COLLECTION = "users"
 INSTALLATION_USERS_COLLECTION = "installation_users"
 
 
-def _fetch_github_user(token: str) -> dict | None:  # noqa: no-dict-sig  # GitHub API returns JSON
+def _fetch_github_user(token: str) -> GitHubUser | None:
     """Fetch GitHub user via API."""
     req = urllib.request.Request(
         GITHUB_USER_URL,
@@ -34,7 +43,8 @@ def _fetch_github_user(token: str) -> dict | None:  # noqa: no-dict-sig  # GitHu
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status != 200:
                 return None
-            return json.loads(resp.read().decode())
+            raw = json.loads(resp.read().decode())
+            return GitHubUser.model_validate(raw)
     except Exception:
         return None
 
@@ -65,7 +75,7 @@ def _fetch_primary_email(token: str) -> str | None:
         return None
 
 
-def _fetch_installations(token: str) -> list[dict]:  # noqa: no-dict-sig  # GitHub API returns JSON
+def _fetch_installations(token: str) -> list[GitHubInstallation]:
     """Fetch user installations."""
     req = urllib.request.Request(
         f"{GITHUB_INSTALLATIONS_URL}?per_page=100",
@@ -80,12 +90,13 @@ def _fetch_installations(token: str) -> list[dict]:  # noqa: no-dict-sig  # GitH
             if resp.status != 200:
                 return []
             data = json.loads(resp.read().decode())
-            return data.get("installations", [])
+            installations = data.get("installations", [])
+            return [GitHubInstallation.model_validate(i) for i in installations]
     except Exception:
         return []
 
 
-def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  # noqa: no-dict-sig  # GitHub API
+def _fetch_installation_repos(token: str, installation_id: int) -> list[RepoAccess]:
     """Fetch repos for an installation."""
     url = f"https://api.github.com/user/installations/{installation_id}/repositories"
     req = urllib.request.Request(
@@ -103,7 +114,7 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  
             data = json.loads(resp.read().decode())
             repos = data.get("repositories", [])
             return [
-                {"full_name": r["full_name"], "id": r["id"]}
+                RepoAccess.model_validate(r)
                 for r in repos
                 if isinstance(r, dict) and "full_name" in r and "id" in r
             ]
@@ -111,22 +122,19 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  
         return []
 
 
-def _collect_repos_and_installation_ids(  # noqa: no-dict-sig  # GitHub API list[dict]
-    token: str, installations: list[dict]
-) -> tuple[list[dict], list[int]]:
+def _collect_repos_and_installation_ids(
+    token: str, installations: list[GitHubInstallation]
+) -> tuple[list[RepoAccess], list[int]]:
     """Collect allowed_repos and installation_ids from installations."""
-    allowed_repos_list: list[dict] = []
+    allowed_repos_list: list[RepoAccess] = []
     seen_repos: set[tuple[str, int]] = set()
     installation_ids_list: list[int] = []
 
     for inst in installations:
-        inst_id = inst.get("id") if isinstance(inst, dict) else None
-        if inst_id is None:
-            continue
-        installation_ids_list.append(inst_id)
-        repos = _fetch_installation_repos(token, inst_id)
+        installation_ids_list.append(inst.id)
+        repos = _fetch_installation_repos(token, inst.id)
         for r in repos:
-            key = (r["full_name"], r["id"])
+            key = (r.full_name, r.id)
             if key not in seen_repos:
                 seen_repos.add(key)
                 allowed_repos_list.append(r)
@@ -134,11 +142,11 @@ def _collect_repos_and_installation_ids(  # noqa: no-dict-sig  # GitHub API list
     return allowed_repos_list, installation_ids_list
 
 
-def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of dicts
+def _write_user_to_firestore(
     user_id: str,
     login: str,
     email: str | None,
-    allowed_repos: list[dict],
+    allowed_repos: list[RepoAccess],
     installation_ids: list[int],
 ) -> None:
     """Create or update user in Firestore."""
@@ -154,7 +162,7 @@ def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of 
     payload: dict = {
         "github_login": login,
         "email": email,
-        "allowed_repos": allowed_repos,
+        "allowed_repos": [r.model_dump() for r in allowed_repos],
     }
     if not doc.exists:
         payload["created_at"] = firestore.SERVER_TIMESTAMP
@@ -175,9 +183,13 @@ def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of 
         inst_ref.set({"user_ids": existing})
 
 
-def _json_response(body: str, status: int) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-sig  # Flask response
+def _json_response(body: str, status: int) -> HttpResponse:
     """Return JSON response with Content-Type header."""
-    return (body, status, {"Content-Type": "application/json"})
+    return HttpResponse(
+        body=body,
+        status=status,
+        headers=HttpHeaders(root={"Content-Type": "application/json"}),
+    )
 
 
 def _validate_register_request(request) -> tuple[str | None, tuple[str, int] | None]:
@@ -199,9 +211,9 @@ def _validate_register_request(request) -> tuple[str | None, tuple[str, int] | N
     return token, None
 
 
-def _filter_our_installations(  # noqa: no-dict-sig  # GitHub API list[dict]
-    installations: list[dict], app_id_str: str
-) -> tuple[list[dict] | None, tuple[str, int] | None]:
+def _filter_our_installations(
+    installations: list[GitHubInstallation], app_id_str: str
+) -> tuple[list[GitHubInstallation] | None, tuple[str, int] | None]:
     """Filter to our app's installations. Return (our_installations, None) or (None, error)."""
     if not app_id_str:
         return None, (json.dumps({"error": "Server misconfiguration"}), 503)
@@ -209,11 +221,7 @@ def _filter_our_installations(  # noqa: no-dict-sig  # GitHub API list[dict]
         expected_app_id = int(app_id_str)
     except ValueError:
         return None, (json.dumps({"error": "Server misconfiguration"}), 503)
-    our_installations = [
-        i
-        for i in installations
-        if isinstance(i, dict) and i.get("app_id") == expected_app_id
-    ]
+    our_installations = [i for i in installations if i.app_id == expected_app_id]
     if not our_installations:
         return None, (
             json.dumps({"error": "Token not from Refactor Agent app"}),
@@ -223,7 +231,8 @@ def _filter_our_installations(  # noqa: no-dict-sig  # GitHub API list[dict]
 
 
 @functions_framework.http
-def auth_register_device(request):
+@http_handler
+def auth_register_device(request) -> HttpResponse:
     """Register user from device flow token. POST with Authorization: Bearer <token>."""
     token, err = _validate_register_request(request)
     if err is not None:
@@ -240,9 +249,9 @@ def auth_register_device(request):
     if our_installations is None and err is not None:
         return _json_response(err[0], err[1])
 
-    user_id = str(user_data["id"])
-    login = user_data["login"]
-    email = user_data.get("email") or _fetch_primary_email(token)
+    user_id = str(user_data.id)
+    login = user_data.login
+    email = user_data.email or _fetch_primary_email(token)
     allowed_repos_list, installation_ids_list = _collect_repos_and_installation_ids(
         token, our_installations
     )

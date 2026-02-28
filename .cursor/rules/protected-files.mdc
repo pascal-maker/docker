@@ -1,0 +1,15 @@
+---
+description: Files the agent must not edit without explicit instruction
+globs: ["pyproject.toml", ".cursor/rules/**", "CLAUDE.md", "**/mypy.ini"]
+alwaysApply: true
+---
+
+# Protected Files
+
+You must NOT edit these files unless the user explicitly says "update pyproject.toml" or "add a suppression" in their message:
+
+- `pyproject.toml` — especially `[tool.ruff.lint.per-file-ignores]` and mypy overrides
+- `.cursor/rules/*.mdc`
+- `CLAUDE.md`
+
+If a lint or type error requires editing these files to suppress rather than fix, STOP and tell the user what the real problem is instead of silently adding ignores.

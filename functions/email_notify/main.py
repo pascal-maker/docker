@@ -12,31 +12,31 @@ import os
 import urllib.request
 
 import functions_framework
+from models import (
+    FirestoreCloudEventData,
+    ParsedUserDocument,
+    parse_firestore_value,
+)
+from pydantic import ValidationError
 
 
-def _parse_firestore_value(value: dict) -> str | int | float | bool | None:  # noqa: no-dict-sig  # Firestore Value
-    """Extract scalar from Firestore Value message."""
-    parsers: dict[str, object] = {
-        "stringValue": lambda: value["stringValue"],
-        "integerValue": lambda: int(value["integerValue"]),
-        "doubleValue": lambda: float(value["doubleValue"]),
-        "booleanValue": lambda: value["booleanValue"],
-        "nullValue": lambda: None,
-    }
-    for key, parser in parsers.items():
-        if key in value:
-            return parser()  # type: ignore[return-value]
-    return None
-
-
-def _parse_firestore_document(data: dict) -> dict:  # noqa: no-dict-sig  # Firestore CloudEvent payload
+def _parse_firestore_document(data: FirestoreCloudEventData) -> ParsedUserDocument:
     """Parse Firestore Document from CloudEvent data.value."""
-    value = data.get("value") or {}
-    fields = value.get("fields") or {}
+    fields = data.value.fields
     result: dict[str, str | int | float | bool | None] = {}
     for key, val in fields.items():
-        result[key] = _parse_firestore_value(val)
-    return result
+        parsed = parse_firestore_value(val)
+        if isinstance(parsed, (str, int, float, bool)) or parsed is None:
+            result[key] = parsed
+
+    def _str_or_none(val: str | int | float | bool | None) -> str | None:
+        return str(val) if val is not None else None
+
+    return ParsedUserDocument(
+        status=_str_or_none(result.get("status")),
+        github_login=_str_or_none(result.get("github_login")),
+        email=_str_or_none(result.get("email")),
+    )
 
 
 def _send_admin_notification(
@@ -82,10 +82,14 @@ def on_user_created(cloud_event) -> None:
     api_key = os.environ.get("RESEND_API_KEY")
     if not admin_email or not api_key:
         return
-    data = cloud_event.data or {}
-    doc_data = _parse_firestore_document(data)
-    if doc_data.get("status") != "pending":
+    raw_data = cloud_event.data or {}
+    try:
+        event_data = FirestoreCloudEventData.model_validate(raw_data)
+    except ValidationError:
         return
-    login = str(doc_data.get("github_login", "unknown"))
-    user_email = str(doc_data.get("email", "")) if doc_data.get("email") else ""
+    doc_data = _parse_firestore_document(event_data)
+    if doc_data.status != "pending":
+        return
+    login = doc_data.github_login or "unknown"
+    user_email = doc_data.email or ""
     _send_admin_notification(admin_email, api_key, login, user_email)

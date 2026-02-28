@@ -11,6 +11,7 @@ members = [
   "functions/auth_register_device",
   "functions/email_notify",
   "functions/github_webhook",
+  "functions/shared",
   "functions/usage_digest",
 ]
 
@@ -106,7 +107,7 @@ max-statements = 40
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["refactor_agent", "playground"]
+known-first-party = ["functions_shared", "playground", "refactor_agent"]
 combine-as-imports = true
 
 [tool.ruff.lint.flake8-type-checking]
@@ -176,3 +177,7 @@ ban-relative-imports = "all"
 "apps/backend/src/refactor_agent/dashboard/**/*.py" = [
     "TC001", "TC002", "TC003", "PLR0913", "S104", "PLC0415", "S608", "ARG001",
 ]
+"functions/**/http_response.py" = ["TC003", "UP047"]
+"functions/email_notify/main.py" = ["FBT001"]
+"functions/email_notify/models.py" = ["PLR0911", "TC003"]
+"functions/github_webhook/main.py" = ["TC002", "PLR0911"]

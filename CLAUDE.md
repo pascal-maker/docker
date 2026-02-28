@@ -1,3 +1,34 @@
+You are working in a strict-typing Python codebase. These rules are absolute. Violations are bugs, not style issues.
+
+### You MAY NOT do any of the following without explicit written approval in the task:
+
+- Use `Any` from typing
+- Add `# type: ignore` comments
+- Add `# noqa` suppressions
+- Add new entries to `pyproject.toml` per-file ignores
+- Broaden existing mypy overrides in `pyproject.toml`
+- Use `dict`, `Dict`, `TypedDict` in function signatures or return types
+- Use `Optional[X]` (use `X | None`)
+- Import from `typing`: `List`, `Dict`, `Tuple`, `Set` (use built-ins)
+
+### When you hit a type error you CANNOT easily fix:
+
+1. Stop and describe the problem to the user
+2. Propose a proper typed solution (new Pydantic model, Protocol, TypeVar, etc.)
+3. Do NOT suppress it and move on
+
+### Protected files — do NOT edit these without being explicitly asked:
+
+- `pyproject.toml` (the `[tool.ruff.lint.per-file-ignores]` and `[tool.mypy]` sections)
+- `.cursor/rules/*.mdc`
+- `CLAUDE.md`
+
+### Pre-commit is not something to fix by suppressing rules
+
+If pre-commit fails, fix the underlying code. Adding ignores to make it pass is not fixing it.
+
+---
+
 # Coding guidelines
 
 Canonical repo-wide quality rules. Cursor uses the same content via `.cursor/rules/coding-guidelines.mdc` (always apply).

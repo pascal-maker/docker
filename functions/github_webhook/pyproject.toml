@@ -5,11 +5,16 @@ description = "GitHub App installation_repositories webhook Cloud Function"
 requires-python = ">=3.12"
 dependencies = [
     "functions-framework>=3.0,<5",
+    "functions-shared",
     "google-cloud-firestore>=2.0,<4",
+    "pydantic>=2",
 ]
 
+[tool.uv.sources]
+functions-shared = { workspace = true }
+
 [tool.setuptools]
-py-modules = ["main"]
+py-modules = ["main", "models"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

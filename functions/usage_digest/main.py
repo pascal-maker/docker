@@ -11,7 +11,6 @@ import logging
 import os
 import urllib.request
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import functions_framework
 from google.cloud import firestore
@@ -23,6 +22,9 @@ from google.cloud.monitoring_v3.types import (
     TimeInterval,
 )
 from google.protobuf.timestamp_pb2 import Timestamp
+from pydantic import BaseModel, Field
+
+from functions_shared import HttpHeaders, HttpResponse, http_handler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,6 +73,17 @@ def _get_request_count(
     return total
 
 
+class ResendEmailPayload(BaseModel):
+    """Resend API email payload."""
+
+    from_: str = Field(alias="from")
+    to: list[str]
+    subject: str
+    html: str
+
+    model_config = {"populate_by_name": True}
+
+
 def _send_digest_email(
     admin_email: str,
     api_key: str,
@@ -92,13 +105,13 @@ def _send_digest_email(
         f"<li><strong>Email notifications:</strong> {email_notifies}</li>"
         "</ul>"
     )
-    payload: dict[str, Any] = {
-        "from": from_addr,
-        "to": [admin_email],
-        "subject": subject,
-        "html": html,
-    }
-    body = json.dumps(payload).encode("utf-8")
+    payload = ResendEmailPayload(
+        from_=from_addr,
+        to=[admin_email],
+        subject=subject,
+        html=html,
+    )
+    body = json.dumps(payload.model_dump(by_alias=True)).encode("utf-8")
     req = urllib.request.Request(
         "https://api.resend.com/emails",
         data=body,
@@ -121,7 +134,8 @@ def _send_digest_email(
 
 
 @functions_framework.http
-def usage_digest(request) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-sig  # Flask response headers
+@http_handler
+def usage_digest(request) -> HttpResponse:
     """HTTP handler: gather usage metrics and send digest email."""
     admin_email = os.environ.get("ADMIN_EMAIL")
     api_key = os.environ.get("RESEND_API_KEY")
@@ -140,7 +154,10 @@ def usage_digest(request) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-s
             bool(api_key),
             bool(project_id),
         )
-        return ("Missing ADMIN_EMAIL, RESEND_API_KEY, or project", 500, {})
+        return HttpResponse(
+            body="Missing ADMIN_EMAIL, RESEND_API_KEY, or project",
+            status=500,
+        )
 
     end_time = datetime.now(UTC)
     start_time = end_time - timedelta(hours=24)
@@ -163,4 +180,8 @@ def usage_digest(request) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-s
     )
     _send_digest_email(admin_email, api_key, new_users, auth_callbacks, email_notifies)
 
-    return ("OK", 200, {"Content-Type": "text/plain"})
+    return HttpResponse(
+        body="OK",
+        status=200,
+        headers=HttpHeaders(root={"Content-Type": "text/plain"}),
+    )

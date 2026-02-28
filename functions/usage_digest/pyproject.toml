@@ -5,9 +5,13 @@ description = "Daily usage digest Cloud Function"
 requires-python = ">=3.12"
 dependencies = [
     "functions-framework>=3.0,<5",
+    "functions-shared",
     "google-cloud-firestore>=2.0,<4",
     "google-cloud-monitoring>=2.0,<4",
 ]
+
+[tool.uv.sources]
+functions-shared = { workspace = true }
 
 [tool.setuptools]
 py-modules = ["main"]

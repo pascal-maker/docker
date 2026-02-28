@@ -1,0 +1,31 @@
+---
+description: Strict Python typing rules. Always active for .py files.
+globs: ["**/*.py"]
+alwaysApply: true
+---
+
+# Python Typing Rules
+
+## Forbidden patterns — never generate these:
+
+- `from typing import Any`
+- `from typing import Dict, List, Tuple, Set, Optional`
+- `# type: ignore`
+- `# noqa: ANN` (annotation suppression)
+- `dict[str, Any]` or `Dict[str, Any]` in function signatures
+- `-> dict` or `-> Dict` as return type
+- `Optional[X]` — use `X | None`
+
+## When you encounter a type error:
+
+- Do NOT add a suppression comment
+- Do NOT add the file to pyproject.toml per-file-ignores
+- Fix the underlying typing by creating a proper model or Protocol
+- If you genuinely cannot fix it (third-party boundary), ask the user
+
+## Resolving common cases:
+
+- Unknown dict shape → create a `BaseModel`
+- Callback with unknown signature → use `Protocol`
+- Generic function → use `TypeVar`
+- Third-party returns `Any` → wrap in a validator at the boundary, type the wrapper

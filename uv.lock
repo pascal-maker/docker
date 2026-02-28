@@ -12,6 +12,7 @@ members = [
     "auth-callback",
     "auth-register-device",
     "email-notify",
+    "functions-shared",
     "github-webhook",
     "refactor-agent",
     "refactor-agent-workspace",
@@ -346,12 +347,14 @@ version = "0.1.0"
 source = { editable = "functions/auth_callback" }
 dependencies = [
     { name = "functions-framework" },
+    { name = "functions-shared" },
     { name = "google-cloud-firestore" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "functions-framework", specifier = ">=3.0,<5" },
+    { name = "functions-shared", editable = "functions/shared" },
     { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
 ]
 
@@ -361,12 +364,14 @@ version = "0.1.0"
 source = { editable = "functions/auth_register_device" }
 dependencies = [
     { name = "functions-framework" },
+    { name = "functions-shared" },
     { name = "google-cloud-firestore" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "functions-framework", specifier = ">=3.0,<5" },
+    { name = "functions-shared", editable = "functions/shared" },
     { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
 ]
 
@@ -876,10 +881,14 @@ version = "0.1.0"
 source = { editable = "functions/email_notify" }
 dependencies = [
     { name = "functions-framework" },
+    { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "functions-framework", specifier = ">=3.0,<5" }]
+requires-dist = [
+    { name = "functions-framework", specifier = ">=3.0,<5" },
+    { name = "pydantic", specifier = ">=2" },
+]
 
 [[package]]
 name = "email-validator"
@@ -1202,6 +1211,17 @@ wheels = [
 ]
 
 [[package]]
+name = "functions-shared"
+version = "0.1.0"
+source = { editable = "functions/shared" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
+
+[[package]]
 name = "genai-prices"
 version = "0.0.55"
 source = { registry = "https://pypi.org/simple" }
@@ -1220,13 +1240,17 @@ version = "0.1.0"
 source = { editable = "functions/github_webhook" }
 dependencies = [
     { name = "functions-framework" },
+    { name = "functions-shared" },
     { name = "google-cloud-firestore" },
+    { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "functions-framework", specifier = ">=3.0,<5" },
+    { name = "functions-shared", editable = "functions/shared" },
     { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
+    { name = "pydantic", specifier = ">=2" },
 ]
 
 [[package]]
@@ -4756,6 +4780,7 @@ version = "0.1.0"
 source = { editable = "functions/usage_digest" }
 dependencies = [
     { name = "functions-framework" },
+    { name = "functions-shared" },
     { name = "google-cloud-firestore" },
     { name = "google-cloud-monitoring" },
 ]
@@ -4763,6 +4788,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "functions-framework", specifier = ">=3.0,<5" },
+    { name = "functions-shared", editable = "functions/shared" },
     { name = "google-cloud-firestore", specifier = ">=2.0,<4" },
     { name = "google-cloud-monitoring", specifier = ">=2.0,<4" },
 ]

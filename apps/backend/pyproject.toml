@@ -55,6 +55,7 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 warn_unreachable = true
+warn_unused_ignores = true  # Error on unnecessary # type: ignore comments
 extra_checks = true
 enable_error_code = [
     "ignore-without-code",

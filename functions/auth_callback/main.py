@@ -14,6 +14,16 @@ import urllib.request
 
 import functions_framework
 
+from functions_shared import (
+    GitHubInstallation,
+    GitHubTokenResponse,
+    GitHubUser,
+    HttpHeaders,
+    HttpResponse,
+    RepoAccess,
+    http_handler,
+)
+
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
@@ -22,8 +32,8 @@ USERS_COLLECTION = "users"
 INSTALLATION_USERS_COLLECTION = "installation_users"
 
 
-def _exchange_code(code: str) -> dict | None:  # noqa: no-dict-sig  # GitHub OAuth API returns JSON
-    """Exchange GitHub App OAuth code for access token. Returns full response."""
+def _exchange_code(code: str) -> GitHubTokenResponse | None:
+    """Exchange GitHub App OAuth code for access token."""
     client_id = os.environ.get("GITHUB_APP_CLIENT_ID")
     client_secret = os.environ.get("GITHUB_APP_CLIENT_SECRET")
     redirect_uri = os.environ.get("GITHUB_OAUTH_REDIRECT_URI")
@@ -49,12 +59,13 @@ def _exchange_code(code: str) -> dict | None:  # noqa: no-dict-sig  # GitHub OAu
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status != 200:
                 return None
-            return json.loads(resp.read().decode())
+            raw = json.loads(resp.read().decode())
+            return GitHubTokenResponse.model_validate(raw)
     except Exception:
         return None
 
 
-def _fetch_github_user(token: str) -> dict | None:  # noqa: no-dict-sig  # GitHub API returns JSON
+def _fetch_github_user(token: str) -> GitHubUser | None:
     """Fetch GitHub user via API."""
     req = urllib.request.Request(
         GITHUB_USER_URL,
@@ -68,7 +79,8 @@ def _fetch_github_user(token: str) -> dict | None:  # noqa: no-dict-sig  # GitHu
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status != 200:
                 return None
-            return json.loads(resp.read().decode())
+            raw = json.loads(resp.read().decode())
+            return GitHubUser.model_validate(raw)
     except Exception:
         return None
 
@@ -99,8 +111,8 @@ def _fetch_primary_email(token: str) -> str | None:
         return None
 
 
-def _fetch_installations(token: str) -> list[dict]:  # noqa: no-dict-sig  # GitHub API returns JSON
-    """Fetch user installations. Returns list of {id, ...}."""
+def _fetch_installations(token: str) -> list[GitHubInstallation]:
+    """Fetch user installations."""
     req = urllib.request.Request(
         f"{GITHUB_INSTALLATIONS_URL}?per_page=100",
         headers={
@@ -114,13 +126,14 @@ def _fetch_installations(token: str) -> list[dict]:  # noqa: no-dict-sig  # GitH
             if resp.status != 200:
                 return []
             data = json.loads(resp.read().decode())
-            return data.get("installations", [])
+            installations = data.get("installations", [])
+            return [GitHubInstallation.model_validate(i) for i in installations]
     except Exception:
         return []
 
 
-def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  # noqa: no-dict-sig  # GitHub API
-    """Fetch repos for an installation. Returns list of {full_name, id}."""
+def _fetch_installation_repos(token: str, installation_id: int) -> list[RepoAccess]:
+    """Fetch repos for an installation."""
     url = f"https://api.github.com/user/installations/{installation_id}/repositories"
     req = urllib.request.Request(
         f"{url}?per_page=100",
@@ -137,7 +150,7 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  
             data = json.loads(resp.read().decode())
             repos = data.get("repositories", [])
             return [
-                {"full_name": r["full_name"], "id": r["id"]}
+                RepoAccess.model_validate(r)
                 for r in repos
                 if isinstance(r, dict) and "full_name" in r and "id" in r
             ]
@@ -145,27 +158,26 @@ def _fetch_installation_repos(token: str, installation_id: int) -> list[dict]:  
         return []
 
 
-def _redirect_to(url: str, status: int = 302) -> tuple[str, int, dict[str, str]]:  # noqa: no-dict-sig  # Flask response
+def _redirect_to(url: str, status: int = 302) -> HttpResponse:
     """Return HTTP redirect response."""
-    return ("", status, {"Location": url})
+    return HttpResponse(
+        body="", status=status, headers=HttpHeaders(root={"Location": url})
+    )
 
 
-def _collect_repos_and_installation_ids(  # noqa: no-dict-sig  # GitHub API list[dict]
-    token: str, installations: list[dict]
-) -> tuple[list[dict], list[int]]:
+def _collect_repos_and_installation_ids(
+    token: str, installations: list[GitHubInstallation]
+) -> tuple[list[RepoAccess], list[int]]:
     """Collect allowed_repos and installation_ids from installations."""
-    allowed_repos_list: list[dict] = []
+    allowed_repos_list: list[RepoAccess] = []
     seen_repos: set[tuple[str, int]] = set()
     installation_ids_list: list[int] = []
 
     for inst in installations:
-        inst_id = inst.get("id") if isinstance(inst, dict) else None
-        if inst_id is None:
-            continue
-        installation_ids_list.append(inst_id)
-        repos = _fetch_installation_repos(token, inst_id)
+        installation_ids_list.append(inst.id)
+        repos = _fetch_installation_repos(token, inst.id)
         for r in repos:
-            key = (r["full_name"], r["id"])
+            key = (r.full_name, r.id)
             if key not in seen_repos:
                 seen_repos.add(key)
                 allowed_repos_list.append(r)
@@ -173,11 +185,11 @@ def _collect_repos_and_installation_ids(  # noqa: no-dict-sig  # GitHub API list
     return allowed_repos_list, installation_ids_list
 
 
-def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of dicts
+def _write_user_to_firestore(
     user_id: str,
     login: str,
     email: str | None,
-    allowed_repos: list[dict],
+    allowed_repos: list[RepoAccess],
     installation_ids: list[int],
 ) -> None:
     """Create or update user in Firestore with status and allowed_repos."""
@@ -193,7 +205,7 @@ def _write_user_to_firestore(  # noqa: no-dict-sig  # Firestore expects list of 
     payload: dict = {
         "github_login": login,
         "email": email,
-        "allowed_repos": allowed_repos,
+        "allowed_repos": [r.model_dump() for r in allowed_repos],
     }
     if not doc.exists:
         payload["created_at"] = firestore.SERVER_TIMESTAMP
@@ -224,7 +236,8 @@ def _resolve_redirect_url(base_url: str, state: str, token: str) -> str:
 
 
 @functions_framework.http
-def auth_callback(request):
+@http_handler
+def auth_callback(request) -> HttpResponse:
     """Handle GitHub App OAuth callback: exchange code, create user, redirect."""
     code = request.args.get("code")
     state = request.args.get("state", "")
@@ -235,17 +248,17 @@ def auth_callback(request):
         return _redirect_to(error_url)
 
     token_response = _exchange_code(code)
-    token = token_response.get("access_token") if token_response else None
-    if not token:
+    if not token_response:
         return _redirect_to(error_url)
+    token = token_response.access_token
 
     user_data = _fetch_github_user(token)
     if not user_data:
         return _redirect_to(error_url)
 
-    user_id = str(user_data["id"])
-    login = user_data["login"]
-    email = user_data.get("email") or _fetch_primary_email(token)
+    user_id = str(user_data.id)
+    login = user_data.login
+    email = user_data.email or _fetch_primary_email(token)
 
     installations = _fetch_installations(token)
     allowed_repos_list, installation_ids_list = _collect_repos_and_installation_ids(

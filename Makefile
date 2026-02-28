@@ -98,7 +98,15 @@ deprecation-check: ## Flake8 deprecation plugin: flag deprecated API usage (Pyth
 pre-commit-install: ## Install pre-commit hooks (run once after clone)
 	cd apps/backend && $(RUN) pre-commit install
 
-functions-export: ## Export requirements.txt for each Cloud Function (run before terraform apply)
+functions-vendor-shared: ## Copy functions/shared into each function that needs it (run before functions-export)
+	rm -rf functions/auth_callback/shared functions/auth_register_device/shared \
+		functions/github_webhook/shared functions/usage_digest/shared
+	cp -r functions/shared functions/auth_callback/shared
+	cp -r functions/shared functions/auth_register_device/shared
+	cp -r functions/shared functions/github_webhook/shared
+	cp -r functions/shared functions/usage_digest/shared
+
+functions-export: functions-vendor-shared ## Export requirements.txt for each Cloud Function (run before terraform apply)
 	uv export --frozen --no-dev --no-editable --no-emit-project --package auth-callback \
 	  -o functions/auth_callback/requirements.txt
 	uv export --frozen --no-dev --no-editable --no-emit-project --package auth-register-device \
@@ -109,6 +117,12 @@ functions-export: ## Export requirements.txt for each Cloud Function (run before
 	  -o functions/github_webhook/requirements.txt
 	uv export --frozen --no-dev --no-editable --no-emit-project --package usage-digest \
 	  -o functions/usage_digest/requirements.txt
+	@# Replace functions-shared path with ./shared so Cloud Functions build installs from vendored copy
+	@for f in functions/auth_callback functions/auth_register_device functions/github_webhook functions/usage_digest; do \
+	  (grep -v 'functions/shared\|functions-shared' $$f/requirements.txt || true) > $$f/requirements.txt.tmp; \
+	  echo "./shared" | cat - $$f/requirements.txt.tmp > $$f/requirements.txt; \
+	  rm -f $$f/requirements.txt.tmp; \
+	done
 
 clean: ## Remove caches and build artifacts
 	rm -rf .ruff_cache .pytest_cache .mypy_cache dist *.egg-info
