@@ -19,7 +19,7 @@
     "bundle": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv export --frozen --no-dev --no-editable --package auth-callback -o functions/auth_callback/requirements.txt",
+        "command": "uv export --frozen --no-dev --no-editable --no-emit-project --package auth-callback -o functions/auth_callback/requirements.txt",
         "cwd": "{workspaceRoot}"
       }
     }

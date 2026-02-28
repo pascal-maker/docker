@@ -67,4 +67,6 @@ jobs:
           TF_VAR_chainlit_auth_secret: ${{ secrets.TF_VAR_chainlit_auth_secret }}
         run: |
           export TF_VAR_a2a_image="${REGION}-docker.pkg.dev/${PROJECT_ID}/refactor-agent/a2a-server:${TAG}"
-          terraform apply -auto-approve -input=false
+          # Pass firebase_custom_domains so CI doesn't default to [] and destroy apex DNS records.
+          terraform apply -auto-approve -input=false \
+            -var='firebase_custom_domains=["refactorum.com","www.refactorum.com"]'

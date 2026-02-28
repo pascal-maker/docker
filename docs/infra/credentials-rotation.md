@@ -46,7 +46,7 @@ Step-by-step instructions to rotate each credential used by Terraform and the ap
 
 ## 3. Cloudflare API token (`cloudflare_api_token`)
 
-**Used for:** DNS records (SPF, DKIM, Firebase Hosting) and Email Routing (addresses, rules).
+**Used for:** DNS records (SPF, DKIM, Firebase Hosting), Email Routing (addresses, rules), and www→apex redirect.
 
 1. Go to [Cloudflare Dashboard → My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens).
 2. Click **Create Token**.
@@ -58,9 +58,11 @@ Step-by-step instructions to rotate each credential used by Terraform and the ap
    |-----------------|----------|------------|-------------------|
    | Zone | DNS | Edit | DNS |
    | Zone | Email Routing Rules | Edit | Under **routing** / Email Routing |
+   | Zone | Single Redirect | Edit | Under **redirects** / Single Redirects |
+   | Zone | Zone Settings | Edit | For SSL/TLS and zone config |
    | Account | Email Routing Addresses | Edit | **Routing addresses** |
 
-6. **Zone resources:** For each Zone permission (DNS, Email Routing Rules), set **Include** → **Specific zone** → select `refactorum.com`.
+6. **Zone resources:** For each Zone permission (DNS, Email Routing Rules, Single Redirect, Zone Settings), set **Include** → **Specific zone** → select `refactorum.com`.
 7. **Account resources:** Include → Your account (for Email Routing Addresses).
 8. Create and copy the token.
 9. Update `cloudflare_api_token` in `secrets.tfvars`.
@@ -103,13 +105,10 @@ Firebase does not support revoking a key; you generate a new one and delete the 
 
 1. Go to [Firebase Console → Project Settings → Service accounts](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk).
 2. Click **Generate new private key** → confirm → download the JSON.
-3. Add to `secrets.tfvars`:
-   - **Option A:** Minify the JSON (one line, no newlines) and paste as a string:
-     ```hcl
-     firebase_service_account_json = "{\"type\":\"service_account\",\"project_id\":\"refactor-agent\",...}"
-     ```
-   - **Option B:** Use a file (in `infra/main.tf` or a `-var`): `firebase_service_account_json = file("${path.module}/../firebase-sa.json")` — ensure `firebase-sa.json` is gitignored.
-   - **Option C:** Put `firebase-sa.json` in `infra/` (gitignored); `make infra-apply` reads it automatically.
+3. Add to Terraform (pick one):
+   - **Option A (easiest):** Put the JSON in `infra/firebase-sa.json` (gitignored). Run `make infra-apply` — it injects via `-var` and syncs to GitHub. Or use `./scripts/infra/sync_firebase_sa.sh path/to/key.json`.
+   - **Option B:** Minify the JSON and add to `secrets.tfvars`: `firebase_service_account_json = "{\"type\":\"service_account\",...}"`
+   - **Option C:** Use `file()` in Terraform: `firebase_service_account_json = file("${path.module}/firebase-sa.json")` — ensure the file is gitignored.
 4. Run `make infra-apply` — Terraform syncs to GitHub Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 5. **Revoke old key:** Firebase Console → Project Settings → Service accounts → your service account → find the old key in the keys list → **Delete** (three dots menu).
 

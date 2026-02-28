@@ -94,15 +94,15 @@ pre-commit-install: ## Install pre-commit hooks (run once after clone)
 	cd apps/backend && $(RUN) pre-commit install
 
 functions-export: ## Export requirements.txt for each Cloud Function (run before terraform apply)
-	uv export --frozen --no-dev --no-editable --package auth-callback \
+	uv export --frozen --no-dev --no-editable --no-emit-project --package auth-callback \
 	  -o functions/auth_callback/requirements.txt
-	uv export --frozen --no-dev --no-editable --package auth-register-device \
+	uv export --frozen --no-dev --no-editable --no-emit-project --package auth-register-device \
 	  -o functions/auth_register_device/requirements.txt
-	uv export --frozen --no-dev --no-editable --package email-notify \
+	uv export --frozen --no-dev --no-editable --no-emit-project --package email-notify \
 	  -o functions/email_notify/requirements.txt
-	uv export --frozen --no-dev --no-editable --package github-webhook \
+	uv export --frozen --no-dev --no-editable --no-emit-project --package github-webhook \
 	  -o functions/github_webhook/requirements.txt
-	uv export --frozen --no-dev --no-editable --package usage-digest \
+	uv export --frozen --no-dev --no-editable --no-emit-project --package usage-digest \
 	  -o functions/usage_digest/requirements.txt
 
 clean: ## Remove caches and build artifacts

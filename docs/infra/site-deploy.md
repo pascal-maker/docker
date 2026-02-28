@@ -121,6 +121,8 @@ Set `firebase_custom_domains = ["refactorum.com", "www.refactorum.com"]` in `sec
 1. Register each domain with Firebase Hosting (`google_firebase_hosting_custom_domain`)
 2. Create the required DNS records in Cloudflare from Firebase's `required_dns_updates`
 
+**CI deploy:** The deploy-production and build-push-images workflows pass `-var='firebase_custom_domains=[...]'` so Terraform does not default to `[]` and destroy apex DNS records. If refactorum.com returns 502 but www works, run `make infra-apply` locally (with secrets.tfvars) to restore the apex A records.
+
 **Two-phase apply:** Because Firebase returns the required DNS records only after each custom domain is created, `make infra-apply` runs a targeted apply first (creates the custom domains), then a full apply (creates the Cloudflare records). No manual steps in Firebase Console needed.
 
 ## Local testing

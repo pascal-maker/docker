@@ -19,7 +19,7 @@
     "bundle": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv export --frozen --no-dev --no-editable --package email-notify -o functions/email_notify/requirements.txt",
+        "command": "uv export --frozen --no-dev --no-editable --no-emit-project --package email-notify -o functions/email_notify/requirements.txt",
         "cwd": "{workspaceRoot}"
       }
     }

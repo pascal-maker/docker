@@ -19,7 +19,7 @@
     "bundle": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv export --frozen --no-dev --no-editable --package auth-register-device -o functions/auth_register_device/requirements.txt",
+        "command": "uv export --frozen --no-dev --no-editable --no-emit-project --package auth-register-device -o functions/auth_register_device/requirements.txt",
         "cwd": "{workspaceRoot}"
       }
     }

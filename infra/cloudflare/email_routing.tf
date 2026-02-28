@@ -7,21 +7,22 @@ resource "cloudflare_email_routing_address" "destination" {
 }
 
 # Rule: noreply@refactorum.com -> destination.
+# v5: matchers and actions are list attributes.
 resource "cloudflare_email_routing_rule" "noreply" {
   zone_id = var.zone_id
   name    = "noreply to destination"
   enabled = true
 
-  matcher {
+  matchers = [{
     type  = "literal"
     field = "to"
     value = "noreply@refactorum.com"
-  }
+  }]
 
-  action {
+  actions = [{
     type  = "forward"
     value = [var.email_destination]
-  }
+  }]
 }
 
 # Rule: admin@refactorum.com -> destination.
@@ -30,14 +31,14 @@ resource "cloudflare_email_routing_rule" "admin" {
   name    = "admin to destination"
   enabled = true
 
-  matcher {
+  matchers = [{
     type  = "literal"
     field = "to"
     value = "admin@refactorum.com"
-  }
+  }]
 
-  action {
+  actions = [{
     type  = "forward"
     value = [var.email_destination]
-  }
+  }]
 }

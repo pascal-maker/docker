@@ -20,7 +20,7 @@ terraform {
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "~> 4"
+      version = "~> 5"
     }
     archive = {
       source  = "hashicorp/archive"
@@ -70,9 +70,10 @@ provider "github" {
 }
 
 # Cloudflare zone for refactorum.com (domain registered at Cloudflare).
+# v5: use filter block; name is read-only.
 data "cloudflare_zone" "refactorum" {
-  count = var.cloudflare_api_token != "" ? 1 : 0
-  name  = "refactorum.com"
+  count  = var.cloudflare_api_token != "" ? 1 : 0
+  filter = { name = "refactorum.com" }
 }
 
 # Resolve GitHub App private key: inline content or read from file (tfvars cannot call file()).
@@ -157,7 +158,7 @@ module "cloudflare" {
   count = var.cloudflare_api_token != "" ? 1 : 0
 
   zone_id                            = data.cloudflare_zone.refactorum[0].id
-  account_id                         = data.cloudflare_zone.refactorum[0].account_id
+  account_id                         = data.cloudflare_zone.refactorum[0].account.id
   zone_name                          = data.cloudflare_zone.refactorum[0].name
   email_destination                  = var.cloudflare_email_destination
   resend_dkim_name                   = var.resend_dkim_name
