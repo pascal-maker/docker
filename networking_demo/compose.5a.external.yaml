@@ -1,0 +1,15 @@
+services:
+  client:
+    hostname: client
+    build:
+      context: client
+    image: docker-networking-demo_client
+    ports:
+      - 8081:80
+    networks:
+      - docker-networking-demo_default
+
+networks:
+  docker-networking-demo_default:
+    external: false
+    name: docker-networking-demo_default

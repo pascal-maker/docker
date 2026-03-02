@@ -1,0 +1,19 @@
+services:
+  api:
+    hostname: my-storage-api
+    build:
+      context: api
+    image: docker-networking-demo_api
+    ports:
+      - 8080:80
+    volumes:
+      - data:/mnt/data/storage
+    networks:
+      - docker-networking-demo_default
+
+volumes:
+  data:
+
+networks:
+  docker-networking-demo_default:
+    external: true
