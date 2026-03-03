@@ -15,7 +15,7 @@
   "dependencies": {
     "@google-cloud/firestore": "^8.0.0",
     "@google-cloud/functions-framework": "^5.0.0",
-    "@google-cloud/monitoring": "^4.0.0",
+    "@google-cloud/monitoring": "^5.3.1",
     "@refactor-agent/functions-shared": "workspace:*"
   },
   "devDependencies": {
