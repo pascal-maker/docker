@@ -7,7 +7,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from langfuse import propagate_attributes
 from pydantic_ai import (
     Agent,
     CallToolsNode,
@@ -19,6 +18,7 @@ from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_graph import End
 
+from langfuse import propagate_attributes
 from refactor_agent.config import DEFAULT_MODEL
 from refactor_agent.engine.registry import EngineRegistry
 from refactor_agent.engine.subprocess_engine import SubprocessError

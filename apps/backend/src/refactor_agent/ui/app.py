@@ -12,12 +12,12 @@ from pathlib import Path
 
 import chainlit as cl
 from chainlit.data import get_data_layer
-from langfuse import get_client, propagate_attributes
 from pydantic import BaseModel, ConfigDict, RootModel
 
 # JSON-RPC request body (method, params, id) — response uses JsonRpcResponse from a2a.models
 from pydantic_ai._agent_graph import End, ModelRequestNode  # type: ignore[attr-defined]
 
+from langfuse import get_client, propagate_attributes
 from refactor_agent._log_config import configure_logging
 from refactor_agent.a2a.models import JsonRpcResponse, TaskResult, WorkspaceFile
 from refactor_agent.agentic import execute_schedule_with_agentic
