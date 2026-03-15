@@ -7,10 +7,10 @@ export function Landing() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <main className="max-w-2xl text-center space-y-8">
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+        <h1 className="text-4xl font-bold tracking-tight text-slate-100 sm:text-5xl">
           Refactorum
         </h1>
-        <p className="text-lg text-slate-600">
+        <p className="text-lg text-slate-400">
           Agentic code refactoring with confidence.
         </p>
         <div>

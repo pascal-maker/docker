@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@source "../../packages/design-system/src";
 
 /* Ensure primary button text is legible (fallback if Tailwind content misses UI package) */
 button.bg-blue-900,
@@ -17,7 +16,7 @@ button.bg-blue-800 {
 body {
   margin: 0;
   min-height: 100vh;
-  @apply bg-slate-100 text-slate-900;
+  @apply bg-slate-900 text-slate-100;
 }
 
 #root {

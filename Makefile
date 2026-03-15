@@ -10,7 +10,7 @@ INFRA_VAR_FILE ?= dev.tfvars
 GCP_PROJECT_ID ?= refactor-agent
 A2A_IMAGE_TAG  ?= latest
 
-.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground triage-dataset triage-experiment ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build infra-bootstrap infra-validate infra-fmt image-push infra-plan infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security
+.PHONY: help format format-check lint fix typecheck test check check-no-dict-sig ci clean ui dashboard dashboard-dev reset-playground triage-dataset triage-experiment ts-install ts-engine-install ts-engine-check ts-format-check ts-lint ts-typecheck ts-knip dead-code deprecation-check pre-commit-install functions-build infra-bootstrap infra-validate infra-fmt image-push infra-plan infra-apply infra-gha-key infra-a2a-url sync-sentry-dsns probe-a2a check-a2a-security site-deploy
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -189,3 +189,7 @@ probe-a2a: ## Probe A2A endpoint: what is reachable with/without auth
 
 check-a2a-security: ## Programmatic A2A security check; REQUIRE_AUTH_FOR_SEND=1 to fail if POST without auth succeeds
 	cd apps/backend && $(RUN) python scripts/a2a/check_a2a_security.py --base-url "$(A2A_URL)" $(if $(REQUIRE_AUTH_FOR_SEND),--require-auth-for-send,)
+
+site-deploy: ## Build and deploy the marketing site to Firebase Hosting
+	pnpm exec nx run site:build
+	npx firebase-tools deploy --only hosting

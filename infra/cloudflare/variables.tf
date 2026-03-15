@@ -55,8 +55,3 @@ variable "firebase_hosting_name" {
   default     = "www"
 }
 
-variable "firebase_custom_domain_dns_updates" {
-  description = "Required DNS updates from Firebase custom domain. When non-empty, creates records here instead of using firebase_hosting_*."
-  type        = list(any)
-  default     = []
-}
