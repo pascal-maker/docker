@@ -13,6 +13,10 @@ Design notes, future work, and deployment roadmap.
 - [Handoff prompts](handoff-prompts.md) — Handoff prompts for the planning agent; custom MCP bridge prompt.
 - [Extensible codemods](extensible-codemods.md) — Paths (on-the-fly vs RAG), iterative generation loop, prior art (Codemod.com), embedding for RAG.
 
+## Evaluation
+
+- [Benchmarking](benchmarking.md) — SWE-CI benchmark for measuring code maintenance quality once codemods are ready.
+
 ## Roadmap and deployment
 
 - [Roadmap — generated codemod refactoring](../generated-codemod-refactoring.md) — Exploration: LLM-generated codemods for migrations.

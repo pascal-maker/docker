@@ -32,3 +32,10 @@ sync/          WebSocket file sync (for Docker deployment)
 - [Cursor bridge](docs/clients/cursor-bridge.md) — using the agent from Cursor via A2A–MCP bridge
 - [Docker deployment](docs/clients/docker-deployment.md) — containerized setup with file sync
 - [Ideas and roadmap](docs/roadmap/ideas/README.md) — design notes, DSL concepts, future directions
+
+## Services
+
+- nx
+- Firebase
+- Cloudlfare
+

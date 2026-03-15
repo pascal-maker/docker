@@ -59,6 +59,7 @@ gh-actions-key.json
 .refactor-agent-a2a-url
 
 firebase-sa.json
+.firebase/
 
 # GitHub App private key (keep in infra/, reference via file() in secrets.tfvars)
 infra/*.pem
