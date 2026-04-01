@@ -7,7 +7,7 @@
 
 ### Component Classification
 
-- [ ] **CLASS-01**: System detects all React class components in a TypeScript workspace via AST analysis
+- [x] **CLASS-01**: System detects all React class components in a TypeScript workspace via AST analysis
 - [ ] **CLASS-02**: Hard-block rules applied before AI classification: components using `getSnapshotBeforeUpdate`, `componentDidCatch`, or `forceUpdate` are routed to `manual` tier unconditionally
 - [ ] **CLASS-03**: AI triage agent assigns each remaining component a complexity tier: `safe-auto`, `assisted`, or `manual`
 - [ ] **CLASS-04**: Complexity tier criteria: `safe-auto` = no `componentDidUpdate`, no instance fields, no refs, no HOC wrapping; `assisted` = one or two of those present; `manual` = remainder
@@ -97,7 +97,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLASS-01 | Phase 1 | Pending |
+| CLASS-01 | Phase 1 | Complete |
 | CLASS-02 | Phase 2 | Pending |
 | CLASS-03 | Phase 2 | Pending |
 | CLASS-04 | Phase 2 | Pending |

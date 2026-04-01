@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 01-foundation-01-PLAN.md
-last_updated: "2026-04-01T22:36:10.914Z"
+stopped_at: Completed 01-foundation 01-02-PLAN.md — React class component detection (CLASS-01)
+last_updated: "2026-04-01T22:36:20.342Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 5
@@ -67,6 +67,8 @@ Recent decisions affecting current work:
 - [Roadmap]: STRICT layer (Phase 5) sequenced after full Layer 1 pipeline is proven — strict hardening on a noisy baseline produces unmanageable error counts
 - [Phase 01-foundation]: Use (SubprocessError, KeyError) not (SubprocessError, ValueError) — KeyError verified from EngineRegistry.create source
 - [Phase 01-foundation]: Delete module-level _orchestrator_state entirely — nothing else referenced it, per-instance {} used instead
+- [Phase 01-foundation]: baseTextRoot detection strategy for React short-import forms: strip type params from getExpression().getText() to detect Component/PureComponent syntactically without type resolution
+- [Phase 01-foundation]: ComponentInfo import placed outside TYPE_CHECKING with noqa: TC001 — runtime Pydantic model construction requires it at import time
 
 ### Pending Todos
 
@@ -80,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T22:35:58.542Z
-Stopped at: Completed 01-foundation-01-PLAN.md
+Last session: 2026-04-01T22:36:20.340Z
+Stopped at: Completed 01-foundation 01-02-PLAN.md — React class component detection (CLASS-01)
 Resume file: None
