@@ -35,10 +35,13 @@ export function handleListReactClassComponents(
       if (!baseExpr) continue;
 
       const baseText = baseExpr.getText();
+      // Strip type arguments (e.g. "Component<Props, State>" → "Component")
+      const baseTextRoot = baseText.replace(/<.*$/, "").trim();
       const baseName = cls.getBaseClass()?.getName() ?? "";
 
       const isReactClass =
         REACT_BASE_CLASSES.has(baseName) ||
+        REACT_BASE_CLASSES.has(baseTextRoot) ||
         baseText === "React.Component" ||
         baseText.startsWith("React.Component<") ||
         baseText === "React.PureComponent" ||

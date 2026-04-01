@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import textwrap
 from typing import TYPE_CHECKING
@@ -282,3 +283,148 @@ async def test_get_skeleton_project_mode(workspace: Path) -> None:
         skeleton = await engine.get_skeleton(greeter_path)
         assert "greetUser" in skeleton
         assert "FunctionDef" in skeleton
+
+
+# -- list_react_class_components -------------------------------------------
+
+
+@pytest.fixture
+def react_workspace(tmp_path: Path) -> Path:
+    """Create a TypeScript workspace with a mix of React class components."""
+    tsconfig = tmp_path / "tsconfig.json"
+    tsconfig.write_text(
+        json.dumps(
+            {
+                "compilerOptions": {
+                    "jsx": "react-jsx",
+                    "strict": True,
+                    "esModuleInterop": True,
+                    "moduleResolution": "node",
+                },
+                "include": ["*.tsx", "*.ts"],
+            }
+        )
+    )
+
+    # React.Component full form with lifecycle methods
+    mycomp = tmp_path / "MyComp.tsx"
+    mycomp.write_text(
+        textwrap.dedent("""\
+            import React from 'react';
+            interface Props { name: string; }
+            class MyComp extends React.Component<Props> {
+              componentDidMount() {}
+              render() { return null; }
+            }
+        """),
+    )
+
+    # Component short import form
+    shortform = tmp_path / "ShortForm.tsx"
+    shortform.write_text(
+        textwrap.dedent("""\
+            import { Component } from 'react';
+            class ShortForm extends Component {
+              render() { return null; }
+            }
+        """),
+    )
+
+    # PureComponent form
+    pure = tmp_path / "Pure.tsx"
+    pure.write_text(
+        textwrap.dedent("""\
+            import { PureComponent } from 'react';
+            class Pure extends PureComponent {
+              render() { return null; }
+            }
+        """),
+    )
+
+    # Non-React class that must NOT appear in results
+    non_react = tmp_path / "NotReact.tsx"
+    non_react.write_text(
+        textwrap.dedent("""\
+            class BaseService {}
+            class Util extends BaseService {
+              doStuff() {}
+            }
+        """),
+    )
+
+    return tmp_path
+
+
+async def test_list_react_class_components_react_component(
+    react_workspace: Path,
+) -> None:
+    """list_react_class_components detects extends React.Component with lifecycle methods."""
+    tsconfig_path = react_workspace / "tsconfig.json"
+    async with TsMorphProjectEngine(
+        react_workspace, tsconfig_path=tsconfig_path
+    ) as engine:
+        components = await engine.list_react_class_components()
+
+    names = [c.component_name for c in components]
+    assert "MyComp" in names
+
+    mycomp = next(c for c in components if c.component_name == "MyComp")
+    assert "componentDidMount" in mycomp.lifecycle_methods
+    assert "render" in mycomp.lifecycle_methods
+    assert mycomp.file_path.endswith("MyComp.tsx")
+
+
+async def test_list_react_class_components_short_import(
+    react_workspace: Path,
+) -> None:
+    """list_react_class_components detects extends Component (short import form)."""
+    tsconfig_path = react_workspace / "tsconfig.json"
+    async with TsMorphProjectEngine(
+        react_workspace, tsconfig_path=tsconfig_path
+    ) as engine:
+        components = await engine.list_react_class_components()
+
+    names = [c.component_name for c in components]
+    assert "ShortForm" in names
+
+
+async def test_list_react_class_components_pure_component(
+    react_workspace: Path,
+) -> None:
+    """list_react_class_components detects extends PureComponent."""
+    tsconfig_path = react_workspace / "tsconfig.json"
+    async with TsMorphProjectEngine(
+        react_workspace, tsconfig_path=tsconfig_path
+    ) as engine:
+        components = await engine.list_react_class_components()
+
+    names = [c.component_name for c in components]
+    assert "Pure" in names
+
+
+async def test_list_react_class_components_empty_workspace(
+    tmp_path: Path,
+) -> None:
+    """list_react_class_components returns empty list when no React class components exist."""
+    plain = tmp_path / "plain.ts"
+    plain.write_text("export const x = 1;\n")
+
+    async with TsMorphProjectEngine(tmp_path) as engine:
+        components = await engine.list_react_class_components()
+
+    assert components == []
+
+
+async def test_list_react_class_components_excludes_non_react(
+    react_workspace: Path,
+) -> None:
+    """list_react_class_components excludes non-React class hierarchies."""
+    tsconfig_path = react_workspace / "tsconfig.json"
+    async with TsMorphProjectEngine(
+        react_workspace, tsconfig_path=tsconfig_path
+    ) as engine:
+        components = await engine.list_react_class_components()
+
+    names = [c.component_name for c in components]
+    assert "Util" not in names
+    assert "BaseService" not in names

@@ -16,6 +16,7 @@ from refactor_agent.engine.subprocess_engine import (
     JsonRpcParams,
     SubprocessEngine,
 )
+from refactor_agent.migration.models import ComponentInfo  # noqa: TC001 — runtime Pydantic model construction
 
 _REPO_ROOT = Path(__file__).resolve().parents[6]
 _BRIDGE_DIR = _REPO_ROOT / "packages" / "ts-morph-bridge"
@@ -434,6 +435,32 @@ class TsMorphProjectEngine(SubprocessEngine):
             if isinstance(files, list):
                 return [str(f) for f in files]
         return []
+
+    async def list_react_class_components(self) -> list[ComponentInfo]:
+        """Return all React class components found in the project.
+
+        Returns:
+            List of ComponentInfo for each class extending React.Component
+            or React.PureComponent found across all project source files.
+        """
+        result = await self._call(
+            "list_react_class_components",
+            JsonRpcParams(),
+        )
+        if not isinstance(result, list):
+            return []
+        return [
+            ComponentInfo(
+                file_path=item.get("file_path", ""),
+                component_name=item.get("component_name", ""),
+                lifecycle_methods=item.get("lifecycle_methods", []),
+                has_state=bool(item.get("has_state", False)),
+                has_refs=bool(item.get("has_refs", False)),
+                line=int(item.get("line", 0)),
+            )
+            for item in result
+            if isinstance(item, dict) and item.get("component_name")
+        ]
 
     async def apply_changes(self) -> list[str]:
         """Write all changed files back to disk.
