@@ -372,3 +372,23 @@ async def test_executor_cancel_raises() -> None:
     executor = ASTRefactorAgentExecutor(agent=MagicMock())
     with pytest.raises(NotImplementedError, match="cancel"):
         await executor.cancel(MagicMock(), AsyncMock())
+
+
+def test_executor_instances_have_isolated_state() -> None:
+    """Two executors created without StateStore do not share state (INFRA-02)."""
+    exec_a = ASTRefactorAgentExecutor(agent=MagicMock())
+    exec_b = ASTRefactorAgentExecutor(agent=MagicMock())
+    exec_a._state_store["task-1"] = OrchestratorStateEntry(
+        message_history=[],
+        workspace_dir="/tmp/ws",
+        use_replica=True,
+        language="python",
+    )
+    assert "task-1" not in exec_b._state_store
+
+
+def test_executor_uses_injected_state_store() -> None:
+    """Injected StateStore is used when provided."""
+    store = StateStore.model_validate({})
+    executor = ASTRefactorAgentExecutor(state_store=store, agent=MagicMock())
+    assert executor._state_store is store.root

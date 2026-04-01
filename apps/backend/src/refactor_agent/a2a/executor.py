@@ -51,9 +51,6 @@ def _language_and_ext(parsed: UseReplicaRenameParams) -> tuple[str, str]:
     return parsed.language, _FILE_EXT_BY_LANG[parsed.language]
 
 
-# task_id -> state for pause/resume
-_orchestrator_state: dict[str, OrchestratorStateEntry] = {}
-
 _ARTIFACT_PREVIEW_LEN = 200
 
 
@@ -224,7 +221,7 @@ class ASTRefactorAgentExecutor(AgentExecutor):
         agent: Agent[OrchestratorDeps, str] | None = None,
     ) -> None:
         self._state_store: dict[str, OrchestratorStateEntry] = (
-            state_store.root if state_store is not None else _orchestrator_state
+            state_store.root if state_store is not None else {}
         )
         self._agent: Agent[OrchestratorDeps, str] = (
             agent if agent is not None else create_orchestrator_agent()
