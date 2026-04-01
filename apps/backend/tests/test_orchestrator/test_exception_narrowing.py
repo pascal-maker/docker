@@ -143,9 +143,7 @@ async def test_apply_renames_does_not_catch_type_error(
         side_effect=TypeError("programming bug"),
     ):
         with pytest.raises(TypeError, match="programming bug"):
-            await _apply_renames_per_file(
-                deps, files, "old_name", "new_name", None
-            )
+            await _apply_renames_per_file(deps, files, "old_name", "new_name", None)
 
 
 # ---------------------------------------------------------------------------

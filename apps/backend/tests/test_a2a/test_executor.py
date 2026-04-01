@@ -380,7 +380,7 @@ def test_executor_instances_have_isolated_state() -> None:
     exec_b = ASTRefactorAgentExecutor(agent=MagicMock())
     exec_a._state_store["task-1"] = OrchestratorStateEntry(
         message_history=[],
-        workspace_dir="/tmp/ws",
+        workspace_dir="/nonexistent/ws",
         use_replica=True,
         language="python",
     )

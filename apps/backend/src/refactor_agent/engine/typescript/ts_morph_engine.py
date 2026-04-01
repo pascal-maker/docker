@@ -16,7 +16,9 @@ from refactor_agent.engine.subprocess_engine import (
     JsonRpcParams,
     SubprocessEngine,
 )
-from refactor_agent.migration.models import ComponentInfo  # noqa: TC001 — runtime Pydantic model construction
+from refactor_agent.migration.models import (
+    ComponentInfo,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[6]
 _BRIDGE_DIR = _REPO_ROOT / "packages" / "ts-morph-bridge"
