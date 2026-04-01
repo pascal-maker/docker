@@ -20,6 +20,7 @@ import {
   handleRenameSymbol,
   handleToSource,
 } from "./handlers.js";
+import { handleListReactClassComponents } from "./react.js";
 
 const sentryDsn = process.env.SENTRY_DSN?.trim();
 if (sentryDsn) {
@@ -49,6 +50,7 @@ const handlers: Record<
   check_name_collisions: handleCheckNameCollisions,
   to_source: handleToSource,
   extract_function: handleExtractFunction,
+  list_react_class_components: handleListReactClassComponents,
 };
 
 function dispatch(request: Request): {
