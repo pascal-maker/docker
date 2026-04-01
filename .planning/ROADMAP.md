@@ -28,7 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Given any workspace path, the system returns a typed list of all React class components with their file locations and lifecycle method inventory
   2. Bare exception handlers in the engine subprocess path are replaced with typed handlers — a partial transform failure surfaces as an explicit typed error, not a swallowed exception
   3. The A2A executor no longer holds module-level global state; concurrent migration job requests do not share or corrupt each other's context
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Narrow bare exception handlers (INFRA-01) and eliminate shared state in A2A executor (INFRA-02)
+- [ ] 01-02-PLAN.md — Add React class component detection bridge handler, Python wrapper, and Pydantic models (CLASS-01)
 
 ### Phase 2: Classifier and tsc Gate
 **Goal**: Every detected class component is assigned a complexity tier with rationale, and the tsc gate can reliably detect new type errors introduced by any transformation
@@ -85,7 +89,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/2 | Planning complete | - |
 | 2. Classifier and tsc Gate | 0/TBD | Not started | - |
 | 3. Migration Executor | 0/TBD | Not started | - |
 | 4. PR Creation and Runner | 0/TBD | Not started | - |
