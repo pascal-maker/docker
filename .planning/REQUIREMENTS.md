@@ -53,8 +53,8 @@
 
 ### Infrastructure Prerequisites
 
-- [ ] **INFRA-01**: Bare exception handlers in engine subprocess path replaced with typed handlers and git rollback (unblocks transactional executor)
-- [ ] **INFRA-02**: Module-level global state in `a2a/executor.py` replaced with request-scoped context (unblocks concurrent migration jobs on A2A)
+- [x] **INFRA-01**: Bare exception handlers in engine subprocess path replaced with typed handlers and git rollback (unblocks transactional executor)
+- [x] **INFRA-02**: Module-level global state in `a2a/executor.py` replaced with request-scoped context (unblocks concurrent migration jobs on A2A)
 
 ## v2 Requirements
 
@@ -125,8 +125,8 @@
 | STRICT-05 | Phase 5 | Pending |
 | MCP-01 | Phase 4 | Pending |
 | MCP-02 | Phase 4 | Pending |
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 30 total

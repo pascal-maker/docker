@@ -12,7 +12,7 @@ Five phases build the migration platform from its prerequisites to a complete tw
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Fix infrastructure prerequisites and add React class component detection bridge
+- [x] **Phase 1: Foundation** - Fix infrastructure prerequisites and add React class component detection bridge (completed 2026-04-01)
 - [ ] **Phase 2: Classifier and tsc Gate** - Classify components by migration complexity and implement per-file tsc fingerprint gate
 - [ ] **Phase 3: Migration Executor** - Apply safe-auto transforms on isolated branches with transactional rollback
 - [ ] **Phase 4: PR Creation and Runner** - Assemble full pipeline, agent-generated PR description, and MCP tools
@@ -28,11 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Given any workspace path, the system returns a typed list of all React class components with their file locations and lifecycle method inventory
   2. Bare exception handlers in the engine subprocess path are replaced with typed handlers — a partial transform failure surfaces as an explicit typed error, not a swallowed exception
   3. The A2A executor no longer holds module-level global state; concurrent migration job requests do not share or corrupt each other's context
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 01-01-PLAN.md — Narrow bare exception handlers (INFRA-01) and eliminate shared state in A2A executor (INFRA-02)
-- [ ] 01-02-PLAN.md — Add React class component detection bridge handler, Python wrapper, and Pydantic models (CLASS-01)
+- [x] 01-01-PLAN.md — Narrow bare exception handlers (INFRA-01) and eliminate shared state in A2A executor (INFRA-02)
+- [x] 01-02-PLAN.md — Add React class component detection bridge handler, Python wrapper, and Pydantic models (CLASS-01)
 
 ### Phase 2: Classifier and tsc Gate
 **Goal**: Every detected class component is assigned a complexity tier with rationale, and the tsc gate can reliably detect new type errors introduced by any transformation
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Planning complete | - |
+| 1. Foundation | 2/2 | Complete   | 2026-04-01 |
 | 2. Classifier and tsc Gate | 0/TBD | Not started | - |
 | 3. Migration Executor | 0/TBD | Not started | - |
 | 4. PR Creation and Runner | 0/TBD | Not started | - |
