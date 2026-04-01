@@ -153,7 +153,7 @@ async def _check_all_collisions(
         source = fp.read_text(encoding="utf-8")
         try:
             engine = EngineRegistry.create(deps.language, source)
-        except Exception as e:
+        except (SubprocessError, KeyError) as e:
             logger.debug("Skip file", path=str(fp), error=str(e))
             continue
         async with engine:
@@ -180,7 +180,7 @@ async def _apply_renames_per_file(
         source = fp.read_text(encoding="utf-8")
         try:
             engine = EngineRegistry.create(deps.language, source)
-        except Exception as e:
+        except (SubprocessError, KeyError) as e:
             logger.debug("Skip file", path=str(fp), error=str(e))
             continue
         async with engine:
@@ -356,7 +356,7 @@ def _register_core_tools(agent: Agent[OrchestratorDeps, str]) -> None:
         source = full.read_text(encoding="utf-8")
         try:
             engine = EngineRegistry.create(ctx.deps.language, source)
-        except Exception:
+        except (SubprocessError, KeyError):
             return f"Could not parse {file_path}."
         async with engine:
             return await engine.get_skeleton()
