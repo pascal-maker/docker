@@ -2,7 +2,7 @@
 phase: 1
 slug: foundation
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-04-02
 ---
@@ -38,14 +38,10 @@ created: 2026-04-02
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 1-xx-01 | TBD | 1 | INFRA-01 | unit | `cd apps/backend && python -m pytest tests/test_orchestrator/ -x -q` | New test needed | ⬜ pending |
-| 1-xx-02 | TBD | 1 | INFRA-01 | unit | `cd apps/backend && python -m pytest tests/test_orchestrator/ -x -q` | New test needed | ⬜ pending |
-| 1-xx-03 | TBD | 1 | INFRA-02 | unit | `cd apps/backend && python -m pytest tests/test_a2a/ -x -q` | `test_executor.py` exists; new test case | ⬜ pending |
-| 1-xx-04 | TBD | 2 | CLASS-01 | integration | `cd apps/backend && python -m pytest tests/test_engine/test_ts_morph_project_engine.py -x -q` | Exists; new test case | ⬜ pending |
-| 1-xx-05 | TBD | 2 | CLASS-01 | unit | `cd apps/backend && python -m pytest tests/test_engine/test_ts_morph_project_engine.py -x -q` | Exists; new test case | ⬜ pending |
-| 1-xx-06 | TBD | 2 | CLASS-01 | unit | `cd apps/backend && python -m pytest tests/ -k "migration" -x -q` | New test file needed | ⬜ pending |
-
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+| 01-01-T1 | 01 | 1 | INFRA-01 | unit | `cd apps/backend && python -m pytest tests/test_orchestrator/test_exception_narrowing.py -x -q` | New test needed | pending |
+| 01-01-T2 | 01 | 1 | INFRA-02 | unit | `cd apps/backend && python -m pytest tests/test_a2a/test_executor.py -x -q` | `test_executor.py` exists; new test case | pending |
+| 01-02-T1 | 02 | 1 | CLASS-01 | unit + ts-typecheck | `cd /Users/pascal-maker/refactor-agent && make ts-typecheck && cd apps/backend && python -m pytest tests/test_migration/test_models.py -x -q` | New test file needed | pending |
+| 01-02-T2 | 02 | 1 | CLASS-01 | integration | `cd /Users/pascal-maker/refactor-agent && make ts-typecheck && cd apps/backend && python -m pytest tests/test_engine/test_ts_morph_project_engine.py -x -q -k "react"` | Exists; new test case | pending |
 
 ---
 
@@ -68,11 +64,12 @@ created: 2026-04-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 90s
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 90s
+- [x] TypeScript tasks include `make ts-typecheck` in verify
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
