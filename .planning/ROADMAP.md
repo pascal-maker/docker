@@ -43,7 +43,12 @@ Plans:
   2. Each remaining component receives a tier assignment (`safe-auto`, `assisted`, or `manual`) with a per-component rationale string explaining the classification decision
   3. The tsc gate captures before-and-after per-file `(file, line, code)` fingerprints using the workspace's actual `tsconfig.json` — not hardcoded compiler defaults
   4. If any migrated file gains a new tsc error (by fingerprint comparison), the gate reports which file and error code introduced the regression
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Extend migration models with Phase 2 types and implement tsc gate with per-file fingerprint comparison (TSC-01 to TSC-05)
+- [ ] 02-02-PLAN.md — Bridge extension for forceUpdate detection and deterministic classifier (blocklist + heuristics) (CLASS-02, CLASS-04)
+- [ ] 02-03-PLAN.md — PydanticAI classifier agent and classify_components orchestrator (CLASS-03, CLASS-05)
 
 ### Phase 3: Migration Executor
 **Goal**: Safe-auto components are transformed from class to function components with hooks on a new isolated git branch, with the guarantee that any failure leaves the branch in the last clean committed state
@@ -90,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete   | 2026-04-01 |
-| 2. Classifier and tsc Gate | 0/TBD | Not started | - |
+| 2. Classifier and tsc Gate | 0/3 | Planned | - |
 | 3. Migration Executor | 0/TBD | Not started | - |
 | 4. PR Creation and Runner | 0/TBD | Not started | - |
 | 5. TypeScript Strict Hardening | 0/TBD | Not started | - |
