@@ -695,8 +695,8 @@ No missing dependencies. Phase 2 can execute immediately.
 |----------|-------|
 | Framework | pytest with pytest-asyncio (`asyncio_mode = auto`) |
 | Config file | `apps/backend/pyproject.toml` (`[tool.pytest.ini_options]`) |
-| Quick run command | `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest tests/test_migration/ -x -q` |
-| Full suite command | `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest -x -q` |
+| Quick run command | `cd apps/backend && python -m pytest tests/test_migration/ -x -q` |
+| Full suite command | `cd apps/backend && python -m pytest -x -q` |
 
 ### Phase Requirements to Test Map
 
@@ -718,9 +718,9 @@ No missing dependencies. Phase 2 can execute immediately.
 
 ### Sampling Rate
 
-- **Per task commit:** `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest tests/test_migration/ -x -q`
-- **Per wave merge:** `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest -x -q`
-- **Phase gate:** Full suite green + `make ts-typecheck` (if bridge is extended) before `/gsd:verify-work`
+- **Per task commit:** `cd apps/backend && python -m pytest tests/test_migration/ -x -q`
+- **Per wave merge:** `cd apps/backend && python -m pytest -x -q`
+- **Phase gate:** Full suite green + `make ts-typecheck` (if bridge is extended) before final verification
 
 ### Wave 0 Gaps
 

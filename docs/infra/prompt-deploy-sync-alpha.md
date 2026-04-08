@@ -6,7 +6,7 @@
 
 ## Context and corrections to the previous sync deploy plan
 
-A previous plan exists ([deploy_and_secure_sync_server_fdcfbc62](file:///Users/thomas/.cursor/plans/deploy_and_secure_sync_server_fdcfbc62.plan.md)) but it is **outdated**. Key corrections:
+A previous local plan (`deploy_and_secure_sync_server_fdcfbc62`) exists, but it is **outdated**. Key corrections:
 
 1. **Auth is GitHub OAuth, not API keys.** We completed a full auth overhaul: `GitHubTokenMiddleware` (Starlette `BaseHTTPMiddleware`) validates GitHub Bearer tokens via `api.github.com/user` with TTL cache, then checks user status in Firestore (pending/active/banned), enforces rate limits, and writes audit logs. The same middleware is already applied to both A2A and sync (`src/refactor_agent/sync/app.py` already has `GitHubTokenMiddleware`). There is NO `ApiKeyMiddleware` or `A2A_API_KEYS` — those were superseded. Local dev fallback: `A2A_API_KEY` env var bypasses GitHub for local development only.
 

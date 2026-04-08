@@ -5,8 +5,9 @@
 ### Core Pain
 
 Teams are sitting on massive codebases that can't be refactored "in one go."
-Upgrades (e.g. new React patterns, FastAPI migrations) demand enormous iteration
-effort — and you hit the ceiling fast when relying purely on "fancy agents."
+Upgrades (e.g. new React patterns, FastAPI migrations) demand enormous
+iteration effort, and you hit the ceiling fast when relying purely on "fancy
+agents."
 
 ---
 
@@ -14,10 +15,11 @@ effort — and you hit the ceiling fast when relying purely on "fancy agents."
 
 **Simple product surface, strong tech underneath.**
 
-- Use LLM calls + tool calls to iteratively plan toward a well-defined end state.
+- Use LLM calls + tool calls to iteratively plan toward a well-defined end
+  state.
 - Not one mega-refactor, but **pattern-by-pattern codemods**: for each known
   pattern, write a transformer that automatically rewrites the code
-  (deterministic where possible).
+  deterministically where possible.
 - Optional: **VS Code extension** as a UX layer (PLG entry point).
 - **CI/CD integration** (e.g. Aikido-style checks) to safely validate changes
   before they land.
@@ -27,11 +29,13 @@ effort — and you hit the ceiling fast when relying purely on "fancy agents."
 ## Distribution
 
 ### PLG (Product-Led Growth)
+
 - Self-serve onboarding
 - A compelling "wow" demo
 - Launch traction via Hacker News
 
 ### SLG (Sales-Led Growth)
+
 - Target larger teams with real "large codebase" pain
 - Faster adoption cycle + budget availability
 

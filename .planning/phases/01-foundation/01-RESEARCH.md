@@ -478,7 +478,7 @@ No missing dependencies. Phase 1 can execute immediately.
 
 - **Per task commit:** `cd apps/backend && python -m pytest tests/test_a2a/ tests/test_engine/ -x -q`
 - **Per wave merge:** `cd apps/backend && python -m pytest -x -q`
-- **Phase gate:** Full suite green + `make ts-typecheck` passes before `/gsd:verify-work`
+- **Phase gate:** Full suite green + `make ts-typecheck` passes before final verification
 
 ### Wave 0 Gaps
 

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pydantic-ai-docs": {
+      "command": "uv",
+      "args": ["run", "python", "scripts/mcp/run_pydantic_ai_docs_server.py"],
+      "cwd": "."
+    }
+  }
+}

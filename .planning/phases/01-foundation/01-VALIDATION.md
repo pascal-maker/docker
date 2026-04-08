@@ -29,7 +29,7 @@ created: 2026-04-02
 
 - **After every task commit:** Run `cd apps/backend && python -m pytest tests/test_a2a/ tests/test_engine/ -x -q`
 - **After every plan wave:** Run `cd apps/backend && python -m pytest -x -q`
-- **Before `/gsd:verify-work`:** Full suite green + `make ts-typecheck` passes
+- **Before final verification:** Full suite green + `make ts-typecheck` passes
 - **Max feedback latency:** ~90 seconds
 
 ---
@@ -40,8 +40,8 @@ created: 2026-04-02
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 01-01-T1 | 01 | 1 | INFRA-01 | unit | `cd apps/backend && python -m pytest tests/test_orchestrator/test_exception_narrowing.py -x -q` | New test needed | pending |
 | 01-01-T2 | 01 | 1 | INFRA-02 | unit | `cd apps/backend && python -m pytest tests/test_a2a/test_executor.py -x -q` | `test_executor.py` exists; new test case | pending |
-| 01-02-T1 | 02 | 1 | CLASS-01 | unit + ts-typecheck | `cd /Users/pascal-maker/refactor-agent && make ts-typecheck && cd apps/backend && python -m pytest tests/test_migration/test_models.py -x -q` | New test file needed | pending |
-| 01-02-T2 | 02 | 1 | CLASS-01 | integration | `cd /Users/pascal-maker/refactor-agent && make ts-typecheck && cd apps/backend && python -m pytest tests/test_engine/test_ts_morph_project_engine.py -x -q -k "react"` | Exists; new test case | pending |
+| 01-02-T1 | 02 | 1 | CLASS-01 | unit + ts-typecheck | `make ts-typecheck && cd apps/backend && python -m pytest tests/test_migration/test_models.py -x -q` | New test file needed | pending |
+| 01-02-T2 | 02 | 1 | CLASS-01 | integration | `make ts-typecheck && cd apps/backend && python -m pytest tests/test_engine/test_ts_morph_project_engine.py -x -q -k "react"` | Exists; new test case | pending |
 
 ---
 

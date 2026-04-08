@@ -19,17 +19,17 @@ created: 2026-04-02
 |----------|-------|
 | **Framework** | pytest with pytest-asyncio (asyncio_mode = auto) |
 | **Config file** | `apps/backend/pyproject.toml` (`[tool.pytest.ini_options]`) |
-| **Quick run command** | `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest tests/test_migration/ -x -q` |
-| **Full suite command** | `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest -x -q` |
+| **Quick run command** | `cd apps/backend && python -m pytest tests/test_migration/ -x -q` |
+| **Full suite command** | `cd apps/backend && python -m pytest -x -q` |
 | **Estimated runtime** | ~15 seconds (quick), ~45 seconds (full) |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest tests/test_migration/ -x -q`
-- **After every plan wave:** Run `cd /Users/pascal-maker/refactor-agent/apps/backend && python -m pytest -x -q`
-- **Before `/gsd:verify-work`:** Full suite green + `make ts-typecheck` (bridge extension) before verify
+- **After every task commit:** Run `cd apps/backend && python -m pytest tests/test_migration/ -x -q`
+- **After every plan wave:** Run `cd apps/backend && python -m pytest -x -q`
+- **Before final verification:** Full suite green + `make ts-typecheck` (bridge extension) before verify
 - **Max feedback latency:** ~45 seconds
 
 ---
@@ -40,7 +40,7 @@ created: 2026-04-02
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 02-xx-01 | TBD | 1 | CLASS-02, CLASS-03, CLASS-04, CLASS-05 | unit | `cd apps/backend && python -m pytest tests/test_migration/test_classifier.py -x -q` | Wave 0 | ⬜ pending |
 | 02-xx-02 | TBD | 1 | TSC-01, TSC-02, TSC-03, TSC-04, TSC-05 | unit | `cd apps/backend && python -m pytest tests/test_migration/test_tsc_gate.py -x -q` | Wave 0 | ⬜ pending |
-| 02-xx-03 | TBD | 1 | CLASS-02 bridge ext | ts-typecheck | `cd /Users/pascal-maker/refactor-agent && make ts-typecheck` | New files | ⬜ pending |
+| 02-xx-03 | TBD | 1 | CLASS-02 bridge ext | ts-typecheck | `make ts-typecheck` | New files | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

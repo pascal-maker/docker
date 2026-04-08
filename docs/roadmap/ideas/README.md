@@ -12,6 +12,7 @@ Design notes, future work, and deployment roadmap.
 - [Validation feedback](validation-feedback.md) — Idea: validate planner output and feed errors back to the LLM.
 - [Handoff prompts](handoff-prompts.md) — Handoff prompts for the planning agent; custom MCP bridge prompt.
 - [Extensible codemods](extensible-codemods.md) — Paths (on-the-fly vs RAG), iterative generation loop, prior art (Codemod.com), embedding for RAG.
+- [Go-to-market strategy](go-to-market-strategy.md) — Early GTM framing across PLG and SLG.
 
 ## Evaluation
 
