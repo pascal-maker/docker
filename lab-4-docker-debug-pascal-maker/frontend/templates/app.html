@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="title">Todo App</h1>
+    <p class="description">Welcome to the Todo App, a simple example of a microservice-based application using Docker, Python and PostgreSQL.</p>
+    <h2>Add new Todo</h2>
+    <div class="form-container">
+        <form action="/add-todo" method="post">
+            <input type="text" name="todo_text" placeholder="Enter todo text" required>
+            <input type="text" name="due_date" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
+            <button type="submit">Add Todo</button>
+        </form>
+    </div>
+    {% if todos %}
+    <h2>Your Todos</h2>
+    <ul class="todo-list">
+        {% for todo in todos %}
+            <li class="todo-item {% if todo.completed %}completed{% endif %}">
+                <div class="todo-text {% if todo.completed %}completed{% endif %}">{{ todo.todo_text }}</div>
+                {% if todo.due_date %}
+                <div class="due-date {% if todo.completed %}completed{% endif %}">
+                    Due: {{ todo.due_date.strftime('%d/%m/%Y') }}
+                </div>                
+                {% endif %}
+                {% if not todo.completed %}
+                <form action="{{ url_for('complete_todo', todo_id=todo.id) }}" method="post">
+                    <button type="submit" class="complete-button">Mark as completed</button>
+                </form>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>    
+    {% endif %}
+    <a class="link" href="/todos">Refresh</a>
+{% endblock %}
