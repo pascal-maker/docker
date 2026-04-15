@@ -1,0 +1,30 @@
+services:
+  external-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.14}
+        APP_PORT: 5050
+    container_name: external-web
+    expose:
+      - "5050"
+    environment:
+      - INSTANCE_NAME=${EXTERNAL_WEB_NAME:-External-Web}
+      - INSTANCE_COLOR=${EXTERNAL_WEB_COLOR:-#9775FA}
+    ports:
+      - "${EXTERNAL_WEB_HOST_PORT:-5050}:5050"
+    networks:
+      - shared_frontend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5050/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: ${RESTART_POLICY:-unless-stopped}
+
+networks:
+  shared_frontend:
+    external: true
+    name: ${FRONTEND_NETWORK:-frontend}

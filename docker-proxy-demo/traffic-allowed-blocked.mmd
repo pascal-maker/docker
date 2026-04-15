@@ -1,0 +1,38 @@
+flowchart LR
+    client["Client<br/>(Browser)"]
+    nginx["NGINX<br/>Public entrypoint :8080"]
+    webpool["webapp1/2/3<br/>No host ports"]
+    api["internal-api<br/>No host ports"]
+    ext["external-web<br/>Host port :5050 published"]
+    blocked1["BLOCKED<br/>http://localhost:5000/data"]
+    blocked2["BLOCKED<br/>http://localhost:5001/"]
+
+    client -->|"ALLOWED: GET /"| nginx
+    client -->|"ALLOWED: GET /webapp-api"| nginx
+    client -->|"ALLOWED: GET /internal-api/data"| nginx
+    client -->|"ALLOWED: GET http://localhost:5050/info"| ext
+    client -->|"ALLOWED: GET /external-project/info"| nginx
+
+    nginx -->|"ALLOWED: LB to /api/info"| webpool
+    nginx -->|"ALLOWED: reverse proxy to private API"| api
+    nginx -->|"ALLOWED: reverse proxy to separate project"| ext
+
+    client -.->|"BLOCKED example 1"| blocked1
+    client -.->|"BLOCKED example 2"| blocked2
+    blocked1 -.-> api
+    blocked2 -.-> webpool
+
+    classDef cClient fill:#e7f5ff,stroke:#1c7ed6,color:#0b3558;
+    classDef cNginx fill:#fff4e6,stroke:#f08c00,color:#7a3f00;
+    classDef cWeb fill:#e6fcf5,stroke:#12b886,color:#0b5d4d;
+    classDef cApi fill:#f3f0ff,stroke:#7950f2,color:#3f2a87;
+    classDef cExt fill:#f8f0fc,stroke:#ae3ec9,color:#6a1b75;
+    classDef cBlocked fill:#fff5f5,stroke:#e03131,color:#7a1b1b;
+
+    class client cClient;
+    class nginx cNginx;
+    class webpool cWeb;
+    class api cApi;
+    class ext cExt;
+    class blocked1 cBlocked;
+    class blocked2 cBlocked;

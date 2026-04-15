@@ -1,0 +1,42 @@
+flowchart TB
+    client["Client<br/>(Browser)"] -->|"HTTP :8080"| nginx
+    client -->|"HTTP :5050 (direct)"| ext
+
+    subgraph front["Frontend Network (bridge)"]
+        nginx["NGINX<br/>Reverse Proxy + Load Balancer"]
+        web1["webapp1<br/>Flask"]
+        web2["webapp2<br/>Flask"]
+        web3["webapp3<br/>Flask"]
+        ext["external-web<br/>Separate Compose Project"]
+    end
+
+    subgraph back["Backend Network (internal: true)"]
+        api["internal-api<br/>Private API"]
+    end
+
+    nginx -->|"Route / and /webapp-api<br/>round-robin"| web1
+    nginx -->|"Route / and /webapp-api<br/>round-robin"| web2
+    nginx -->|"Route / and /webapp-api<br/>round-robin"| web3
+
+    nginx -->|"Route /internal-api/*"| api
+    nginx -->|"Route /external-project/*"| ext
+
+    web1 -->|"internal service-to-service call"| api
+    web2 -->|"internal service-to-service call"| api
+    web3 -->|"internal service-to-service call"| api
+
+    classDef cClient fill:#e7f5ff,stroke:#1c7ed6,color:#0b3558;
+    classDef cNginx fill:#fff4e6,stroke:#f08c00,color:#7a3f00;
+    classDef cWeb1 fill:#ffe3e3,stroke:#fa5252,color:#641919;
+    classDef cWeb2 fill:#e6fcf5,stroke:#12b886,color:#0b5d4d;
+    classDef cWeb3 fill:#e7f5ff,stroke:#339af0,color:#0b4a75;
+    classDef cApi fill:#f3f0ff,stroke:#7950f2,color:#3f2a87;
+    classDef cExt fill:#f8f0fc,stroke:#ae3ec9,color:#6a1b75;
+
+    class client cClient;
+    class nginx cNginx;
+    class web1 cWeb1;
+    class web2 cWeb2;
+    class web3 cWeb3;
+    class api cApi;
+    class ext cExt;
