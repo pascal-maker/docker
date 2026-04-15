@@ -4,10 +4,10 @@ services:
         build:
             context: api
         image: docker-networking-demo_api
-        volumes:
-            - data:/mnt/data/storage
         ports:
             -  8080:80
+        volumes:
+            - data:/mnt/data/storage
     client:
         build:
             context: client
