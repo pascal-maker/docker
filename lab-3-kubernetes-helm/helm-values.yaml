@@ -1,0 +1,14 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/nathansegers/fastapi-intro
+  tag: v1.0.0
+
+nameOverride: "pascal-fastapi"
+fullnameOverride: "pascal-fastapi-demo"
+
+serviceAccount:
+  create: true
+  name: helm-service-account
+
+imagePullSecrets: []

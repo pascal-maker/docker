@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-api
+  namespace: howest-k8s-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storage-api
+  template:
+    metadata:
+      labels:
+        app: storage-api
+    spec:
+      containers:
+        - name: storage-api
+          image: ghcr.io/nathansegers/kubernetes-storage-test:latest
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: "/mnt/data/storage"
+              name: storage-data
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+      volumes:
+        - name: storage-data
+          persistentVolumeClaim:
+            claimName: pvc-storage-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-storage-api
+  namespace: howest-k8s-demo
+spec:
+  type: NodePort
+  selector:
+    app: storage-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30001

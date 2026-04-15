@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: default-backend
+  namespace: ingress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: default-backend
+  template:
+    metadata:
+      labels:
+        app: default-backend
+    spec:
+      containers:
+        - name: default-backend
+          image: pascal-maker/default-backend-k8s
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+          resources: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-default-backend
+  namespace: ingress
+spec:
+  selector:
+    app: default-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

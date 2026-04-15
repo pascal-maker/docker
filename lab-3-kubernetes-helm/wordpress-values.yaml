@@ -1,0 +1,7 @@
+wordpressUsername: pascal
+service:
+  type: NodePort
+  nodePorts:
+    http: 30010
+    https: 30011
+wordpressBlogName: Pascal's Blog

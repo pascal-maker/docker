@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-demo-app
+  namespace: howest-k8s-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: k8s-demo
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 50%
+  template:
+    metadata:
+      labels:
+        app: k8s-demo
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - k3d-k3s-default-agent-0
+      containers:
+        - name: demo-container
+          image: ghcr.io/howest-mct/minimal-k8s-demo:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PRIMARY_COLOR
+              value: "#9b59b6"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
