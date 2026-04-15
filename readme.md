@@ -1,76 +1,86 @@
-# Docker demos
+# Docker deployment
 
-## Networking demo
+Runs the sync server and A2A refactor agent in one isolated container. The local sync client keeps a replica in sync on save over WebSockets; the agent reads from the replica. An MCP bridge applies refactor results to your local workspace.
 
-```yaml
-services:
-    my-storage-api:
-        build:
-            context: api
-        image: ghcr.io/nathansegers/backend-demo-volume_api 
-        ports: 
-            - 8888:80
-        volumes:
-            - ./data:/mnt/data/storage
-    client:
-        hostname: client
-        build:
-            context: client
-        image: ghcr.io/nathansegers/backend-demo-volume_client
-        ports: 
-            - 8001:80 
+## Start the server
+
+```bash
+docker compose up --build
 ```
 
-1. Start the services, and build if necessary.
-2. Change the image names if you want to push it to any repository later on.
+This starts both the **LiteLLM proxy** (port 4000) and the **A2A server** (8765 WebSocket sync, 9999 A2A HTTP). Set `ANTHROPIC_API_KEY` in the environment or `.env`; the A2A server sends all LLM traffic through the proxy. Optional: set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` to use Langfuse for prompts and tracing; if unset, prompts are loaded from the bundled `prompts/` directory. To run only the A2A server (e.g. to talk to Anthropic directly), use `docker compose up a2a-server` and unset `LITELLM_PROXY_URL` in the environment.
 
-- Go to the client and use the "/images" endpoint.
-- Fill in a path you want to try
-  - localhost:80
-  - localhost:8888
-  - api:80
-  - api:8888
-  - my-storage-api:80
-  - my-storage-api:8888
+## Sync your workspace to the replica
 
-- Change the ports and try again
-- Remove the ports and try again
-- Add a hostname and try again
-- Change the service name and keep the hostname
-- Remove the hostname
+In another terminal, run the sync client. It watches for file saves and pushes changes to the container's replica directory.
 
-## Volumes demo
+From this repo, sync another project:
 
-- Remove the volumes section of the API
-- Demonstrate by stopping the API with **docker compose down**
-- Add a named volume to the services
-- Find out where the files are now
+```bash
+uv run python scripts/sync/run_poc_sync_client.py /path/to/your/python/project
+```
 
-## Exec demo for debugging
+Sync this repo itself:
 
-- Change `command: tail -f /dev/null`
-- Exec using commands
+```bash
+uv run python scripts/sync/run_poc_sync_client.py .
+```
 
-## Docker init
+From another directory:
 
-- `docker init` creates 4 useful files that you can use in your project for a very basic and quick to use Docker setup.
-- Use it when you already have your code written, and your project setup, so you can leverage the detection of your software.
+```bash
+uv run python <this-repo>/scripts/sync/run_poc_sync_client.py /path/to/your/python/project
+```
 
-## Docker watch
+Default WebSocket URL is `ws://localhost:8765`; override with `POC_SYNC_WS_URL` if needed.
 
-- `docker watch` makes it easier for you to develop your application and use auto-reloading and auto-rebuilding tools included in Docker Compose.
-Use this when you want to automatically rebuild your application into a new Docker image as soon as your requirements or your config files are changed and your app needs to be restarted and rebuilt.
-Docker watch can also detect file changes to sync and restart your container if needed. These are not copied into the build of your app.
+## Sync server when not using Docker
 
-## .dockerignore demo
+The A2A server in Docker runs both the **WebSocket sync server** and the **A2A HTTP server** in one container (see `docker/entrypoint.sh`). When running locally (no Docker), start them separately:
 
-- Go to `dockerignore_demo/` and run `docker compose up --build`.
-- Compare the output of `without-ignore` and `with-ignore`.
-- `with-ignore` excludes `secret.env` and `tmp/` from the image build context.
+1. **Sync server** (so a replica exists for `use_replica`):  
+   `uv run python -m refactor_agent.sync` or `uv run python scripts/sync/run_poc_sync_server.py`  
+   Listens on port 8765 by default (`POC_SYNC_PORT`).
 
-## depends_on + healthcheck demo
+2. **A2A HTTP server**:  
+   `uv run --directory apps/backend python scripts/a2a/run_ast_refactor_a2a.py`  
+   Listens on port 9999. The sync server must be running (and the client must have synced a workspace) if you use `use_replica`.
 
-- Go to `depends_on_health_demo/` and run `docker compose up --build`.
-- Open `http://localhost:8090` for an always-on UI that polls API health and shows an orange dot while the API warms up.
-- The same status UI also reads container state for `api` and `delayed-ui` via a Docker socket-backed internal API.
-- Open `http://localhost:8091` for a frontend that starts only after API health is `healthy` using `depends_on` with `condition: service_healthy`.
+## MCP bridge
+
+Use the refactor bridge so Cursor/Claude can call the remote agent (`use_replica`) and apply artifacts locally. Configure an MCP server that runs `scripts/run_refactor_bridge.py` with `cwd` set to this repo and env `A2A_REFACTOR_URL=http://localhost:9999` (and optional `WORKSPACE_ROOT` for apply path resolution). See the refactor bridge script for details.
+
+## LiteLLM proxy
+
+The Compose file includes a LiteLLM proxy so all LLM traffic is routed through one gateway (caching, load balancing). For local runs without Docker you can run the proxy separately:
+
+1. Install: `pip install 'litellm[proxy]'` (or use a separate env).
+2. Set `ANTHROPIC_API_KEY` in the environment.
+3. From the repo root: `litellm --config config/litellm.yaml` (listens on port 4000).
+4. In the app env set `LITELLM_PROXY_URL=http://localhost:4000`. Leave unset to talk to Anthropic directly.
+
+### Environment variables
+
+**App / adapter (when using the proxy):**
+
+- `LITELLM_PROXY_URL` — optional; if set, all Anthropic traffic goes through this URL (e.g. `http://localhost:4000` or `http://litellm:4000` in Compose).
+- `LITELLM_MASTER_KEY` — optional; proxy caller key when the proxy requires auth.
+- `ANTHROPIC_API_KEY` — required for real model calls (used by the app when not using the proxy, and by the proxy when it calls Anthropic).
+
+**Proxy process:**
+
+- `ANTHROPIC_API_KEY` — for routing to Anthropic.
+- If cache is enabled in `config/litellm.yaml`: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (or `REDIS_URL`).
+
+To point the Langfuse Playground and LLM-as-a-Judge at the same LiteLLM gateway (no UI setup), run once per project/environment:
+
+```bash
+# With LITELLM_PROXY_URL and Langfuse keys set (e.g. in .env):
+uv run python scripts/infra/setup_langfuse_llm_connection.py
+```
+
+If `LITELLM_PROXY_URL` is unset, the script no-ops. Optional: `LANGFUSE_LLM_CONNECTION_MODELS` (comma-separated model names; default `claude-sonnet-4-6`).
+
+### Open WebUI stack
+
+When the Open WebUI integration is added (adapter + Open WebUI in Compose), add the same LiteLLM proxy as a service in that stack. Use the same `config/litellm.yaml`; set `LITELLM_PROXY_URL=http://litellm:4000` (or the chosen service name) for the adapter and any other service that runs the refactor-agent code. No code change in the adapter beyond using the shared client.
